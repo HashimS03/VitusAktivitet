@@ -1,64 +1,134 @@
-import { View, Text, StyleSheet, SafeAreaView, TouchableOpacity, Image } from "react-native"
+import { useState, useEffect } from "react"
+import { View, Text, StyleSheet, SafeAreaView, TouchableOpacity, Image, ScrollView, Modal } from "react-native"
 import { MaterialCommunityIcons } from "@expo/vector-icons"
+import { useNavigation } from "@react-navigation/native"
+import InviteMembersScreen from "./InviteMembersScreen"
 
-const ActiveEvent = ({ navigation }) => {
+const ActiveEventImproved = ({ route }) => {
+  const { eventDetails } = route.params || {}
+  const [isModalVisible, setModalVisible] = useState(false)
+  const [showInviteScreen, setShowInviteScreen] = useState(false)
+  const navigation = useNavigation()
+
+  useEffect(() => {
+    navigation.setOptions({
+      transitionSpec: {
+        open: {
+          animation: "timing",
+          config: { duration: 300 },
+        },
+        close: {
+          animation: "timing",
+          config: { duration: 300 },
+        },
+      },
+      cardStyleInterpolator: ({ current, layouts }) => {
+        return {
+          cardStyle: {
+            opacity: current.progress,
+            transform: [
+              {
+                translateY: current.progress.interpolate({
+                  inputRange: [0, 1],
+                  outputRange: [layouts.screen.height, 0],
+                }),
+              },
+            ],
+          },
+        }
+      },
+    })
+  }, [navigation])
+
+  const toggleModal = () => {
+    setModalVisible(!isModalVisible)
+  }
+
+  const handleBackPress = () => {
+    navigation.navigate("EventsMain", { screen: "YourEvents" })
+  }
+
   return (
     <SafeAreaView style={styles.safeArea}>
-      <View style={styles.container}>
+      <ScrollView style={styles.container}>
         <View style={styles.header}>
-          <View style={styles.statusDot} />
-          <Text style={styles.title}>Din gruppe</Text>
-          <TouchableOpacity style={styles.closeButton} onPress={() => navigation.goBack()}>
-            <MaterialCommunityIcons name="close" size={24} color="#000" />
+          <TouchableOpacity onPress={handleBackPress} style={styles.backButton}>
+            <MaterialCommunityIcons name="arrow-left" size={24} color="#000" />
+          </TouchableOpacity>
+          <Text style={styles.title}>{eventDetails?.title || "Din gruppe"}</Text>
+          <TouchableOpacity onPress={toggleModal} style={styles.menuButton}>
+            <MaterialCommunityIcons name="dots-vertical" size={24} color="#000" />
           </TouchableOpacity>
         </View>
 
-        <View style={styles.locationContainer}>
-          <MaterialCommunityIcons name="map-marker" size={20} color="#666" />
-          <Text style={styles.locationText}>Alf bjeckes vei 28 • Oslo</Text>
-        </View>
+        <Image source={require("../../../assets/event-illustration.png")} style={styles.eventBanner} />
 
-        <Text style={styles.description}>Inviter medlemmer for{"\n"}å bli med i gruppen!</Text>
+        <View style={styles.eventInfoContainer}>
+          <Text style={styles.eventTitle}>{eventDetails?.title || "Hvem er sterkest? Push ups konkurranse"}</Text>
+          <View style={styles.eventDetails}>
+            <MaterialCommunityIcons name="calendar" size={20} color="#666" />
+            <Text style={styles.eventDetailText}>{eventDetails?.date || "Fri, Apr 23 • 6:00 PM"}</Text>
+          </View>
+          <View style={styles.eventDetails}>
+            <MaterialCommunityIcons name="map-marker" size={20} color="#666" />
+            <Text style={styles.eventDetailText}>{eventDetails?.location || "Alf bjeckes vei 28 • Oslo"}</Text>
+          </View>
+        </View>
 
         <View style={styles.membersSection}>
           <Text style={styles.sectionTitle}>Medlemmer</Text>
-          <Text style={styles.memberCount}>0 av 1 medlemmer</Text>
+          <Text style={styles.memberCount}>1 av 4 medlemmer</Text>
 
-          <View style={styles.membersList}>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.membersList}>
             <View style={styles.memberAvatar}>
               <Image source={require("../../../assets/member-avatar.png")} style={styles.avatarImage} />
               <Text style={styles.memberName}>Hanne</Text>
             </View>
             {[1, 2, 3].map((i) => (
-              <View key={i} style={styles.emptyAvatar}>
-                <MaterialCommunityIcons name="plus" size={24} color="#666" />
-              </View>
+              <TouchableOpacity key={i} style={styles.emptyAvatar} onPress={() => setShowInviteScreen(true)}>
+                <MaterialCommunityIcons name="plus" size={24} color="#00BFA5" />
+              </TouchableOpacity>
             ))}
+          </ScrollView>
+        </View>
+
+        <View style={styles.descriptionSection}>
+          <Text style={styles.sectionTitle}>Beskrivelse</Text>
+          <Text style={styles.descriptionText}>
+            {eventDetails?.description ||
+              "La oss se hvem som kan gjøre flest push-ups! Kom og bli med på denne morsomme konkurransen og test din styrke."}
+          </Text>
+        </View>
+
+        <TouchableOpacity style={styles.inviteButton} onPress={() => setShowInviteScreen(true)}>
+          <MaterialCommunityIcons name="account-plus" size={24} color="#FFF" />
+          <Text style={styles.inviteButtonText}>Inviter medlemmer</Text>
+        </TouchableOpacity>
+      </ScrollView>
+
+      <Modal animationType="fade" transparent={true} visible={isModalVisible} onRequestClose={toggleModal}>
+        <View style={styles.modalContainer}>
+          <View style={styles.modalContent}>
+            <TouchableOpacity style={styles.modalOption}>
+              <MaterialCommunityIcons name="pencil" size={24} color="#000" />
+              <Text style={styles.modalOptionText}>Rediger hendelse</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.modalOption}>
+              <MaterialCommunityIcons name="delete" size={24} color="#FF0000" />
+              <Text style={[styles.modalOptionText, { color: "#FF0000" }]}>Slett hendelse</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.modalCloseButton} onPress={toggleModal}>
+              <Text style={styles.modalCloseButtonText}>Lukk</Text>
+            </TouchableOpacity>
           </View>
         </View>
+      </Modal>
 
-        <View style={styles.eventSection}>
-          <Text style={styles.sectionTitle}>Hendelse</Text>
-          <TouchableOpacity style={styles.eventCard}>
-            <Image source={require("../../../assets/event-illustration.png")} style={styles.eventImage} />
-            <View style={styles.eventInfo}>
-              <View style={styles.eventHeader}>
-                <Text style={styles.eventTitle}>Hvem er sterkest? Push ups konkurranse</Text>
-                <MaterialCommunityIcons name="dots-vertical" size={24} color="#666" />
-              </View>
-              <View style={styles.eventDetails}>
-                <MaterialCommunityIcons name="map-marker" size={16} color="#666" />
-                <Text style={styles.eventLocation}>Alf bjeckes vei 28 • Oslo</Text>
-              </View>
-              <Text style={styles.eventDate}>Fri, Apr 23 • 6:00 PM</Text>
-            </View>
-          </TouchableOpacity>
-        </View>
-
-        <TouchableOpacity style={styles.doneButton} onPress={() => navigation.navigate("Events")}>
-          <Text style={styles.doneButtonText}>Done</Text>
-        </TouchableOpacity>
-      </View>
+      <InviteMembersScreen
+        visible={showInviteScreen}
+        onClose={() => setShowInviteScreen(false)}
+        eventId={eventDetails?.id || "123"}
+      />
     </SafeAreaView>
   )
 }
@@ -70,46 +140,53 @@ const styles = StyleSheet.create({
   },
   container: {
     flex: 1,
-    padding: 20,
   },
   header: {
     flexDirection: "row",
     alignItems: "center",
-    marginBottom: 16,
+    justifyContent: "space-between",
+    padding: 16,
   },
-  statusDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: "#00BFA5",
-    marginRight: 8,
+  backButton: {
+    padding: 8,
   },
   title: {
-    flex: 1,
-    fontSize: 24,
+    fontSize: 20,
     fontWeight: "bold",
     color: "#1A1A1A",
   },
-  closeButton: {
-    padding: 4,
+  menuButton: {
+    padding: 8,
   },
-  locationContainer: {
-    flexDirection: "row",
-    alignItems: "center",
+  eventBanner: {
+    width: "100%",
+    height: 200,
+    resizeMode: "cover",
+  },
+  eventInfoContainer: {
+    padding: 16,
+    backgroundColor: "#F5F5F5",
+    borderRadius: 12,
+    margin: 16,
+  },
+  eventTitle: {
+    fontSize: 24,
+    fontWeight: "bold",
+    color: "#1A1A1A",
     marginBottom: 12,
   },
-  locationText: {
-    fontSize: 14,
-    color: "#666",
-    marginLeft: 4,
+  eventDetails: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 8,
   },
-  description: {
-    fontSize: 14,
+  eventDetailText: {
+    fontSize: 16,
     color: "#666",
-    marginBottom: 32,
+    marginLeft: 8,
   },
   membersSection: {
-    marginBottom: 32,
+    padding: 16,
   },
   sectionTitle: {
     fontSize: 18,
@@ -124,15 +201,15 @@ const styles = StyleSheet.create({
   },
   membersList: {
     flexDirection: "row",
-    gap: 16,
   },
   memberAvatar: {
     alignItems: "center",
+    marginRight: 16,
   },
   avatarImage: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+    width: 60,
+    height: 60,
+    borderRadius: 30,
     marginBottom: 4,
   },
   memberName: {
@@ -140,76 +217,70 @@ const styles = StyleSheet.create({
     color: "#666",
   },
   emptyAvatar: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: "#F5F5F5",
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: "#E5F7F6",
     alignItems: "center",
     justifyContent: "center",
+    marginRight: 16,
   },
-  eventSection: {
-    flex: 1,
-  },
-  eventCard: {
-    borderRadius: 12,
-    backgroundColor: "#fff",
-    shadowColor: "#000",
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-    overflow: "hidden",
-  },
-  eventImage: {
-    width: "100%",
-    height: 120,
-    backgroundColor: "#F5F5F5",
-  },
-  eventInfo: {
+  descriptionSection: {
     padding: 16,
   },
-  eventHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "flex-start",
-    marginBottom: 8,
-  },
-  eventTitle: {
-    flex: 1,
+  descriptionText: {
     fontSize: 16,
-    fontWeight: "600",
-    color: "#1A1A1A",
+    color: "#666",
+    lineHeight: 24,
   },
-  eventDetails: {
+  inviteButton: {
     flexDirection: "row",
     alignItems: "center",
-    marginBottom: 4,
-  },
-  eventLocation: {
-    fontSize: 14,
-    color: "#666",
-    marginLeft: 4,
-  },
-  eventDate: {
-    fontSize: 14,
-    color: "#666",
-  },
-  doneButton: {
+    justifyContent: "center",
     backgroundColor: "#00BFA5",
     paddingVertical: 16,
     borderRadius: 12,
-    alignItems: "center",
-    marginTop: 24,
+    margin: 16,
   },
-  doneButtonText: {
+  inviteButtonText: {
     color: "#fff",
     fontSize: 16,
+    fontWeight: "600",
+    marginLeft: 8,
+  },
+  modalContainer: {
+    flex: 1,
+    justifyContent: "flex-end",
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+  },
+  modalContent: {
+    backgroundColor: "#FFF",
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    padding: 16,
+  },
+  modalOption: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: "#E0E0E0",
+  },
+  modalOptionText: {
+    fontSize: 16,
+    marginLeft: 16,
+  },
+  modalCloseButton: {
+    alignItems: "center",
+    paddingVertical: 16,
+    marginTop: 8,
+  },
+  modalCloseButtonText: {
+    fontSize: 16,
+    color: "#00BFA5",
     fontWeight: "600",
   },
 })
 
-export default ActiveEvent
+export default ActiveEventImproved
 
