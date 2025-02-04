@@ -16,7 +16,7 @@ import ConfettiCannon from "react-native-confetti-cannon";
 
 const TEAL_COLOR = "#00ADB5";
 const SCREEN_WIDTH = Dimensions.get("window").width;
-const DAILY_STEP_GOAL = 10;
+const DAILY_STEP_GOAL = 1000;
 
 export default function Dashboard() {
   const [stepCount, setStepCount] = useState(0);
@@ -43,7 +43,10 @@ export default function Dashboard() {
       )}
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity style={styles.iconButton}>
+        <TouchableOpacity
+          style={styles.iconButton}
+          onPress={() => navigation.navigate("Profile")} // 🔹 Navigerer til Setting.js
+        >
           <Users size={24} color="#666" />
         </TouchableOpacity>
         <TouchableOpacity style={styles.iconButton}>

@@ -20,7 +20,9 @@ import StepCounter from "../components/stepcounter/stepcounter";
 import ActivitySelect from "../components/stepconverter/activityselect";
 import DurationSelect from "../components/stepconverter/durationselect";
 import Confirmation from "../components/stepconverter/confirmation";
-
+import Setting from "../components/Setting/setting";
+import Profile from "../components/profile/profile";
+import Startscreen from "../components/startscreen/startscreen";
 
 
 // Create Navigators
@@ -92,7 +94,9 @@ const App = () => {
         <Stack.Screen name="ActivitySelect" component={ActivitySelect} />
         <Stack.Screen name="DurationSelect" component={DurationSelect} />
         <Stack.Screen name="Confirmation" component={Confirmation} />
-
+        <Stack.Screen name="Setting" component={Setting} />
+        <Stack.Screen name="Profile" component={Profile} />
+        <Stack.Screen name="Startscreen" component={Startscreen} />
       </Stack.Navigator>
     </NavigationContainer>
   );
