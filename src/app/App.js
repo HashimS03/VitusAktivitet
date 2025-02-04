@@ -17,6 +17,11 @@ import NewEvent from "../components/events/NewEvent";
 import ActiveEvent from "../components/events/active-event";
 import UpcommingEvents from "../components/events/upcomming-events";
 import StepCounter from "../components/stepcounter/stepcounter";
+import ActivitySelect from "../components/stepconverter/activityselect";
+import DurationSelect from "../components/stepconverter/durationselect";
+import Confirmation from "../components/stepconverter/confirmation";
+
+
 
 // Create Navigators
 const Tab = createBottomTabNavigator();
@@ -40,8 +45,8 @@ const TabNavigator = () => (
       headerShown: false,
     }}
   >
-    <Tab.Screen name="Leaderboard" component={Leaderboard} />
     <Tab.Screen name="Home" component={Dashboard} />
+    <Tab.Screen name="Leaderboard" component={Leaderboard} />
     <Tab.Screen name="Events" component={EventsStack} />
   </Tab.Navigator>
 );
@@ -83,8 +88,11 @@ const App = () => {
         {/* Avatar Selection */}
         <Stack.Screen name="AvatarSelection" component={AvatarSelection} />
         {/* Main App (Tabs) */}
-
         <Stack.Screen name="MainApp" component={TabNavigator} />
+        <Stack.Screen name="ActivitySelect" component={ActivitySelect} />
+        <Stack.Screen name="DurationSelect" component={DurationSelect} />
+        <Stack.Screen name="Confirmation" component={Confirmation} />
+
       </Stack.Navigator>
     </NavigationContainer>
   );
