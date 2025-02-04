@@ -16,13 +16,13 @@ import {
   Check,
   TrendingUp,
 } from "lucide-react-native";
-import { useNavigation } from "@react-navigation/native"; // 👈 Importer navigasjon
+import { useNavigation } from "@react-navigation/native";
 
 const TABS = ["STATS", "ACHIEVEMENTS", "ACTIVITY"];
 
 const Profile = () => {
   const [activeTab, setActiveTab] = useState("STATS");
-  const navigation = useNavigation(); // 👈 Hent navigasjon
+  const navigation = useNavigation();
 
   const statsData = [
     {
@@ -80,7 +80,6 @@ const Profile = () => {
           <ChevronLeft size={24} color="#000" />
         </TouchableOpacity>
         <TouchableOpacity onPress={() => navigation.navigate("Setting")}>
-          {/* 👆 Naviger til Setting når man trykker på ikonet */}
           <Settings size={24} color="#000" />
         </TouchableOpacity>
       </View>
@@ -113,7 +112,7 @@ const Profile = () => {
           ))}
         </View>
 
-        <View style={styles.statsGrid}>
+        <View style={styles.statsContainer}>
           {statsData.map((stat, index) => (
             <View key={index} style={styles.statCard}>
               <View
@@ -130,7 +129,8 @@ const Profile = () => {
           ))}
         </View>
 
-        <View style={styles.racesSection}>
+        {/* Races Section with White Container */}
+        <View style={styles.racesContainer}>
           <Text style={styles.sectionTitle}>Latest Races</Text>
           {races.map((race, index) => (
             <View key={index} style={styles.raceItem}>
@@ -206,7 +206,7 @@ const styles = StyleSheet.create({
     color: "#00ADB5",
     fontWeight: "600",
   },
-  statsGrid: {
+  statsContainer: {
     flexDirection: "row",
     flexWrap: "wrap",
     padding: 16,
@@ -218,10 +218,7 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     padding: 16,
     shadowColor: "#000",
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
+    shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 8,
     elevation: 4,
@@ -243,13 +240,22 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: "#9e9fa1",
   },
-  racesSection: {
+  /* White Container for Latest Races */
+  racesContainer: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 16,
     padding: 16,
+    margin: 16,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 4,
   },
   sectionTitle: {
     fontSize: 20,
     fontWeight: "600",
-    color: "#9e9fa1",
+    color: "#1A1A1A",
     marginBottom: 16,
   },
   raceItem: {
