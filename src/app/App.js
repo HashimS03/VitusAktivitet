@@ -115,7 +115,7 @@ const App = () => {
         <Stack.Screen name="Confirmation" component={Confirmation} />
         <Stack.Screen name="Setting" component={Setting} />
         <Stack.Screen name="Profile" component={Profile} />
-        <Stack.Screen name="Startscreen" component={Startscreen} />
+        <Stack.Screen name="Startscreen" component={StartScreen} />
       </Stack.Navigator>
     </NavigationContainer>
   )
