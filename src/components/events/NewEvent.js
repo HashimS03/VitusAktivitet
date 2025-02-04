@@ -22,7 +22,7 @@ const NewEvent = ({ navigation }) => {
         </TouchableOpacity>
 
         <Image
-          source={require("../../../assets/animals-bg.png")}
+          source={require("../../../assets/animals-bg.png")} // Update with your sleeping cat image
           style={styles.backgroundImage}
           resizeMode="contain"
         />
@@ -30,10 +30,16 @@ const NewEvent = ({ navigation }) => {
         <View style={styles.formContainer}>
           <Text style={styles.label}>Legg til Tittel på Aktivitet</Text>
           <View style={styles.inputContainer}>
-            <TextInput style={styles.input} value={title} onChangeText={setTitle} placeholder="Tittle" />
+            <TextInput 
+              style={styles.input} 
+              value={title} 
+              onChangeText={setTitle} 
+              placeholder="Tittle"
+              placeholderTextColor="#999" 
+            />
             {title !== "" && (
               <TouchableOpacity style={styles.clearButton} onPress={() => setTitle("")}>
-                <MaterialCommunityIcons name="close-circle" size={20} color="#666" />
+                <MaterialCommunityIcons name="close" size={20} color="#999" />
               </TouchableOpacity>
             )}
           </View>
@@ -45,11 +51,12 @@ const NewEvent = ({ navigation }) => {
               value={description}
               onChangeText={setDescription}
               placeholder="Description"
+              placeholderTextColor="#999"
               multiline
             />
             {description !== "" && (
               <TouchableOpacity style={styles.clearButton} onPress={() => setDescription("")}>
-                <MaterialCommunityIcons name="close-circle" size={20} color="#666" />
+                <MaterialCommunityIcons name="close" size={20} color="#999" />
               </TouchableOpacity>
             )}
           </View>
@@ -63,7 +70,7 @@ const NewEvent = ({ navigation }) => {
               minimumValue={0}
               maximumValue={100}
               minimumTrackTintColor="#00BFA5"
-              maximumTrackTintColor="#E0E0E0"
+              maximumTrackTintColor="#E5E5E5"
               thumbTintColor="#00BFA5"
             />
           </View>
@@ -79,11 +86,17 @@ const NewEvent = ({ navigation }) => {
           </View>
 
           <View style={styles.buttonContainer}>
-            <TouchableOpacity style={styles.cancelButton}>
-              <Text style={styles.buttonText}>Avbryt</Text>
+            <TouchableOpacity 
+              style={styles.cancelButton}
+              onPress={() => navigation.goBack()}
+            >
+              <Text style={[styles.buttonText, styles.cancelText]}>Avbryt</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.confirmButton} onPress={handleConfirm}>
-              <Text style={styles.buttonText}>Godta</Text>
+            <TouchableOpacity 
+              style={styles.confirmButton}
+              onPress={handleConfirm}
+            >
+              <Text style={[styles.buttonText, styles.confirmText]}>Godta</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -101,23 +114,22 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   backButton: {
-    padding: 16,
+    position: 'absolute',
+    top: 16,
+    left: 16,
     zIndex: 1,
   },
   backgroundImage: {
     width: "100%",
-    height: 200,
-    position: "absolute",
-    top: 0,
-    opacity: 0.5,
+    height: 240,
+    marginTop: -20,
   },
   formContainer: {
     flex: 1,
     padding: 20,
-    paddingTop: 180,
   },
   label: {
-    fontSize: 16,
+    fontSize: 20,
     fontWeight: "600",
     marginBottom: 12,
     color: "#1A1A1A",
@@ -130,12 +142,13 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     marginBottom: 24,
     backgroundColor: "#fff",
+    height: 56,
   },
   input: {
     flex: 1,
     paddingHorizontal: 16,
-    paddingVertical: 12,
     fontSize: 16,
+    color: "#1A1A1A",
   },
   clearButton: {
     padding: 8,
@@ -150,48 +163,56 @@ const styles = StyleSheet.create({
   },
   dateContainer: {
     flexDirection: "row",
-    gap: 12,
+    gap: 16,
     marginBottom: 24,
   },
   dateInput: {
     flex: 1,
-    padding: 12,
+    height: 56,
+    justifyContent: 'center',
+    paddingHorizontal: 16,
     borderWidth: 1,
     borderColor: "#E0E0E0",
     borderRadius: 12,
     backgroundColor: "#fff",
   },
   dateText: {
-    color: "#666",
+    color: "#999",
     fontSize: 16,
   },
   buttonContainer: {
     flexDirection: "row",
     justifyContent: "space-between",
-    gap: 12,
+    gap: 16,
     marginTop: "auto",
     paddingBottom: 34,
   },
   cancelButton: {
     flex: 1,
-    backgroundColor: "#FFE5E5",
-    paddingVertical: 16,
-    borderRadius: 12,
+    height: 56,
+    backgroundColor: "#FFF2F2",
+    justifyContent: 'center',
     alignItems: "center",
+    borderRadius: 12,
   },
   confirmButton: {
     flex: 1,
+    height: 56,
     backgroundColor: "#00BFA5",
-    paddingVertical: 16,
-    borderRadius: 12,
+    justifyContent: 'center',
     alignItems: "center",
+    borderRadius: 12,
   },
   buttonText: {
     fontSize: 16,
     fontWeight: "600",
-    color: "#1A1A1A",
+  },
+  cancelText: {
+    color: "#FF0000",
+  },
+  confirmText: {
+    color: "#FFF",
   },
 })
 
 export default NewEvent
-
