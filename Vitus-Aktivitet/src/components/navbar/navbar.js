@@ -3,12 +3,20 @@ import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
 import { Users, Home, Calendar } from "lucide-react-native";
 
 const Navbar = ({ state, descriptors, navigation }) => {
+  // Reorder the routes to put Home in the middle
+  const orderedRoutes = state.routes.slice().sort((a, b) => {
+    if (a.name === "Home") return 0;
+    if (a.name === "Leaderboard") return -1;
+    if (a.name === "Events") return 1;
+    return 0;
+  });
+
   return (
     <View style={styles.container}>
-      {state.routes.map((route, index) => {
+      {orderedRoutes.map((route, index) => {
         const { options } = descriptors[route.key];
         const label = options.tabBarLabel ?? options.title ?? route.name;
-        const isFocused = state.index === index;
+        const isFocused = state.routes.indexOf(route) === state.index;
 
         const onPress = () => {
           const event = navigation.emit({
@@ -39,19 +47,17 @@ const Navbar = ({ state, descriptors, navigation }) => {
 
         return (
           <TouchableOpacity
-            key={index}
+            key={route.key}
             onPress={onPress}
             style={[styles.tab]}
-            activeOpacity={1} // Prevents button animation effect
+            activeOpacity={1}
           >
-            {/* Background oval for active tab */}
             <View
               style={[
                 styles.oval,
                 isFocused && styles.activeOval,
-                route.name === "Leaderboard" &&
-                  isFocused &&
-                  styles.widerLeaderboard, // Slightly wider for Leaderboard
+                route.name === "Leaderboard" && isFocused && styles.widerLeaderboard,
+                route.name === "Home" && styles.homeTab,
               ]}
             >
               <Icon size={24} color={isFocused ? "#000" : "#808080"} />
@@ -72,7 +78,7 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: "#E5E5E5",
     alignItems: "center",
-    justifyContent: "space-evenly",
+    justifyContent: "space-between", // Changed to space-between
     paddingHorizontal: 20,
   },
   tab: {
@@ -84,7 +90,7 @@ const styles = StyleSheet.create({
     flexDirection: "column",
     alignItems: "center",
     justifyContent: "center",
-    width: 90, // Default width
+    width: 90,
     height: 50,
     borderRadius: 25,
   },
@@ -92,7 +98,10 @@ const styles = StyleSheet.create({
     backgroundColor: "#00BFA5",
   },
   widerLeaderboard: {
-    width: 100, // Slightly wider for "Leaderboard" only
+    width: 100,
+  },
+  homeTab: {
+    marginHorizontal: 20, // Add spacing around home tab
   },
   activeText: {
     fontSize: 12,
