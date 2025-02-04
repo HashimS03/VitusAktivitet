@@ -24,9 +24,11 @@ import Setting from "../components/Setting/setting";
 import JoinEvent from "../components/events/JoinEvent";
 import NewEvent from "../components/events/NewEvent";
 import ActiveEvent from "../components/events/active-event";
-import ActiveEventImproved from "../components/events/active-event"; 
+import ActiveEventImproved from "../components/events/active-event"; //trenger vi denne?
+
 import InviteMembersScreen from "../components/events/InviteMembersScreen";
-import UpcommingEvents from "../components/events/upcomming-events";
+import UpcomingEvents from "../components/events/upcomming-events";
+import EventDetail from "../components/events/EventDetail";
 
 // Step Counting and Activity Tracking
 import StepCounter from "../components/stepcounter/stepcounter";
@@ -39,10 +41,9 @@ import GenderSelection from "../components/genderselection/genderselection";
 import DepartmentSelection from "../components/departmentselection/departmentselection";
 import AvatarSelection from "../components/avatarselection/avatarselection";
 
-
 // Create Navigators
-const Tab = createBottomTabNavigator()
-const Stack = createNativeStackNavigator()
+const Tab = createBottomTabNavigator();
+const Stack = createNativeStackNavigator();
 
 /** Events Stack - Handles event-related screens */
 const EventsStack = () => (
@@ -50,20 +51,12 @@ const EventsStack = () => (
     <Stack.Screen name="EventsMain" component={EventsNavigation} />
     <Stack.Screen name="JoinEvent" component={JoinEvent} />
     <Stack.Screen name="NewEvent" component={NewEvent} />
-    <Stack.Screen
-      name="ActiveEvent"
-      component={ActiveEventImproved}
-      options={({ navigation }) => ({
-        headerLeft: () => (
-          <TouchableOpacity onPress={() => navigation.navigate("EventsMain", { screen: "YourEvents" })}>
-            <MaterialCommunityIcons name="arrow-left" size={24} color="#000" />
-          </TouchableOpacity>
-        ),
-      })}
-    />
+    <Stack.Screen name="EventDetail" component={EventDetail} />
+    <Stack.Screen name="ActiveEvent" component={ActiveEvent} />
     <Stack.Screen name="InviteMembers" component={InviteMembersScreen} />
+    <Stack.Screen name="UpcomingEvents" component={UpcomingEvents} />
   </Stack.Navigator>
-)
+);
 
 /** Bottom Tab Navigator - Main App Navigation */
 const TabNavigator = () => (
@@ -77,7 +70,7 @@ const TabNavigator = () => (
     <Tab.Screen name="Leaderboard" component={Leaderboard} />
     <Tab.Screen name="Events" component={EventsStack} />
   </Tab.Navigator>
-)
+);
 
 /** Root Stack Navigator - Handles authentication & app navigation */
 const App = () => {
@@ -85,30 +78,35 @@ const App = () => {
     <NavigationContainer>
       <Stack.Navigator
         initialRouteName="Start"
-        screenOptions={{
-          headerShown: false,
-        }}
+        screenOptions={{ headerShown: false }}
       >
-        {/* Authentication Screens */}
         <Stack.Screen name="Start" component={StartScreen} />
         <Stack.Screen name="Login" component={LoginScreen} />
         <Stack.Screen name="SignUp" component={CreateAccountScreen} />
+
         {/* Gender Selection */}
         <Stack.Screen name="GenderSelection">
-          {(props) => <GenderSelection {...props} onComplete={(gender) => console.log("Selected Gender:", gender)} />}
+          {(props) => (
+            <GenderSelection
+              {...props}
+              onComplete={(gender) => console.log("Selected Gender:", gender)}
+            />
+          )}
         </Stack.Screen>
+
         {/* Department Selection */}
         <Stack.Screen name="DepartmentSelection">
           {(props) => (
             <DepartmentSelection
               {...props}
-              onComplete={(department) => console.log("Selected Department:", department)}
+              onComplete={(department) =>
+                console.log("Selected Department:", department)
+              }
             />
           )}
         </Stack.Screen>
-        {/* Avatar Selection */}
+
         <Stack.Screen name="AvatarSelection" component={AvatarSelection} />
-        {/* Main App (Tabs) */}
         <Stack.Screen name="MainApp" component={TabNavigator} />
         <Stack.Screen name="ActivitySelect" component={ActivitySelect} />
         <Stack.Screen name="DurationSelect" component={DurationSelect} />
@@ -118,8 +116,7 @@ const App = () => {
         <Stack.Screen name="Startscreen" component={StartScreen} />
       </Stack.Navigator>
     </NavigationContainer>
-  )
-}
+  );
+};
 
-export default App
-
+export default App;
