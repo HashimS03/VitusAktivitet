@@ -1,5 +1,4 @@
-// First, let's update the leaderboard with more entries and improved styling...
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   SafeAreaView,
   View,
@@ -9,6 +8,7 @@ import {
   StyleSheet,
   FlatList,
   Animated,
+  ActivityIndicator
 } from 'react-native';
 import { Settings, TrendingUp, TrendingDown } from 'lucide-react-native';
 
@@ -17,82 +17,40 @@ const TEAL_COLOR = '#00BFA5';
 const Leaderboard = () => {
   const [selectedSegment, setSelectedSegment] = useState('I DAG');
   const [fadeAnim] = useState(new Animated.Value(1));
+  const [leaderboardData, setLeaderboardData] = useState([]);
+  const [topThree, setTopThree] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
-  const leaderboardData = [
-    {
-      id: '4',
-      name: 'Sjartan',
-      points: 950,
-      change: +2,
-      avatar: require('../../../assets/figure/avatar1.jpg'),
-    },
-    {
-      id: '5',
-      name: 'Ahmed',
-      points: 920,
-      change: -1,
-      avatar: require('../../../assets/figure/avatar2.jpg'),
-    },
-    {
-      id: '6',
-      name: 'Emma',
-      points: 880,
-      change: +3,
-      avatar: require('../../../assets/figure/avatar3.jpg'),
-    },
-    {
-      id: '7',
-      name: 'Lars',
-      points: 850,
-      change: -2,
-      avatar: require('../../../assets/figure/avatar4.jpeg'),
-    },
-    {
-      id: '8',
-      name: 'Sofia',
-      points: 820,
-      change: +1,
-      avatar: require('../../../assets/figure/avatar5.jpeg'),
-    },
-    {
-      id: '9',
-      name: 'Magnus',
-      points: 780,
-      change: -3,
-      avatar: require('../../../assets/figure/avatar6.jpg'),
-    },
-    {
-      id: '10',
-      name: 'Isabella',
-      points: 750,
-      change: +4,
-      avatar: require('../../../assets/figure/avatar7.jpeg'),
-    }
-  ];
+  // Fetch leaderboard data from API
+  const fetchLeaderboardData = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const response = await fetch('http://localhost:3001/leaderboard/'); // Replace with your actual API URL
+      const data = await response.json();
 
-  const topThree = [
-    {
-      id: '2',
-      name: 'Hashem',
-      points: 1500,
-      avatar: require('../../../assets/figure/hashem.png'),
-      medal: '🥈'
-    },
-    {
-      id: '1',
-      name: 'Ho Daniel',
-      points: 2000,
-      avatar: require('../../../assets/figure/daniel.png'),
-      medal: '🥇'
-    },
-    {
-      id: '3',
-      name: 'Sarim',
-      points: 1200,
-      avatar: require('../../../assets/figure/sarim.png'),
-      medal: '🥉'
+      if (!response.ok) {
+        throw new Error('Failed to fetch leaderboard data');
+      }
+
+      // Sort and extract top three
+      const sortedData = [...data].sort((a, b) => b.points - a.points);
+      setTopThree(sortedData.slice(0, 3));
+      setLeaderboardData(sortedData.slice(3));
+
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
     }
-  ];
+  };
+
+  useEffect(() => {
+    fetchLeaderboardData();
+    const interval = setInterval(fetchLeaderboardData, 10000); // Refresh every 10s
+    return () => clearInterval(interval);
+  }, []);
 
   const handleSegmentChange = (segment) => {
     Animated.sequence([
@@ -114,23 +72,18 @@ const Leaderboard = () => {
     <View style={styles.topThreeContainer}>
       {topThree.map((item, index) => {
         const isWinner = index === 1;
+        const medals = ['🥇', '🥈', '🥉'];
         return (
           <View 
             key={item.id} 
-            style={[
-              styles.topThreeItem,
-              isWinner && styles.winnerItem
-            ]}
+            style={[styles.topThreeItem, isWinner && styles.winnerItem]}
           >
             <View style={styles.avatarContainer}>
               <Image 
-                source={item.avatar} 
-                style={[
-                  styles.topThreeAvatar,
-                  isWinner && styles.winnerAvatar
-                ]} 
+                source={{ uri: item.avatar }} 
+                style={[styles.topThreeAvatar, isWinner && styles.winnerAvatar]} 
               />
-              <Text style={styles.medalIcon}>{item.medal}</Text>
+              <Text style={styles.medalIcon}>{medals[index]}</Text>
             </View>
             <Text style={styles.topThreeName}>{item.name}</Text>
             <Text style={styles.topThreePoints}>
@@ -159,7 +112,7 @@ const Leaderboard = () => {
       </View>
 
       <View style={styles.playerInfo}>
-        <Image source={item.avatar} style={styles.listAvatar} />
+        <Image source={{ uri: item.avatar }} style={styles.listAvatar} />
         <View>
           <Text style={styles.playerName}>{item.name}</Text>
           <Text style={styles.playerRank}>Rank #{index + 4}</Text>
@@ -213,182 +166,42 @@ const Leaderboard = () => {
         </TouchableOpacity>
       </View>
 
-      <FlatList
-        ListHeaderComponent={renderTopThree}
-        data={leaderboardData}
-        keyExtractor={(item) => item.id}
-        renderItem={renderLeaderboardItem}
-        contentContainerStyle={styles.listContainer}
-        showsVerticalScrollIndicator={false}
-      />
+      {loading ? (
+        <ActivityIndicator size="large" color={TEAL_COLOR} />
+      ) : error ? (
+        <Text style={styles.errorText}>{error}</Text>
+      ) : (
+        <FlatList
+          ListHeaderComponent={renderTopThree}
+          data={leaderboardData}
+          keyExtractor={(item) => item.id.toString()}
+          renderItem={renderLeaderboardItem}
+          contentContainerStyle={styles.listContainer}
+          showsVerticalScrollIndicator={false}
+        />
+      )}
     </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#FFF',
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingVertical: 16,
-  },
-  headerTitle: {
-    fontSize: 32,
-    fontWeight: '700',
-    color: '#000',
-  },
-  settingsButton: {
-    padding: 8,
-    borderRadius: 12,
-    backgroundColor: '#F5F5F5',
-  },
-  segmentContainer: {
-    flexDirection: 'row',
-    marginHorizontal: 20,
-    backgroundColor: '#F5F5F5',
-    borderRadius: 25,
-    padding: 4,
-    marginBottom: 24,
-  },
-  segmentButton: {
-    flex: 1,
-    paddingVertical: 12,
-    alignItems: 'center',
-    borderRadius: 21,
-  },
-  segmentButtonActive: {
-    backgroundColor: TEAL_COLOR,
-  },
-  segmentText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#666',
-  },
-  segmentTextActive: {
-    color: '#FFF',
-  },
-  topThreeContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    marginBottom: 32,
-  },
-  topThreeItem: {
-    alignItems: 'center',
-    flex: 1,
-    paddingVertical: 16,
-  },
-  winnerItem: {
-    transform: [{ scale: 1.1 }],
-  },
-  avatarContainer: {
-    position: 'relative',
-    marginBottom: 12,
-  },
-  topThreeAvatar: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    borderWidth: 3,
-    borderColor: '#FFF',
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 4,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 6,
-  },
-  winnerAvatar: {
-    width: 90,
-    height: 90,
-    borderRadius: 45,
-  },
-  medalIcon: {
-    position: 'absolute',
-    bottom: -5,
-    right: -5,
-    fontSize: 24,
-    backgroundColor: '#FFF',
-    borderRadius: 12,
-    overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-  },
-  topThreeName: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#000',
-    marginBottom: 4,
-  },
-  topThreePoints: {
-    fontSize: 14,
-    color: '#666',
-  },
-  listContainer: {
-    paddingBottom: 20,
-  },
-  leaderboardRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#F8F8F8',
-    padding: 16,
-    marginHorizontal: 20,
-    borderRadius: 12,
-    marginBottom: 8,
-  },
-  rankContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    width: 50,
-  },
-  changeText: {
-    marginLeft: 4,
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  positive: {
-    color: '#4CAF50',
-  },
-  negative: {
-    color: '#F44336',
-  },
-  playerInfo: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  listAvatar: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    marginRight: 12,
-  },
-  playerName: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#000',
-    marginBottom: 4,
-  },
-  playerRank: {
-    fontSize: 12,
-    color: '#666',
-  },
-  pointsText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: TEAL_COLOR,
-  },
+  container: { flex: 1, backgroundColor: '#FFF' },
+  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingVertical: 16 },
+  headerTitle: { fontSize: 32, fontWeight: '700', color: '#000' },
+  settingsButton: { padding: 8, borderRadius: 12, backgroundColor: '#F5F5F5' },
+  segmentContainer: { flexDirection: 'row', marginHorizontal: 20, backgroundColor: '#F5F5F5', borderRadius: 25, padding: 4, marginBottom: 24 },
+  segmentButton: { flex: 1, paddingVertical: 12, alignItems: 'center', borderRadius: 21 },
+  segmentButtonActive: { backgroundColor: TEAL_COLOR },
+  segmentText: { fontSize: 14, fontWeight: '600', color: '#666' },
+  segmentTextActive: { color: '#FFF' },
+  topThreeContainer: { flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: 20, marginBottom: 32 },
+  topThreeItem: { alignItems: 'center', flex: 1, paddingVertical: 16 },
+  winnerItem: { transform: [{ scale: 1.1 }] },
+  avatarContainer: { position: 'relative', marginBottom: 12 },
+  topThreeAvatar: { width: 80, height: 80, borderRadius: 40 },
+  winnerAvatar: { width: 90, height: 90, borderRadius: 45 },
+  medalIcon: { position: 'absolute', bottom: -5, right: -5, fontSize: 24 },
+  errorText: { color: 'red', textAlign: 'center', marginVertical: 20 }
 });
 
 export default Leaderboard;
