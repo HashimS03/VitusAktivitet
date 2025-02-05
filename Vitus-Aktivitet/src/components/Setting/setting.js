@@ -11,6 +11,7 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native"; // 👈 Importer navigasjon
 
+
 const SettingsRow = ({ icon, title, value, onPress }) => (
   <TouchableOpacity style={styles.settingsRow} onPress={onPress}>
     <View style={styles.settingsLeft}>
@@ -93,8 +94,12 @@ export default function SettingScreen() {
           <SettingsRow
             icon="log-out"
             title="Logg ut"
-            onPress={() => navigation.navigate("Startscreen")} // 👈 Navigerer til StartScreen
-          />
+            onPress={() => {
+              navigation.reset({
+                index: 0,
+                routes: [{ name: "Start" }], // ✅ Use "Start" instead of "Startscreen"
+              });
+            }}/>
         </SettingsSection>
       </ScrollView>
     </SafeAreaView>
