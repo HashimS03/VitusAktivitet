@@ -18,9 +18,10 @@ import {
 } from "lucide-react-native";
 import { useNavigation } from "@react-navigation/native";
 
+
 const TABS = ["STATS", "ACHIEVEMENTS", "ACTIVITY"];
 
-const Profile = () => {
+const Stats = () => {
   const [activeTab, setActiveTab] = useState("STATS");
   const navigation = useNavigation();
 
@@ -85,7 +86,7 @@ const Profile = () => {
       </View>
 
       <ScrollView style={styles.content}>
-        <View style={styles.profileSection}>
+        <View style={styles.statsSection}>
           <Image
             source={require("../../../assets/figure/aura.jpeg")}
             style={styles.avatar}
@@ -168,7 +169,7 @@ const styles = StyleSheet.create({
   content: {
     flex: 1,
   },
-  profileSection: {
+  statsSection: {
     alignItems: "center",
     marginTop: 20,
   },
@@ -295,4 +296,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default Profile;
+export default Stats;

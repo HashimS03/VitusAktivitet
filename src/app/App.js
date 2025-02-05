@@ -17,7 +17,7 @@ import LoginScreen from "../components/login/login";
 import CreateAccountScreen from "../components/opprett/opprett";
 
 // User Profile and Settings
-import Profile from "../components/profile/profile";
+import Stats from "../components/profile/stats";
 import Setting from "../components/Setting/setting";
 
 // Events and Event Management
@@ -40,6 +40,14 @@ import Confirmation from "../components/stepconverter/confirmation";
 import GenderSelection from "../components/genderselection/genderselection";
 import DepartmentSelection from "../components/departmentselection/departmentselection";
 import AvatarSelection from "../components/avatarselection/avatarselection";
+
+import AchievementsTab from "../components/profile/achievements";
+
+import ProfileTabs from "../components/profile/profiletabs";
+
+
+
+
 
 // Create Navigators
 const Tab = createBottomTabNavigator();
@@ -112,8 +120,10 @@ const App = () => {
         <Stack.Screen name="DurationSelect" component={DurationSelect} />
         <Stack.Screen name="Confirmation" component={Confirmation} />
         <Stack.Screen name="Setting" component={Setting} />
-        <Stack.Screen name="Profile" component={Profile} />
+        <Stack.Screen name="Stats" component={Stats} />
         <Stack.Screen name="Startscreen" component={StartScreen} />
+        <Stack.Screen name="AchievementsTab" component={AchievementsTab} />
+        <Stack.Screen name="ProfileTabs" component={ProfileTabs} />
       </Stack.Navigator>
     </NavigationContainer>
   );

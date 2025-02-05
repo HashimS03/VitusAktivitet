@@ -45,7 +45,7 @@ export default function Dashboard() {
       <View style={styles.header}>
         <TouchableOpacity
           style={styles.iconButton}
-          onPress={() => navigation.navigate("Profile")} // 🔹 Navigerer til Setting.js
+          onPress={() => navigation.navigate("Stats")} //
         >
           <Users size={24} color="#666" />
         </TouchableOpacity>
@@ -82,7 +82,6 @@ export default function Dashboard() {
       >
         <Text style={styles.addButtonText}>+</Text>
       </TouchableOpacity>
-
 
       {/* Aktive hendelser */}
       <View style={styles.section}>
