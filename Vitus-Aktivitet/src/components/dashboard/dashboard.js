@@ -45,7 +45,7 @@ export default function Dashboard() {
       <View style={styles.header}>
         <TouchableOpacity
           style={styles.iconButton}
-          onPress={() => navigation.navigate("Stats")} //
+          onPress={() => navigation.navigate("Profile")} //
         >
           <Users size={24} color="#666" />
         </TouchableOpacity>
