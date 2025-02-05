@@ -45,7 +45,7 @@ export default function Dashboard() {
       <View style={styles.header}>
         <TouchableOpacity
           style={styles.iconButton}
-          onPress={() => navigation.navigate("Profile")} // 🔹 Navigerer til Setting.js
+          onPress={() => navigation.navigate("Stats")} //
         >
           <Users size={24} color="#666" />
         </TouchableOpacity>
@@ -86,30 +86,37 @@ export default function Dashboard() {
       {/* Aktive hendelser */}
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Aktive Hendelser</Text>
-        <View style={styles.eventCard}>
-          <Image
-            source={require("../../../assets/event-illustration.png")}
-            style={styles.eventImage}
-          />
-          <View style={styles.eventContent}>
-            <Text style={styles.eventTitle}>LØP LØP LØP!</Text>
-            <Text style={styles.eventDescription}>
-              Beskrivelse som forklarer hva hendelsen gjelder
-            </Text>
-            <Progress.Bar
-              progress={stepCount / DAILY_STEP_GOAL}
-              width={null}
-              color={TEAL_COLOR}
-              unfilledColor="#E5F7F6"
-              borderWidth={0}
-              height={6}
-              borderRadius={3}
+        {/* 🔹 TEKST LAGT TILBAKE */}
+        <TouchableOpacity
+          onPress={() =>
+            navigation.navigate("Events", { screen: "EventsNavigation" })
+          }
+        >
+          <View style={styles.eventCard}>
+            <Image
+              source={require("../../../assets/event-illustration.png")}
+              style={styles.eventImage}
             />
-            <Text style={styles.progressText}>
-              {stepCount} / {DAILY_STEP_GOAL}
-            </Text>
+            <View style={styles.eventContent}>
+              <Text style={styles.eventTitle}>LØP LØP LØP!</Text>
+              <Text style={styles.eventDescription}>
+                Beskrivelse som forklarer hva hendelsen gjelder
+              </Text>
+              <Progress.Bar
+                progress={stepCount / DAILY_STEP_GOAL}
+                width={null}
+                color={TEAL_COLOR}
+                unfilledColor="#E5F7F6"
+                borderWidth={0}
+                height={6}
+                borderRadius={3}
+              />
+              <Text style={styles.progressText}>
+                {stepCount} / {DAILY_STEP_GOAL}
+              </Text>
+            </View>
           </View>
-        </View>
+        </TouchableOpacity>
       </View>
 
       {/* Streak & Belønninger */}

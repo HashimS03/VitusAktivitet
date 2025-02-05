@@ -1,98 +1,103 @@
-import React from 'react';
-import { StyleSheet, Text, View, TouchableOpacity, Image } from 'react-native';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
+import React, { useState, useEffect } from "react";
+import { View, Text, StyleSheet, TouchableOpacity, Alert } from "react-native";
+import { CameraView, useCameraPermissions } from "expo-camera";
+import { MaterialCommunityIcons } from "@expo/vector-icons";
 
 export default function JoinEvent({ navigation }) {
-  return (
-    <View style={styles.container}>
-      <View style={styles.content}>
-        <View style={styles.header}>
-          <Text style={styles.title}>Scann QR{'\n'}Koden</Text>
-          <TouchableOpacity 
-            style={styles.closeButton} 
-            onPress={() => navigation.goBack()}
-          >
-            <View style={styles.closeButtonCircle}>
-              <MaterialCommunityIcons name="close" size={20} color="#000" />
-            </View>
-          </TouchableOpacity>
-        </View>
+  const [permission, requestPermission] = useCameraPermissions();
+  const [scanned, setScanned] = useState(false);
 
-        <View style={styles.qrContainer}>
-          <Image 
-            source={require('../../../assets/qr-placeholder.png')}
-            style={styles.qrImage}
-            resizeMode="contain"
-          />
-        </View>
+  useEffect(() => {
+    if (!permission || permission.status !== "granted") {
+      requestPermission();
+    }
+  }, [permission]);
 
-        <TouchableOpacity 
-          style={styles.doneButton}
-          onPress={() => navigation.goBack()}
+  const handleBarCodeScanned = ({ data }) => {
+    setScanned(true);
+    Alert.alert("QR Skannet", `Bli med i hendelse: ${data}`, [
+      {
+        text: "OK",
+        onPress: () => navigation.navigate("EventDetail", { eventId: data }),
+      },
+    ]);
+  };
+
+  if (!permission) {
+    return (
+      <View style={styles.container}>
+        <Text>Behandler tilgang...</Text>
+      </View>
+    );
+  }
+
+  if (permission.status !== "granted") {
+    return (
+      <View style={styles.container}>
+        <Text>Ingen tilgang til kamera</Text>
+        <TouchableOpacity
+          onPress={requestPermission}
+          style={styles.permissionButton}
         >
-          <Text style={styles.doneButtonText}>Done</Text>
+          <Text style={styles.permissionButtonText}>Gi tilgang</Text>
         </TouchableOpacity>
       </View>
+    );
+  }
+
+  return (
+    <View style={styles.container}>
+      <CameraView
+        style={StyleSheet.absoluteFillObject}
+        barcodeScannerSettings={{
+          barcodeTypes: ["qr"],
+        }}
+        onBarcodeScanned={scanned ? undefined : handleBarCodeScanned}
+      />
+
+      <TouchableOpacity
+        style={styles.closeButton}
+        onPress={() => navigation.goBack()}
+      >
+        <MaterialCommunityIcons name="close" size={30} color="#fff" />
+      </TouchableOpacity>
+
+      {scanned && (
+        <TouchableOpacity
+          style={styles.rescanButton}
+          onPress={() => setScanned(false)}
+        >
+          <Text style={styles.rescanButtonText}>Skann på nytt</Text>
+        </TouchableOpacity>
+      )}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#8C8C8C',
-  },
-  content: {
-    flex: 1,
-    paddingHorizontal: 20,
-    paddingTop: 60,
-    paddingBottom: 34,
-  },
-  header: {
-    alignItems: 'center',
-    marginBottom: 40,
-  },
-  title: {
-    color: '#fff',
-    fontSize: 32,
-    fontWeight: 'bold',
-    lineHeight: 38,
-    textAlign: 'center',
-    marginBottom: 20,
-  },
+  container: { flex: 1, justifyContent: "center", alignItems: "center" },
   closeButton: {
-    position: 'absolute',
-    right: 0,
-    top: 0,
-    padding: 4,
+    position: "absolute",
+    top: 50,
+    right: 20,
+    backgroundColor: "rgba(0,0,0,0.6)",
+    padding: 10,
+    borderRadius: 20,
   },
-  closeButtonCircle: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: '#fff',
-    alignItems: 'center',
-    justifyContent: 'center',
+  rescanButton: {
+    position: "absolute",
+    bottom: 50,
+    backgroundColor: "#00BFA5",
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderRadius: 8,
   },
-  qrContainer: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 40,
+  rescanButtonText: { color: "#fff", fontSize: 16, fontWeight: "600" },
+  permissionButton: {
+    backgroundColor: "#007AFF",
+    padding: 12,
+    borderRadius: 8,
+    marginTop: 20,
   },
-  qrImage: {
-    width: 200,
-    height: 200,
-  },
-  doneButton: {
-    backgroundColor: '#00BFA5',
-    paddingVertical: 16,
-    borderRadius: 12,
-    alignItems: 'center',
-  },
-  doneButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
-  },
+  permissionButtonText: { color: "#fff", fontSize: 16, fontWeight: "600" },
 });
