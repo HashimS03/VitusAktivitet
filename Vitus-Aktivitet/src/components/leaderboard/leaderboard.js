@@ -1,5 +1,4 @@
-// First, let's update the leaderboard with more entries and improved styling...
-import React, { useState } from 'react';
+import React, { useState } from "react";
 import {
   SafeAreaView,
   View,
@@ -9,213 +8,119 @@ import {
   StyleSheet,
   FlatList,
   Animated,
-} from 'react-native';
-import { Settings, TrendingUp, TrendingDown } from 'lucide-react-native';
+  Modal,
+} from "react-native";
+import { Filter, TrendingUp, TrendingDown } from "lucide-react-native";
 
-const TEAL_COLOR = '#00BFA5';
+const TEAL_COLOR = "#00BFA5";
 
 const Leaderboard = () => {
-  const [selectedSegment, setSelectedSegment] = useState('I DAG');
+  const [selectedSegment, setSelectedSegment] = useState("I DAG");
   const [fadeAnim] = useState(new Animated.Value(1));
+  const [filterVisible, setFilterVisible] = useState(false);
+  const [filterOption, setFilterOption] = useState("Everybody");
 
-  const leaderboardData = [
-    {
-      id: '4',
-      name: 'Sjartan',
-      points: 950,
-      change: +2,
-      avatar: require('../../../assets/figure/avatar1.jpg'),
-    },
-    {
-      id: '5',
-      name: 'Ahmed',
-      points: 920,
-      change: -1,
-      avatar: require('../../../assets/figure/avatar2.jpg'),
-    },
-    {
-      id: '6',
-      name: 'Emma',
-      points: 880,
-      change: +3,
-      avatar: require('../../../assets/figure/avatar3.jpg'),
-    },
-    {
-      id: '7',
-      name: 'Lars',
-      points: 850,
-      change: -2,
-      avatar: require('../../../assets/figure/avatar4.jpeg'),
-    },
-    {
-      id: '8',
-      name: 'Sofia',
-      points: 820,
-      change: +1,
-      avatar: require('../../../assets/figure/avatar5.jpeg'),
-    },
-    {
-      id: '9',
-      name: 'Magnus',
-      points: 780,
-      change: -3,
-      avatar: require('../../../assets/figure/avatar6.jpg'),
-    },
-    {
-      id: '10',
-      name: 'Isabella',
-      points: 750,
-      change: +4,
-      avatar: require('../../../assets/figure/avatar7.jpeg'),
-    }
+  // Full leaderboard data
+  const fullLeaderboardData = [
+    { id: '1', name: 'Ho Daniel', points: 2000, department: 'IT', avatar: require('../../../assets/figure/daniel.png') },
+    { id: '2', name: 'Hashem', points: 1500, department: 'HR', avatar: require('../../../assets/figure/hashem.png') },
+    { id: '3', name: 'Sarim', points: 1200, department: 'Finance', avatar: require('../../../assets/figure/sarim.png') },
+    { id: "4", name: "Sjartan", points: 950, change: +2, department: "IT", avatar: require("../../../assets/figure/avatar1.jpg") },
+    { id: "5", name: "Ahmed", points: 920, change: -1, department: "HR", avatar: require("../../../assets/figure/avatar2.jpg") },
+    { id: "6", name: "Emma", points: 880, change: +3, department: "IT", avatar: require("../../../assets/figure/avatar3.jpg") },
+    { id: "7", name: "Lars", points: 850, change: -2, department: "Finance", avatar: require("../../../assets/figure/avatar4.jpeg") },
+    { id: "8", name: "Sofia", points: 820, change: +1, department: "HR", avatar: require("../../../assets/figure/avatar5.jpeg") },
+    { id: "9", name: "Magnus", points: 780, change: -3, department: "IT", avatar: require("../../../assets/figure/avatar6.jpg") },
+    { id: "10", name: "Isabella", points: 750, change: +4, department: "Finance", avatar: require("../../../assets/figure/avatar7.jpeg") },
   ];
 
-  const topThree = [
-    {
-      id: '2',
-      name: 'Hashem',
-      points: 1500,
-      avatar: require('../../../assets/figure/hashem.png'),
-      medal: '🥈'
-    },
-    {
-      id: '1',
-      name: 'Ho Daniel',
-      points: 2000,
-      avatar: require('../../../assets/figure/daniel.png'),
-      medal: '🥇'
-    },
-    {
-      id: '3',
-      name: 'Sarim',
-      points: 1200,
-      avatar: require('../../../assets/figure/sarim.png'),
-      medal: '🥉'
-    }
-  ];
+  // Apply filter based on selected option
+  const filteredLeaderboardData =
+    filterOption === "Everybody"
+      ? fullLeaderboardData
+      : fullLeaderboardData.filter((player) => player.department === filterOption);
 
+  // Function to handle filter selection
+  const handleFilterChange = (option) => {
+    setFilterOption(option);
+    setFilterVisible(false);
+  };
+
+  // Function to animate leaderboard refresh
   const handleSegmentChange = (segment) => {
     Animated.sequence([
-      Animated.timing(fadeAnim, {
-        toValue: 0,
-        duration: 150,
-        useNativeDriver: true,
-      }),
-      Animated.timing(fadeAnim, {
-        toValue: 1,
-        duration: 150,
-        useNativeDriver: true,
-      }),
+      Animated.timing(fadeAnim, { toValue: 0, duration: 150, useNativeDriver: true }),
+      Animated.timing(fadeAnim, { toValue: 1, duration: 150, useNativeDriver: true }),
     ]).start();
     setSelectedSegment(segment);
   };
 
-  const renderTopThree = () => (
-    <View style={styles.topThreeContainer}>
-      {topThree.map((item, index) => {
-        const isWinner = index === 1;
-        return (
-          <View 
-            key={item.id} 
-            style={[
-              styles.topThreeItem,
-              isWinner && styles.winnerItem
-            ]}
-          >
-            <View style={styles.avatarContainer}>
-              <Image 
-                source={item.avatar} 
-                style={[
-                  styles.topThreeAvatar,
-                  isWinner && styles.winnerAvatar
-                ]} 
-              />
-              <Text style={styles.medalIcon}>{item.medal}</Text>
-            </View>
-            <Text style={styles.topThreeName}>{item.name}</Text>
-            <Text style={styles.topThreePoints}>
-              {item.points.toLocaleString()} Poeng
-            </Text>
-          </View>
-        );
-      })}
-    </View>
-  );
-
+  // Function to render leaderboard items
   const renderLeaderboardItem = ({ item, index }) => (
     <Animated.View style={[styles.leaderboardRow, { opacity: fadeAnim }]}>
       <View style={styles.rankContainer}>
-        {item.change > 0 ? (
-          <TrendingUp size={16} color="#4CAF50" />
-        ) : (
-          <TrendingDown size={16} color="#F44336" />
-        )}
-        <Text style={[
-          styles.changeText, 
-          item.change > 0 ? styles.positive : styles.negative
-        ]}>
+        {item.change > 0 ? <TrendingUp size={16} color="#4CAF50" /> : <TrendingDown size={16} color="#F44336" />}
+        <Text style={[styles.changeText, item.change > 0 ? styles.positive : styles.negative]}>
           {Math.abs(item.change)}
         </Text>
       </View>
-
       <View style={styles.playerInfo}>
         <Image source={item.avatar} style={styles.listAvatar} />
         <View>
           <Text style={styles.playerName}>{item.name}</Text>
-          <Text style={styles.playerRank}>Rank #{index + 4}</Text>
+          <Text style={styles.playerRank}>{item.department}</Text>
         </View>
       </View>
-
-      <Text style={styles.pointsText}>
-        {item.points.toLocaleString()} Poeng
-      </Text>
+      <Text style={styles.pointsText}>{item.points.toLocaleString()} Poeng</Text>
     </Animated.View>
   );
 
   return (
     <SafeAreaView style={styles.container}>
+      {/* Header with Filter Button */}
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Leaderboard</Text>
-        <TouchableOpacity style={styles.settingsButton}>
-          <Settings size={24} color="#666" />
+        <TouchableOpacity style={styles.filterButton} onPress={() => setFilterVisible(true)}>
+          <Filter size={24} color="#666" />
         </TouchableOpacity>
       </View>
 
-      <View style={styles.segmentContainer}>
-        <TouchableOpacity
-          style={[
-            styles.segmentButton,
-            selectedSegment === 'I DAG' && styles.segmentButtonActive,
-          ]}
-          onPress={() => handleSegmentChange('I DAG')}
-        >
-          <Text style={[
-            styles.segmentText,
-            selectedSegment === 'I DAG' && styles.segmentTextActive,
-          ]}>
-            I DAG
-          </Text>
+      {/* Filter Modal */}
+      <Modal visible={filterVisible} transparent animationType="fade">
+        <TouchableOpacity style={styles.modalOverlay} onPress={() => setFilterVisible(false)}>
+          <View style={styles.filterModal}>
+            <Text style={styles.filterTitle}>Filter by</Text>
+            <TouchableOpacity
+              style={[styles.filterOption, filterOption === "Everybody" && styles.selectedOption]}
+              onPress={() => handleFilterChange("Everybody")}
+            >
+              <Text style={styles.filterText}>Everybody</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.filterOption, filterOption === "IT" && styles.selectedOption]}
+              onPress={() => handleFilterChange("IT")}
+            >
+              <Text style={styles.filterText}>IT Department</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.filterOption, filterOption === "HR" && styles.selectedOption]}
+              onPress={() => handleFilterChange("HR")}
+            >
+              <Text style={styles.filterText}>HR Department</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.filterOption, filterOption === "Finance" && styles.selectedOption]}
+              onPress={() => handleFilterChange("Finance")}
+            >
+              <Text style={styles.filterText}>Finance Department</Text>
+            </TouchableOpacity>
+          </View>
         </TouchableOpacity>
+      </Modal>
 
-        <TouchableOpacity
-          style={[
-            styles.segmentButton,
-            selectedSegment === 'MÅNED' && styles.segmentButtonActive,
-          ]}
-          onPress={() => handleSegmentChange('MÅNED')}
-        >
-          <Text style={[
-            styles.segmentText,
-            selectedSegment === 'MÅNED' && styles.segmentTextActive,
-          ]}>
-            MÅNED
-          </Text>
-        </TouchableOpacity>
-      </View>
-
+      {/* Leaderboard List */}
       <FlatList
-        ListHeaderComponent={renderTopThree}
-        data={leaderboardData}
+        data={filteredLeaderboardData}
         keyExtractor={(item) => item.id}
         renderItem={renderLeaderboardItem}
         contentContainerStyle={styles.listContainer}
@@ -225,148 +130,81 @@ const Leaderboard = () => {
   );
 };
 
+// Styles
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FFF',
+    backgroundColor: "#FFF",
   },
   header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
     paddingHorizontal: 20,
     paddingVertical: 16,
   },
   headerTitle: {
     fontSize: 32,
-    fontWeight: '700',
-    color: '#000',
+    fontWeight: "700",
+    color: "#000",
   },
-  settingsButton: {
+  filterButton: {
     padding: 8,
     borderRadius: 12,
-    backgroundColor: '#F5F5F5',
+    backgroundColor: "#F5F5F5",
   },
-  segmentContainer: {
-    flexDirection: 'row',
-    marginHorizontal: 20,
-    backgroundColor: '#F5F5F5',
-    borderRadius: 25,
-    padding: 4,
-    marginBottom: 24,
-  },
-  segmentButton: {
+  modalOverlay: {
     flex: 1,
-    paddingVertical: 12,
-    alignItems: 'center',
-    borderRadius: 21,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
   },
-  segmentButtonActive: {
-    backgroundColor: TEAL_COLOR,
+  filterModal: {
+    width: 250,
+    backgroundColor: "#FFF",
+    borderRadius: 12,
+    padding: 16,
+    alignItems: "center",
   },
-  segmentText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#666',
-  },
-  segmentTextActive: {
-    color: '#FFF',
-  },
-  topThreeContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    marginBottom: 32,
-  },
-  topThreeItem: {
-    alignItems: 'center',
-    flex: 1,
-    paddingVertical: 16,
-  },
-  winnerItem: {
-    transform: [{ scale: 1.1 }],
-  },
-  avatarContainer: {
-    position: 'relative',
+  filterTitle: {
+    fontSize: 18,
+    fontWeight: "700",
     marginBottom: 12,
   },
-  topThreeAvatar: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    borderWidth: 3,
-    borderColor: '#FFF',
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 4,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 6,
+  filterOption: {
+    paddingVertical: 10,
+    width: "100%",
+    alignItems: "center",
+    borderRadius: 8,
+    marginVertical: 4,
+    backgroundColor: "#E5E5E5",
   },
-  winnerAvatar: {
-    width: 90,
-    height: 90,
-    borderRadius: 45,
+  selectedOption: {
+    backgroundColor: TEAL_COLOR,
   },
-  medalIcon: {
-    position: 'absolute',
-    bottom: -5,
-    right: -5,
-    fontSize: 24,
-    backgroundColor: '#FFF',
-    borderRadius: 12,
-    overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-  },
-  topThreeName: {
+  filterText: {
     fontSize: 16,
-    fontWeight: '600',
-    color: '#000',
-    marginBottom: 4,
-  },
-  topThreePoints: {
-    fontSize: 14,
-    color: '#666',
-  },
-  listContainer: {
-    paddingBottom: 20,
+    fontWeight: "600",
+    color: "#000",
   },
   leaderboardRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#F8F8F8',
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#F8F8F8",
     padding: 16,
     marginHorizontal: 20,
     borderRadius: 12,
     marginBottom: 8,
   },
   rankContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     width: 50,
-  },
-  changeText: {
-    marginLeft: 4,
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  positive: {
-    color: '#4CAF50',
-  },
-  negative: {
-    color: '#F44336',
   },
   playerInfo: {
     flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
   },
   listAvatar: {
     width: 48,
@@ -376,17 +214,16 @@ const styles = StyleSheet.create({
   },
   playerName: {
     fontSize: 16,
-    fontWeight: '600',
-    color: '#000',
-    marginBottom: 4,
+    fontWeight: "600",
+    color: "#000",
   },
   playerRank: {
     fontSize: 12,
-    color: '#666',
+    color: "#666",
   },
   pointsText: {
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: "600",
     color: TEAL_COLOR,
   },
 });
