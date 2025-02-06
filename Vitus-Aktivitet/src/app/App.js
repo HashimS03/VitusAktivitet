@@ -17,7 +17,7 @@ import LoginScreen from "../components/login/login";
 import CreateAccountScreen from "../components/opprett/opprett";
 
 // User Profile and Settings
-import Profile from "../components/profile/profile";
+import Stats from "../components/profile/stats";
 import Setting from "../components/Setting/setting";
 
 // Events and Event Management
@@ -108,14 +108,21 @@ const App = ({ navigation }) => {
 
         {/* Gender Selection */}
         <Stack.Screen name="GenderSelection">
-          {(props) => <GenderSelection {...props} onComplete={(gender) => console.log("Selected Gender:", gender)} />}
+          {(props) => (
+            <GenderSelection
+              {...props}
+              onComplete={(gender) => console.log("Selected Gender:", gender)}
+            />
+          )}
         </Stack.Screen>
         {/* Department Selection */}
         <Stack.Screen name="DepartmentSelection">
           {(props) => (
             <DepartmentSelection
               {...props}
-              onComplete={(department) => console.log("Selected Department:", department)}
+              onComplete={(department) =>
+                console.log("Selected Department:", department)
+              }
             />
           )}
         </Stack.Screen>
@@ -131,7 +138,7 @@ const App = ({ navigation }) => {
         <Stack.Screen name="DurationSelect" component={DurationSelect} />
         <Stack.Screen name="Confirmation" component={Confirmation} />
         <Stack.Screen name="Setting" component={Setting} />
-        <Stack.Screen name="Profile" component={Profile} />
+        <Stack.Screen name="Stats" component={Stats} />
       </Stack.Navigator>
     </NavigationContainer>
   );
