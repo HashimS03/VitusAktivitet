@@ -20,7 +20,7 @@ import CreateAccountScreen from "../components/opprett/opprett";
 // User Profile and Settings
 import Stats from "../components/profile/stats";
 import Setting from "../components/Setting/setting";
-import Notifications from "../components/notifications/notifications";  // ✅ Import Notifications
+import Notifications from "../components/notifications/notifications";
 
 // Events and Event Management
 import JoinEvent from "../components/events/JoinEvent";
@@ -48,8 +48,16 @@ const Stack = createNativeStackNavigator();
 const EventsStack = () => (
   <Stack.Navigator screenOptions={{ headerShown: false }}>
     <Stack.Screen name="EventsMain" component={EventsNavigation} />
-    <Stack.Screen name="JoinEvent" component={JoinEvent} />
-    <Stack.Screen name="NewEvent" component={NewEvent} />
+    <Stack.Screen 
+      name="JoinEvent" 
+      component={JoinEvent}
+      options={{ tabBarStyle: { display: 'none' } }}
+    />
+    <Stack.Screen 
+      name="NewEvent" 
+      component={NewEvent}
+      options={{ tabBarStyle: { display: 'none' } }}
+    />
     <Stack.Screen name="ActiveEvent" component={ActiveEventImproved} />
     <Stack.Screen name="InviteMembers" component={InviteMembersScreen} />
   </Stack.Navigator>
@@ -58,7 +66,18 @@ const EventsStack = () => (
 /** Bottom Tab Navigator - Main App Navigation */
 const TabNavigator = () => (
   <Tab.Navigator
-    tabBar={(props) => <Navbar {...props} />}
+    tabBar={(props) => {
+      const { state, navigation } = props;
+      const currentRoute = state.routes[state.index].name;
+      const childRoute = navigation.getState().routes[state.index].state?.routes.slice(-1)[0]?.name;
+      const routesWithoutNavbar = ['NewEvent', 'JoinEvent'];
+
+      if (currentRoute === 'Events' && routesWithoutNavbar.includes(childRoute)) {
+        return null;
+      }
+
+      return <Navbar {...props} />;
+    }}
     screenOptions={{
       headerShown: false,
     }}
@@ -70,7 +89,7 @@ const TabNavigator = () => (
 );
 
 /** Root Stack Navigator - Handles authentication & app navigation */
-const App = ({ navigation }) => {
+const App = () => {
   return (
     <NavigationContainer>
       <Stack.Navigator
@@ -143,7 +162,7 @@ const App = ({ navigation }) => {
         <Stack.Screen name="Confirmation" component={Confirmation} />
         <Stack.Screen name="Setting" component={Setting} />
         <Stack.Screen name="Stats" component={Stats} />
-        <Stack.Screen name="Notifications" component={Notifications} />  
+        <Stack.Screen name="Notifications" component={Notifications} />
       </Stack.Navigator>
     </NavigationContainer>
   );
