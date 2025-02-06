@@ -17,10 +17,12 @@ import {
   TrendingUp,
 } from "lucide-react-native";
 import { useNavigation } from "@react-navigation/native";
+import Achievements from "./achievements";
+import Activity from "./activity";
 
 const TABS = ["STATS", "ACHIEVEMENTS", "ACTIVITY"];
 
-const Profile = () => {
+const Stats = () => {
   const [activeTab, setActiveTab] = useState("STATS");
   const navigation = useNavigation();
 
@@ -73,6 +75,58 @@ const Profile = () => {
     },
   ];
 
+  const renderStatsContent = () => (
+    <>
+      <View style={styles.statsContainer}>
+        {statsData.map((stat, index) => (
+          <View key={index} style={styles.statCard}>
+            <View
+              style={[
+                styles.iconContainer,
+                { backgroundColor: stat.iconBgColor },
+              ]}
+            >
+              <stat.icon size={20} color={stat.iconColor} />
+            </View>
+            <View style={styles.statTextContainer}>
+              <Text style={styles.statValue}>{stat.value}</Text>
+              <Text style={styles.statLabel}>{stat.label}</Text>
+            </View>
+          </View>
+        ))}
+      </View>
+
+      <View style={styles.racesContainer}>
+        <Text style={styles.sectionTitle}>Latest Races</Text>
+        {races.map((race, index) => (
+          <View key={index} style={styles.raceItem}>
+            <Image source={race.image} style={styles.raceImage} />
+            <View style={styles.raceContent}>
+              <Text style={styles.raceTitle}>{race.title}</Text>
+              <View style={styles.progressBar}>
+                <View
+                  style={[styles.progressFill, { width: `${race.progress}%` }]}
+                />
+              </View>
+            </View>
+            <Text style={styles.progressText}>{race.progress}% Complete</Text>
+          </View>
+        ))}
+      </View>
+    </>
+  );
+
+  const renderContent = () => {
+    switch (activeTab) {
+      case "ACHIEVEMENTS":
+        return <Achievements />;
+      case "ACTIVITY":
+        return <Activity />;
+      default:
+        return renderStatsContent();
+    }
+  };
+
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
@@ -112,44 +166,7 @@ const Profile = () => {
           ))}
         </View>
 
-        <View style={styles.statsContainer}>
-          {statsData.map((stat, index) => (
-            <View key={index} style={styles.statCard}>
-              <View
-                style={[
-                  styles.iconContainer,
-                  { backgroundColor: stat.iconBgColor },
-                ]}
-              >
-                <stat.icon size={24} color={stat.iconColor} />
-              </View>
-              <Text style={styles.statValue}>{stat.value}</Text>
-              <Text style={styles.statLabel}>{stat.label}</Text>
-            </View>
-          ))}
-        </View>
-
-        {/* Races Section with White Container */}
-        <View style={styles.racesContainer}>
-          <Text style={styles.sectionTitle}>Latest Races</Text>
-          {races.map((race, index) => (
-            <View key={index} style={styles.raceItem}>
-              <Image source={race.image} style={styles.raceImage} />
-              <View style={styles.raceContent}>
-                <Text style={styles.raceTitle}>{race.title}</Text>
-                <View style={styles.progressBar}>
-                  <View
-                    style={[
-                      styles.progressFill,
-                      { width: `${race.progress}%` },
-                    ]}
-                  />
-                </View>
-              </View>
-              <Text style={styles.progressText}>{race.progress}% Complete</Text>
-            </View>
-          ))}
-        </View>
+        {renderContent()}
       </ScrollView>
     </SafeAreaView>
   );
@@ -158,12 +175,13 @@ const Profile = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#FFFFFF",
+    backgroundColor: "#fff",
   },
   header: {
     flexDirection: "row",
     justifyContent: "space-between",
-    padding: 16,
+    paddingHorizontal: 16,
+    paddingVertical: 16,
   },
   content: {
     flex: 1,
@@ -171,6 +189,7 @@ const styles = StyleSheet.create({
   profileSection: {
     alignItems: "center",
     marginTop: 20,
+    marginBottom: 24,
   },
   avatar: {
     width: 100,
@@ -188,6 +207,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     marginTop: 24,
     paddingHorizontal: 16,
+    marginBottom: 24,
   },
   tab: {
     paddingVertical: 8,
@@ -209,51 +229,57 @@ const styles = StyleSheet.create({
   statsContainer: {
     flexDirection: "row",
     flexWrap: "wrap",
-    padding: 16,
-    gap: 16,
+    justifyContent: "space-between",
+    paddingHorizontal: 16,
+    gap: 12,
   },
   statCard: {
-    width: "47%",
+    width: "48%",
     backgroundColor: "#FFFFFF",
-    borderRadius: 16,
-    padding: 16,
+    borderRadius: 25,
+    padding: 12,
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 4,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
+    marginBottom: 12,
+    flexDirection: "row",
+    alignItems: "center",
   },
   iconContainer: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
     alignItems: "center",
     justifyContent: "center",
-    marginBottom: 12,
+    marginRight: 12,
+  },
+  statTextContainer: {
+    flex: 1,
   },
   statValue: {
-    fontSize: 24,
+    fontSize: 20,
     fontWeight: "bold",
-    marginBottom: 4,
+    marginBottom: 2,
   },
   statLabel: {
-    fontSize: 14,
+    fontSize: 12,
     color: "#9e9fa1",
   },
-  /* White Container for Latest Races */
   racesContainer: {
     backgroundColor: "#FFFFFF",
-    borderRadius: 16,
+    borderRadius: 20,
     padding: 16,
     margin: 16,
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 4,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
   },
   sectionTitle: {
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: "600",
     color: "#1A1A1A",
     marginBottom: 16,
@@ -295,4 +321,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default Profile;
+export default Stats;
