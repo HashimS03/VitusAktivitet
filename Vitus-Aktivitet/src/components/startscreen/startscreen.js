@@ -4,32 +4,38 @@ import {
   Text,
   TouchableOpacity,
   StyleSheet,
-  ImageBackground,
   Dimensions,
+  Image,
 } from "react-native";
+import { Video } from "expo-av";
 
 const { width, height } = Dimensions.get("window");
 const TEAL_COLOR = "#00B6AA";
 
 export default function StartScreen({ navigation }) {
   return (
-    <ImageBackground
-      source={require("../../../assets/runner.png")}
-      style={styles.background}
-    >
+    <View style={styles.container}>
+      <Video
+        source={require("../../../assets/runner.mp4")}
+        style={styles.backgroundVideo}
+        shouldPlay
+        isLooping
+        resizeMode="cover"
+      />
       <View style={styles.overlay}>
         <View style={styles.content}>
           <View style={styles.logoContainer}>
-            <Text style={styles.logoText}>vitus</Text>
-            <Text style={styles.logoText}>
-              aktivitet<Text style={styles.plus}>+</Text>
-            </Text>
+            <Image
+              source={require("../../../assets/vitusaktivitet_white_sq.png")}
+              style={styles.logoImage}
+              resizeMode="contain"
+            />
           </View>
 
           <View style={styles.bottomContent}>
             <TouchableOpacity
               style={styles.loginButton}
-              onPress={() => navigation.navigate("Login")} // Gå til Login-skjermen
+              onPress={() => navigation.navigate("Login")}
             >
               <Text style={styles.loginButtonText}>Logg inn</Text>
             </TouchableOpacity>
@@ -43,14 +49,16 @@ export default function StartScreen({ navigation }) {
           </View>
         </View>
       </View>
-    </ImageBackground>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  background: {
-    width,
-    height,
+  container: { flex: 1 },
+  backgroundVideo: {
+    position: "absolute",
+    width: "100%",
+    height: "100%",
   },
   overlay: {
     flex: 1,
@@ -59,21 +67,19 @@ const styles = StyleSheet.create({
   content: {
     flex: 1,
     justifyContent: "space-between",
+    alignItems: "center",
     padding: 24,
     paddingTop: 100,
     paddingBottom: 50,
   },
   logoContainer: {
     alignItems: "center",
+    justifyContent: "center",
+    flex: 1,
   },
-  logoText: {
-    color: "#FFF",
-    fontSize: 48,
-    fontWeight: "bold",
-    lineHeight: 52,
-  },
-  plus: {
-    color: "#FFF",
+  logoImage: {
+    width: 300,
+    height: 150,
   },
   bottomContent: {
     gap: 24,
