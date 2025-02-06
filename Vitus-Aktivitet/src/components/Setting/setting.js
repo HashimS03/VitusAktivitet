@@ -73,7 +73,10 @@ export default function SettingScreen() {
             title="Rediger Profil Informasjon"
           />
           <SettingsRow icon="notifications" title="Varslinger" value="ON" />
-          <SettingsRow icon="language" title="Språk" value="Norsk" />
+          <SettingsRow icon="language" title="Språk" value="Norsk"  
+          onPress={() => navigation.navigate("Language")} // ✅ Navigate to Language Selection
+          />
+          
         </SettingsSection>
 
         <SettingsSection>

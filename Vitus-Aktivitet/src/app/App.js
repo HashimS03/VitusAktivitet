@@ -20,6 +20,9 @@ import CreateAccountScreen from "../components/opprett/opprett";
 // User Profile and Settings
 import Stats from "../components/profile/stats";
 import Setting from "../components/Setting/setting";
+
+import Notifications from "../components/notifications/notifications";  // ✅ Import Notifications
+import LanguageSelection from "../components/Setting/language"; // ✅ Import the new screen
 import Notifications from "../components/notifications/notifications";
 
 // Events and Event Management
@@ -162,10 +165,16 @@ const App = () => {
         <Stack.Screen name="Confirmation" component={Confirmation} />
         <Stack.Screen name="Setting" component={Setting} />
         <Stack.Screen name="Stats" component={Stats} />
+        <Stack.Screen name="Notifications" component={Notifications} /> 
+        <Stack.Screen name="Language" component={LanguageSelection} /> 
         <Stack.Screen name="Notifications" component={Notifications} />
       </Stack.Navigator>
     </NavigationContainer>
   );
 };
 
+
+
 export default App;
+
+
