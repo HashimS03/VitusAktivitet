@@ -20,6 +20,7 @@ import CreateAccountScreen from "../components/opprett/opprett";
 // User Profile and Settings
 import Stats from "../components/profile/stats";
 import Setting from "../components/Setting/setting";
+import Notifications from "../components/notifications/notifications";  // ✅ Import Notifications
 
 // Events and Event Management
 import JoinEvent from "../components/events/JoinEvent";
@@ -142,6 +143,7 @@ const App = ({ navigation }) => {
         <Stack.Screen name="Confirmation" component={Confirmation} />
         <Stack.Screen name="Setting" component={Setting} />
         <Stack.Screen name="Stats" component={Stats} />
+        <Stack.Screen name="Notifications" component={Notifications} />  
       </Stack.Navigator>
     </NavigationContainer>
   );
