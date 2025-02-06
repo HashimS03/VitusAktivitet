@@ -47,12 +47,15 @@ export default function Dashboard() {
           style={styles.iconButton}
           onPress={() => navigation.navigate("Stats")} //
         >
-          <Users size={24} color="#666" />
+        <Users size={24} color="#666" />
         </TouchableOpacity>
-        <TouchableOpacity style={styles.iconButton}>
+
+         {/* Navigate to Notifications */}
+         <TouchableOpacity style={styles.iconButton} onPress={() => navigation.navigate("Notifications")}>
           <Bell size={24} color="#666" />
         </TouchableOpacity>
       </View>
+
 
       {/* Sirkulært progresjonsdisplay */}
       <View style={styles.progressContainer}>
