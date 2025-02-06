@@ -10,6 +10,7 @@ import Dashboard from "../components/dashboard/dashboard";
 import EventsNavigation from "../components/events/events-navigation";
 import Navbar from "../components/navbar/navbar";
 import Leaderboard from "../components/leaderboard/leaderboard";
+import HistoryScreen from "../components/dashboard/history";
 
 // Authentication Screens
 import StartScreen from "../components/startscreen/startscreen";
@@ -126,6 +127,8 @@ const App = ({ navigation }) => {
             />
           )}
         </Stack.Screen>
+        {/* History */}
+        <Stack.Screen name="History" component={HistoryScreen} />
 
         {/* Avatar Selection */}
         <Stack.Screen name="AvatarSelection" component={AvatarSelection} />

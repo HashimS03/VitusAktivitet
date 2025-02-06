@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import {
   SafeAreaView,
   View,
@@ -27,13 +27,16 @@ export default function Dashboard() {
   useEffect(() => {
     if (stepCount >= DAILY_STEP_GOAL && !showCelebration) {
       setShowCelebration(true);
-      setTimeout(() => setShowCelebration(false), 4000); // 🎉 Skjul konfetti etter 4 sekunder
+      setTimeout(() => setShowCelebration(false), 4000);
     }
   }, [stepCount]);
 
+  const handleHistoryPress = () => {
+    navigation.navigate('History');
+  };
+
   return (
     <SafeAreaView style={styles.container}>
-      {/* 🎉 Konfetti-animasjon */}
       {showCelebration && (
         <ConfettiCannon
           count={200}
@@ -41,11 +44,10 @@ export default function Dashboard() {
           fadeOut={true}
         />
       )}
-      {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity
           style={styles.iconButton}
-          onPress={() => navigation.navigate("Stats")} //
+          onPress={() => navigation.navigate("Stats")}
         >
           <Users size={24} color="#666" />
         </TouchableOpacity>
@@ -54,7 +56,6 @@ export default function Dashboard() {
         </TouchableOpacity>
       </View>
 
-      {/* Sirkulært progresjonsdisplay */}
       <View style={styles.progressContainer}>
         <Progress.Circle
           size={240}
@@ -75,18 +76,15 @@ export default function Dashboard() {
         </View>
       </View>
 
-      {/* Legg til skritt-knapp */}
       <TouchableOpacity
         style={styles.addButton}
-        onPress={() => navigation.navigate("ActivitySelect")} // Naviger til ActivitySelect
+        onPress={() => navigation.navigate("ActivitySelect")}
       >
         <Text style={styles.addButtonText}>+</Text>
       </TouchableOpacity>
 
-      {/* Aktive hendelser */}
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Aktive Hendelser</Text>
-        {/* 🔹 TEKST LAGT TILBAKE */}
         <TouchableOpacity
           onPress={() =>
             navigation.navigate("Events", { screen: "EventsNavigation" })
@@ -119,10 +117,12 @@ export default function Dashboard() {
         </TouchableOpacity>
       </View>
 
-      {/* Streak & Belønninger */}
       <View style={styles.statsContainer}>
-        <View style={styles.statSection}>
-          <Text style={styles.statTitle}>Streak</Text>
+        <TouchableOpacity 
+          style={styles.statSection}
+          onPress={handleHistoryPress}
+        >
+          <Text style={styles.statTitle}>Historikk</Text>
           <View style={styles.streakBox}>
             <Image
               source={require("../../../assets/flame-teal.png")}
@@ -130,7 +130,7 @@ export default function Dashboard() {
             />
             <Text style={styles.streakValue}>21</Text>
           </View>
-        </View>
+        </TouchableOpacity>
 
         <View style={styles.statSection}>
           <Text style={styles.statTitle}>Belønninger</Text>
@@ -159,7 +159,6 @@ export default function Dashboard() {
         </View>
       </View>
 
-      {/* Stepteller */}
       <StepCounter setStepCount={setStepCount} />
     </SafeAreaView>
   );
@@ -205,7 +204,7 @@ const styles = StyleSheet.create({
   },
   addButtonText: { fontSize: 24, color: TEAL_COLOR },
   section: { marginTop: 16, paddingHorizontal: 16 },
-  sectionTitle: { fontSize: 18, fontWeight: "semi-bold", marginBottom: 12 },
+  sectionTitle: { fontSize: 18, fontWeight: "600", marginBottom: 12 },
   eventCard: {
     flexDirection: "row",
     alignItems: "center",
@@ -225,7 +224,7 @@ const styles = StyleSheet.create({
     marginRight: 12,
   },
   eventContent: { flex: 1 },
-  eventTitle: { fontSize: 16, fontWeight: "smei-bold", marginBottom: 4 },
+  eventTitle: { fontSize: 16, fontWeight: "600", marginBottom: 4 },
   eventDescription: { fontSize: 14, color: "#666", marginBottom: 8 },
   progressText: { fontSize: 12, color: "#666" },
   statsContainer: {
@@ -240,15 +239,15 @@ const styles = StyleSheet.create({
   },
   statTitle: {
     fontSize: 18,
-    fontWeight: "semi-bold",
+    fontWeight: "600",
     marginBottom: 8,
     color: "#000",
   },
   streakBox: {
     backgroundColor: "#FFF",
     borderRadius: 16,
-    padding: 12, // Reduced padding
-    height: 100, // Reduced height to match rewardBox
+    padding: 12,
+    height: 100,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
@@ -272,8 +271,8 @@ const styles = StyleSheet.create({
   rewardBox: {
     backgroundColor: "#FFF",
     borderRadius: 16,
-    padding: 12, // Reduced padding
-    height: 100, // Reduced height
+    padding: 12,
+    height: 100,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
@@ -288,41 +287,46 @@ const styles = StyleSheet.create({
   },
   levelText: {
     fontSize: 16,
-    fontWeight: "semi-bold",
+    fontWeight: "600",
     color: "#000",
   },
   badgeContainer: {
     backgroundColor: "#F0F3F9",
     borderRadius: 16,
-    padding: 6, // Reduced padding
-    opacity: 0.8, // Made slightly transparent
+    padding: 6,
+    opacity: 0.8,
   },
   pointsText: {
-    fontSize: 11, // Reduced font size
+    fontSize: 11,
     color: "#8E97A9",
-    marginBottom: 4, // Reduced margin
-    opacity: 0.8, // Made slightly transparent
+    marginBottom: 4,
+    opacity: 0.8,
   },
   levelProgress: {
-    marginTop: 4, // Reduced margin
+    marginTop: 4,
   },
   numberContainer: {
     flexDirection: "row",
     justifyContent: "space-between",
-    marginBottom: -8, // Adjusted overlap
+    marginBottom: -8,
     zIndex: 1,
   },
   currentLevel: {
     backgroundColor: "#FFD700",
     borderRadius: 10,
     paddingHorizontal: 10,
-    paddingVertical: 2, // Reduced padding
+    paddingVertical: 2,
+  },
+  currentLevelText: {
+    fontSize: 14,
+    fontWeight: "bold",
+    color: "#000",
   },
   nextLevel: {
     backgroundColor: "#F0F3F9",
     borderRadius: 10,
     paddingHorizontal: 10,
-    paddingVertical: 2, // Reduced padding
+    paddingVertical: 2,
   },
   nextLevelText: {
     fontSize: 14,
@@ -330,7 +334,7 @@ const styles = StyleSheet.create({
     color: "#8E97A9",
   },
   progressBarContainer: {
-    height: 16, // Reduced height
+    height: 16,
     backgroundColor: "#F0F3F9",
     borderRadius: 8,
     overflow: "hidden",
