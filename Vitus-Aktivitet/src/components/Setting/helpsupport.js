@@ -70,7 +70,7 @@ const HelpSupport = () => {
         {/* Contact Support Button */}
         <TouchableOpacity
           style={styles.supportButton}
-          onPress={() => navigation.navigate("ContactUs")}
+          onPress={() => navigation.navigate("contactus")}
         >
           <Text style={styles.supportButtonText}>Kontakt Support</Text>
         </TouchableOpacity>
