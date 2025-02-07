@@ -7,10 +7,10 @@ import {
   TouchableOpacity,
   SafeAreaView,
   ScrollView,
+  Alert,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { useNavigation } from "@react-navigation/native"; // 👈 Importer navigasjon
-
+import { useNavigation } from "@react-navigation/native";
 
 const SettingsRow = ({ icon, title, value, onPress }) => (
   <TouchableOpacity style={styles.settingsRow} onPress={onPress}>
@@ -33,7 +33,23 @@ const SettingsSection = ({ children }) => (
 );
 
 export default function SettingScreen() {
-  const navigation = useNavigation(); // 👈 Hent navigasjon
+  const navigation = useNavigation();
+
+  // 🔴 Logout Confirmation Function
+  const handleLogout = () => {
+    Alert.alert(
+      "Logg ut",
+      "Er du sikker på at du vil logge ut?",
+      [
+        { text: "Avbryt", style: "cancel" },
+        {
+          text: "Logg ut",
+          style: "destructive",
+          onPress: () => navigation.reset({ index: 0, routes: [{ name: "Start" }] }),
+        },
+      ]
+    );
+  };
 
   return (
     <SafeAreaView style={styles.container}>
@@ -71,41 +87,53 @@ export default function SettingScreen() {
           <SettingsRow
             icon="document-text"
             title="Rediger Profil Informasjon"
-            onPress={() => navigation.navigate("EditProfile")} // ✅ Navigate to Edit Profile
+            onPress={() => navigation.navigate("EditProfile")}
           />
-          <SettingsRow icon="notifications" title="Varslinger" value="ON" onPress={() => navigation.navigate("notificationeditor")}/>
-          <SettingsRow icon="language" title="Språk" value="Norsk"  
-          onPress={() => navigation.navigate("Language")} // ✅ Navigate to Language Selection
+          <SettingsRow
+            icon="notifications"
+            title="Varslinger"
+            value="ON"
+            onPress={() => navigation.navigate("notificationeditor")}
           />
-          
+          <SettingsRow
+            icon="language"
+            title="Språk"
+            value="Norsk"
+            onPress={() => navigation.navigate("Language")}
+          />
         </SettingsSection>
 
         <SettingsSection>
           <SettingsRow
             icon="shield-checkmark"
             title="Sikkerhet og Personvern"
-            onPress={() => navigation.navigate("securityprivacy")} 
+            onPress={() => navigation.navigate("securityprivacy")}
           />
-          <SettingsRow icon="color-palette" title="Tema" value="Lys Modus" onPress={() => navigation.navigate("Theme")} />
+          <SettingsRow
+            icon="color-palette"
+            title="Tema"
+            value="Lys Modus"
+            onPress={() => navigation.navigate("Theme")}
+          />
         </SettingsSection>
 
         <SettingsSection>
-          <SettingsRow icon="help-circle" title="Help & Support" onPress={() => navigation.navigate("helpsupport")} />
-          <SettingsRow icon="chatbubbles" title="Kontakt oss" onPress={() => navigation.navigate("contactus")} />
+          <SettingsRow
+            icon="help-circle"
+            title="Help & Support"
+            onPress={() => navigation.navigate("helpsupport")}
+          />
+          <SettingsRow
+            icon="chatbubbles"
+            title="Kontakt oss"
+            onPress={() => navigation.navigate("contactus")}
+          />
           <SettingsRow
             icon="lock-closed"
             title="Personvern og Retningslinjer"
             onPress={() => navigation.navigate("privacypolicy")}
           />
-          <SettingsRow
-            icon="log-out"
-            title="Logg ut"
-            onPress={() => {
-              navigation.reset({
-                index: 0,
-                routes: [{ name: "Start" }], // ✅ Use "Start" instead of "Startscreen"
-              });
-            }}/>
+          <SettingsRow icon="log-out" title="Logg ut" onPress={handleLogout} />
         </SettingsSection>
       </ScrollView>
     </SafeAreaView>
