@@ -10,6 +10,7 @@ import Dashboard from "../components/dashboard/dashboard";
 import EventsNavigation from "../components/events/events-navigation";
 import Navbar from "../components/navbar/navbar";
 import Leaderboard from "../components/leaderboard/leaderboard";
+import HistoryScreen from "../components/dashboard/history";
 
 // Authentication Screens
 import StartScreen from "../components/startscreen/startscreen";
@@ -19,6 +20,16 @@ import CreateAccountScreen from "../components/opprett/opprett";
 // User Profile and Settings
 import Stats from "../components/profile/stats";
 import Setting from "../components/Setting/setting";
+
+import Notifications from "../components/notifications/notifications";  // ✅ Import Notifications
+import LanguageSelection from "../components/Setting/language"; // ✅ Import the new screen
+import EditProfile from "../components/Setting/editprofile"; // ✅ Import the new screen
+import NotificationEditor from "../components/Setting/notificationediror"; // ✅ Import the new screen
+import Theme from "../components/Setting/theme"; // ✅ Import the new screen
+import ContactUs from "../components/Setting/contactus"; // ✅ Import the new screen
+import HelpSupport from "../components/Setting/helpsupport"; // ✅ Import the new screen
+import SecurityPrivacy from "../components/Setting/securityprivacy"; // ✅ Import the new screen
+import PrivacyPolicy from "../components/Setting/privacypolicy"; // ✅ Import the new screen
 
 // Events and Event Management
 import JoinEvent from "../components/events/JoinEvent";
@@ -46,8 +57,16 @@ const Stack = createNativeStackNavigator();
 const EventsStack = () => (
   <Stack.Navigator screenOptions={{ headerShown: false }}>
     <Stack.Screen name="EventsMain" component={EventsNavigation} />
-    <Stack.Screen name="JoinEvent" component={JoinEvent} />
-    <Stack.Screen name="NewEvent" component={NewEvent} />
+    <Stack.Screen 
+      name="JoinEvent" 
+      component={JoinEvent}
+      options={{ tabBarStyle: { display: 'none' } }}
+    />
+    <Stack.Screen 
+      name="NewEvent" 
+      component={NewEvent}
+      options={{ tabBarStyle: { display: 'none' } }}
+    />
     <Stack.Screen name="ActiveEvent" component={ActiveEventImproved} />
     <Stack.Screen name="InviteMembers" component={InviteMembersScreen} />
   </Stack.Navigator>
@@ -56,7 +75,18 @@ const EventsStack = () => (
 /** Bottom Tab Navigator - Main App Navigation */
 const TabNavigator = () => (
   <Tab.Navigator
-    tabBar={(props) => <Navbar {...props} />}
+    tabBar={(props) => {
+      const { state, navigation } = props;
+      const currentRoute = state.routes[state.index].name;
+      const childRoute = navigation.getState().routes[state.index].state?.routes.slice(-1)[0]?.name;
+      const routesWithoutNavbar = ['NewEvent', 'JoinEvent'];
+
+      if (currentRoute === 'Events' && routesWithoutNavbar.includes(childRoute)) {
+        return null;
+      }
+
+      return <Navbar {...props} />;
+    }}
     screenOptions={{
       headerShown: false,
     }}
@@ -68,7 +98,7 @@ const TabNavigator = () => (
 );
 
 /** Root Stack Navigator - Handles authentication & app navigation */
-const App = ({ navigation }) => {
+const App = () => {
   return (
     <NavigationContainer>
       <Stack.Navigator
@@ -126,6 +156,8 @@ const App = ({ navigation }) => {
             />
           )}
         </Stack.Screen>
+        {/* History */}
+        <Stack.Screen name="History" component={HistoryScreen} />
 
         {/* Avatar Selection */}
         <Stack.Screen name="AvatarSelection" component={AvatarSelection} />
@@ -139,9 +171,22 @@ const App = ({ navigation }) => {
         <Stack.Screen name="Confirmation" component={Confirmation} />
         <Stack.Screen name="Setting" component={Setting} />
         <Stack.Screen name="Stats" component={Stats} />
+        <Stack.Screen name="Notifications" component={Notifications} /> 
+        <Stack.Screen name="Language" component={LanguageSelection} />
+        <Stack.Screen name="EditProfile" component={EditProfile} /> 
+        <Stack.Screen name="notificationeditor" component={NotificationEditor} />
+        <Stack.Screen name="Theme" component={Theme} />
+        <Stack.Screen name="contactus" component={ContactUs} />
+        <Stack.Screen name="helpsupport" component={HelpSupport} />
+        <Stack.Screen name="securityprivacy" component={SecurityPrivacy} />
+        <Stack.Screen name="privacypolicy" component={PrivacyPolicy} />
       </Stack.Navigator>
     </NavigationContainer>
   );
 };
 
+
+
 export default App;
+
+
