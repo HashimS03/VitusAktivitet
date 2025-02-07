@@ -36,7 +36,7 @@ import JoinEvent from "../components/events/JoinEvent";
 import NewEvent from "../components/events/NewEvent";
 import ActiveEventImproved from "../components/events/active-event";
 import InviteMembersScreen from "../components/events/InviteMembersScreen";
-import UpcommingEvents from "../components/events/upcomming-events";
+import UpcommingEvents from "../components/events/upcoming-events";
 
 // Step Counting and Activity Tracking
 import StepCounter from "../components/stepcounter/stepcounter";
@@ -68,7 +68,14 @@ const EventsStack = () => (
       options={{ tabBarStyle: { display: 'none' } }}
     />
     <Stack.Screen name="ActiveEvent" component={ActiveEventImproved} />
-    <Stack.Screen name="InviteMembers" component={InviteMembersScreen} />
+    <Stack.Screen 
+      name="InviteMembers" 
+      component={InviteMembersScreen}
+      options={{
+        presentation: 'transparentModal', // ✅ Makes it overlay with transparency
+        animation: 'fade', // ✅ This will apply a dissolve/fade transition
+      }}
+    />
   </Stack.Navigator>
 );
 

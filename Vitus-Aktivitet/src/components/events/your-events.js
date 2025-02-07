@@ -1,43 +1,35 @@
-import { View, Text, StyleSheet, SafeAreaView, TouchableOpacity, Image } from "react-native"
-import { MaterialCommunityIcons } from "@expo/vector-icons"
-import { useNavigation } from "@react-navigation/native"
+import React from "react";
+import { 
+  View, 
+  Text, 
+  StyleSheet, 
+  SafeAreaView, 
+  TouchableOpacity, 
+  Image 
+} from "react-native";
+import { MaterialCommunityIcons } from "@expo/vector-icons";
+import { useNavigation } from "@react-navigation/native";
 
-const YourEvents = ({ setActiveTab, activeTab }) => {
-  const navigation = useNavigation()
+const YourEvents = () => {
+  const navigation = useNavigation();
 
   return (
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.container}>
-        <Text style={styles.title}>Hendelser</Text>
-
-        <View style={styles.tabContainer}>
-          <TouchableOpacity
-            style={[styles.tab, activeTab === "upcoming" && styles.inactiveTab]}
-            onPress={() => setActiveTab("upcoming")}
-          >
-            <Text style={[styles.tabText, activeTab === "upcoming" && styles.inactiveTabText]}>UPCOMING</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.tab, activeTab === "your" && styles.activeTab]}
-            onPress={() => setActiveTab("your")}
-          >
-            <Text style={[styles.tabText, activeTab === "your" && styles.activeTabText]}>YOUR EVENTS</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.tab, activeTab === "past" && styles.inactiveTab]}
-            onPress={() => setActiveTab("past")}
-          >
-            <Text style={[styles.tabText, activeTab === "past" && styles.inactiveTabText]}>PAST EVENTS</Text>
-          </TouchableOpacity>
-        </View>
-
+        
         {/* Action Cards */}
-        <TouchableOpacity style={styles.actionCard} onPress={() => navigation.navigate("NewEvent")}>
+        <TouchableOpacity 
+          style={styles.actionCard} 
+          onPress={() => navigation.navigate("NewEvent")}
+        >
           <Text style={styles.actionCardText}>Opprett hendelse</Text>
           <MaterialCommunityIcons name="chevron-right" size={24} color="#1A1A1A" />
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.actionCard} onPress={() => navigation.navigate("JoinEvent")}>
+        <TouchableOpacity 
+          style={styles.actionCard} 
+          onPress={() => navigation.navigate("JoinEvent")}
+        >
           <Text style={styles.actionCardText}>Join Hendelse</Text>
           <MaterialCommunityIcons name="chevron-right" size={24} color="#1A1A1A" />
         </TouchableOpacity>
@@ -48,83 +40,35 @@ const YourEvents = ({ setActiveTab, activeTab }) => {
             Dine <Text style={styles.highlightText}>Aktive</Text> Hendelser
           </Text>
 
-          {/* Event Card */}
-          <TouchableOpacity style={styles.eventCard}>
-            <Image
-              source={require("../../../assets/event-illustration.png")}
-              style={styles.eventImage}
-              resizeMode="cover"
-            />
-            <View style={styles.eventContent}>
-              <View style={styles.eventHeader}>
-                <Text style={styles.eventTitle}>LØP LØP LØP!</Text>
-                <TouchableOpacity>
-                  <MaterialCommunityIcons name="dots-horizontal" size={24} color="#666" />
-                </TouchableOpacity>
-              </View>
-              <Text style={styles.eventTime}>10:00 - 10:00</Text>
-              <Text style={styles.eventDate}>18. Jan</Text>
-            </View>
-          </TouchableOpacity>
+          
+
+          {/* Empty State (No Active Events) */}
+          <View style={styles.noEventsContainer}>
+            <Text style={styles.noEventTitle}>Ingen Aktive Hendelser</Text>
+            <Text style={styles.noEventSubtitle}>
+              Du har for øyeblikket ingen aktive hendelser.
+            </Text>
+          </View>
+
         </View>
+
       </View>
     </SafeAreaView>
-  )
-}
+  );
+};
 
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
     backgroundColor: "#fff",
+    paddingTop: 30, // ✅ Fix Navbar Padding
   },
   container: {
     flex: 1,
     backgroundColor: "#fff",
-    paddingHorizontal: 16,
+    paddingBottom: 80, // ✅ Ensure space for bottom navigation
   },
-  title: {
-    fontSize: 32,
-    fontWeight: "bold",
-    textAlign: "center",
-    marginTop: 20,
-    marginBottom: 24,
-    color: "#1A1A1A",
-  },
-  tabContainer: {
-    flexDirection: "row",
-    backgroundColor: "#F5F5F5",
-    borderRadius: 30,
-    padding: 4,
-    marginBottom: 24,
-  },
-  tab: {
-    flex: 1,
-    paddingVertical: 12,
-    alignItems: "center",
-    borderRadius: 25,
-  },
-  activeTab: {
-    backgroundColor: "#fff",
-    shadowColor: "#000",
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  tabText: {
-    fontSize: 13,
-    fontWeight: "500",
-  },
-  activeTabText: {
-    color: "#00BFA5",
-    fontWeight: "600",
-  },
-  inactiveTabText: {
-    color: "#999",
-  },
+
   actionCard: {
     flexDirection: "row",
     alignItems: "center",
@@ -134,10 +78,7 @@ const styles = StyleSheet.create({
     padding: 20,
     marginBottom: 16,
     shadowColor: "#000",
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
+    shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 3,
@@ -164,13 +105,11 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     overflow: "hidden",
     shadowColor: "#000",
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
+    shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 3,
+    marginBottom: 16,
   },
   eventImage: {
     width: "100%",
@@ -200,7 +139,31 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: "#666",
   },
-})
+  noEventsContainer: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 12,
+    padding: 50,
+    alignItems: "center",
+    justifyContent: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  noEventTitle: {
+    fontSize: 22,
+    fontWeight: "600",
+    marginBottom: 8,
+    color: "#000",
+  },
+  noEventSubtitle: {
+    fontSize: 16,
+    color: "#666",
+    textAlign: "center",
+    maxWidth: "80%",
+    lineHeight: 24,
+  },
+});
 
-export default YourEvents
-
+export default YourEvents;
