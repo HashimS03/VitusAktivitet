@@ -23,7 +23,13 @@ import Setting from "../components/Setting/setting";
 
 import Notifications from "../components/notifications/notifications";  // ✅ Import Notifications
 import LanguageSelection from "../components/Setting/language"; // ✅ Import the new screen
-import Notifications from "../components/notifications/notifications";
+import EditProfile from "../components/Setting/editprofile"; // ✅ Import the new screen
+import NotificationEditor from "../components/Setting/notificationediror"; // ✅ Import the new screen
+import Theme from "../components/Setting/theme"; // ✅ Import the new screen
+import ContactUs from "../components/Setting/contactus"; // ✅ Import the new screen
+import HelpSupport from "../components/Setting/helpsupport"; // ✅ Import the new screen
+import SecurityPrivacy from "../components/Setting/securityprivacy"; // ✅ Import the new screen
+import PrivacyPolicy from "../components/Setting/privacypolicy"; // ✅ Import the new screen
 
 // Events and Event Management
 import JoinEvent from "../components/events/JoinEvent";
@@ -166,8 +172,14 @@ const App = () => {
         <Stack.Screen name="Setting" component={Setting} />
         <Stack.Screen name="Stats" component={Stats} />
         <Stack.Screen name="Notifications" component={Notifications} /> 
-        <Stack.Screen name="Language" component={LanguageSelection} /> 
-        <Stack.Screen name="Notifications" component={Notifications} />
+        <Stack.Screen name="Language" component={LanguageSelection} />
+        <Stack.Screen name="EditProfile" component={EditProfile} /> 
+        <Stack.Screen name="notificationeditor" component={NotificationEditor} />
+        <Stack.Screen name="Theme" component={Theme} />
+        <Stack.Screen name="contactus" component={ContactUs} />
+        <Stack.Screen name="helpsupport" component={HelpSupport} />
+        <Stack.Screen name="securityprivacy" component={SecurityPrivacy} />
+        <Stack.Screen name="privacypolicy" component={PrivacyPolicy} />
       </Stack.Navigator>
     </NavigationContainer>
   );

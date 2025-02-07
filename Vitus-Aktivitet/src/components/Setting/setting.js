@@ -71,8 +71,9 @@ export default function SettingScreen() {
           <SettingsRow
             icon="document-text"
             title="Rediger Profil Informasjon"
+            onPress={() => navigation.navigate("EditProfile")} // ✅ Navigate to Edit Profile
           />
-          <SettingsRow icon="notifications" title="Varslinger" value="ON" />
+          <SettingsRow icon="notifications" title="Varslinger" value="ON" onPress={() => navigation.navigate("notificationeditor")}/>
           <SettingsRow icon="language" title="Språk" value="Norsk"  
           onPress={() => navigation.navigate("Language")} // ✅ Navigate to Language Selection
           />
@@ -83,16 +84,18 @@ export default function SettingScreen() {
           <SettingsRow
             icon="shield-checkmark"
             title="Sikkerhet og Personvern"
+            onPress={() => navigation.navigate("securityprivacy")} 
           />
-          <SettingsRow icon="color-palette" title="Tema" value="Lys Modus" />
+          <SettingsRow icon="color-palette" title="Tema" value="Lys Modus" onPress={() => navigation.navigate("Theme")} />
         </SettingsSection>
 
         <SettingsSection>
-          <SettingsRow icon="help-circle" title="Help & Support" />
-          <SettingsRow icon="chatbubbles" title="Kontakt oss" />
+          <SettingsRow icon="help-circle" title="Help & Support" onPress={() => navigation.navigate("helpsupport")} />
+          <SettingsRow icon="chatbubbles" title="Kontakt oss" onPress={() => navigation.navigate("contactus")} />
           <SettingsRow
             icon="lock-closed"
             title="Personvern og Retningslinjer"
+            onPress={() => navigation.navigate("privacypolicy")}
           />
           <SettingsRow
             icon="log-out"

@@ -1,113 +1,147 @@
 import React, { useState } from "react";
 import {
-  SafeAreaView,
   View,
   Text,
   TouchableOpacity,
   StyleSheet,
+  ScrollView,
+  Platform,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
 
-export default function LanguageSelection() {
+const Language = () => {
   const navigation = useNavigation();
-  const [selectedLanguage, setSelectedLanguage] = useState("Norsk");
 
-  const handleSelectLanguage = (language) => {
-    setSelectedLanguage(language);
-    navigation.goBack(); // ✅ Navigate back after selection
-  };
+  // State for selected language
+  const [selectedLanguage, setSelectedLanguage] = useState("Norsk Bokmål");
+
+  const suggestedLanguages = ["English (US)", "Norsk Bokmål"];
+  const otherLanguages = [
+    "Mandarin",
+    "Hindi",
+    "Spanish",
+    "French",
+    "Norsk Sidemål",
+    "Russian",
+    "Indonesian",
+    "Vietnamese",
+  ];
 
   return (
-    <SafeAreaView style={styles.container}>
-      {/* Header with Back Button */}
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-          <Ionicons name="chevron-back" size={24} color="#000" />
+    <View style={styles.container}>
+      {/* Header Section */}
+      <View style={styles.headerWrapper}>
+        {/* Back Button */}
+        <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
+          <Ionicons name="chevron-back" size={28} color="#000" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Velg Språk</Text>
-        <View style={{ width: 24 }} /> {/* Placeholder for alignment */}
+
+        {/* Title */}
+        <Text style={styles.header}>Språk</Text>
       </View>
 
-      {/* Language Options */}
-      <TouchableOpacity
-        style={[styles.languageOption, selectedLanguage === "Norsk" && styles.selected]}
-        onPress={() => handleSelectLanguage("Norsk")}
-      >
-        <View style={styles.languageRow}>
-          <Text style={styles.flag}>🇳🇴</Text>
-          <Text style={styles.languageText}>Norsk</Text>
+      {/* Language Selection */}
+      <ScrollView contentContainerStyle={styles.scrollContent}>
+        {/* Suggested Languages */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Suggested</Text>
+          {suggestedLanguages.map((language) => (
+            <TouchableOpacity
+              key={language}
+              style={styles.row}
+              onPress={() => setSelectedLanguage(language)}
+            >
+              <Text style={styles.label}>{language}</Text>
+              <View style={selectedLanguage === language ? styles.radioSelected : styles.radio} />
+            </TouchableOpacity>
+          ))}
         </View>
-        {selectedLanguage === "Norsk" && <Ionicons name="checkmark" size={24} color="#007AFF" />}
-      </TouchableOpacity>
 
-      <TouchableOpacity
-        style={[styles.languageOption, selectedLanguage === "English" && styles.selected]}
-        onPress={() => handleSelectLanguage("English")}
-      >
-        <View style={styles.languageRow}>
-          <Text style={styles.flag}>🇬🇧</Text>
-          <Text style={styles.languageText}>English</Text>
+        {/* Other Languages */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Others</Text>
+          {otherLanguages.map((language) => (
+            <TouchableOpacity
+              key={language}
+              style={styles.row}
+              onPress={() => setSelectedLanguage(language)}
+            >
+              <Text style={styles.label}>{language}</Text>
+              <View style={selectedLanguage === language ? styles.radioSelected : styles.radio} />
+            </TouchableOpacity>
+          ))}
         </View>
-        {selectedLanguage === "English" && <Ionicons name="checkmark" size={24} color="#007AFF" />}
-      </TouchableOpacity>
-
-      <TouchableOpacity
-        style={[styles.languageOption, selectedLanguage === "Español" && styles.selected]}
-        onPress={() => handleSelectLanguage("Español")}
-      >
-        <View style={styles.languageRow}>
-          <Text style={styles.flag}>🇪🇸</Text>
-          <Text style={styles.languageText}>Español</Text>
-        </View>
-        {selectedLanguage === "Español" && <Ionicons name="checkmark" size={24} color="#007AFF" />}
-      </TouchableOpacity>
-    </SafeAreaView>
+      </ScrollView>
+    </View>
   );
-}
+};
 
+// Styles
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#FFF" },
-  header: {
+  container: {
+    flex: 1,
+    backgroundColor: "#F6F6F6",
+    paddingTop: Platform.OS === "ios" ? 60 : 40, // Adjust for status bar height
+  },
+  headerWrapper: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 16,
-    paddingVertical: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: "#E0E0E0",
+    justifyContent: "center",
+    height: 60,
+    position: "relative",
   },
   backButton: {
-    padding: 8,
+    position: "absolute",
+    left: 20,
+    padding: 10,
   },
-  headerTitle: {
-    fontSize: 20,
+  header: {
+    fontSize: 22,
     fontWeight: "bold",
     textAlign: "center",
+    marginTop: 10, // Moves the title lower
   },
-  languageOption: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingVertical: 16,
+  scrollContent: {
     paddingHorizontal: 20,
-    borderBottomWidth: 1,
-    borderBottomColor: "#E0E0E0",
+    paddingTop: 10,
   },
-  selected: {
-    backgroundColor: "#EAF4FE",
+  section: {
+    marginBottom: 20,
   },
-  languageRow: {
+  sectionTitle: {
+    fontSize: 16,
+    fontWeight: "bold",
+    marginBottom: 10,
+  },
+  row: {
     flexDirection: "row",
+    justifyContent: "space-between",
     alignItems: "center",
+    paddingVertical: 12,
   },
-  flag: {
-    fontSize: 20, 
-    marginRight: 8,
+  label: {
+    fontSize: 16,
+    color: "#333",
   },
-  languageText: {
-    fontSize: 18,
-    fontWeight: "500",
+  radio: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: "#B3E5FC",
+    backgroundColor: "transparent",
+  },
+  radioSelected: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: "#48CAB2",
+    backgroundColor: "#48CAB2",
+    justifyContent: "center",
+    alignItems: "center",
   },
 });
 
+export default Language;
