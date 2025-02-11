@@ -1,33 +1,114 @@
-import React, { useState } from "react";
+"use client";
+
+import { useState, useRef, useEffect } from "react";
 import {
   View,
   Text,
   TouchableOpacity,
   StyleSheet,
   SafeAreaView,
-  ScrollView,
+  Dimensions,
+  Animated,
 } from "react-native";
 import { ChevronLeft } from "lucide-react-native";
 
+const { width, height } = Dimensions.get("window");
+const ITEM_HEIGHT = 60;
+const VISIBLE_ITEMS = 5;
+
+const durations = Array.from({ length: 9 }, (_, i) => 25 - i);
+
 const DurationSelect = ({ navigation, route }) => {
   const { activity } = route.params;
-  const [selectedDuration, setSelectedDuration] = useState(21);
-  const durations = Array.from({ length: 9 }, (_, i) => 25 - i);
+  const scrollY = useRef(new Animated.Value(1)).current;
+  const [selectedIndex, setSelectedIndex] = useState(0);
+  const flatListRef = useRef(null);
 
-  const handleContinue = () => {
-    navigation.navigate("Confirmation", {
-      activity,
-      duration: selectedDuration,
+  useEffect(() => {
+    // Scroll to the initial selected item
+    flatListRef.current?.scrollToOffset({
+      offset: selectedIndex * ITEM_HEIGHT,
+      animated: false,
     });
+  }, []);
+
+  const renderDurationItem = ({ item, index }) => {
+    const inputRange = [
+      (index - 2) * ITEM_HEIGHT,
+      (index - 1) * ITEM_HEIGHT,
+      index * ITEM_HEIGHT,
+      (index + 1) * ITEM_HEIGHT,
+      (index + 2) * ITEM_HEIGHT,
+    ];
+
+    const scale = scrollY.interpolate({
+      inputRange,
+      outputRange: [0.7, 0.8, 1, 0.8, 0.7],
+      extrapolate: "clamp",
+    });
+
+    const opacity = scrollY.interpolate({
+      inputRange,
+      outputRange: [0.3, 0.5, 1, 0.5, 0.3],
+      extrapolate: "clamp",
+    });
+
+    const isSelected = index === selectedIndex;
+
+    return (
+      <Animated.View
+        style={[
+          styles.durationItem,
+          {
+            transform: [{ scale }],
+            opacity: isSelected ? 1 : opacity,
+          },
+        ]}
+      >
+        <Text
+          style={[
+            styles.durationText,
+            isSelected && styles.selectedDurationText,
+          ]}
+        >
+          {item} min
+        </Text>
+      </Animated.View>
+    );
+  };
+
+  const handleScroll = Animated.event(
+    [{ nativeEvent: { contentOffset: { y: scrollY } } }],
+    {
+      useNativeDriver: true,
+      listener: (event) => {
+        const offsetY = event.nativeEvent.contentOffset.y;
+        const index = Math.round(offsetY / ITEM_HEIGHT);
+        if (index >= 0 && index < durations.length) {
+          setSelectedIndex(index);
+        }
+      },
+    }
+  );
+
+  const handleMomentumScrollEnd = (event) => {
+    const offsetY = event.nativeEvent.contentOffset.y;
+    const index = Math.round(offsetY / ITEM_HEIGHT);
+    if (index >= 0 && index < durations.length) {
+      setSelectedIndex(index);
+      // Ensure perfect alignment
+      flatListRef.current?.scrollToOffset({
+        offset: index * ITEM_HEIGHT,
+        animated: true,
+      });
+    }
   };
 
   return (
     <SafeAreaView style={styles.container}>
+      {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity
-          onPress={() => navigation.goBack()}
-          style={styles.backButton}
-        >
+        <TouchableOpacity onPress={() => navigation.goBack()}>
           <ChevronLeft size={24} color="#000" />
         </TouchableOpacity>
         <View style={styles.progressBar}>
@@ -36,53 +117,58 @@ const DurationSelect = ({ navigation, route }) => {
         <Text style={styles.pageIndicator}>2/3</Text>
       </View>
 
+      {/* Content */}
       <View style={styles.content}>
         <Text style={styles.title}>
           Velg hvor <Text style={styles.highlightText}>Lenge</Text>
         </Text>
         <Text style={styles.subtitle}>
-          Hvor land tid utførte du din aktivitet
+          Hvor lang tid utførte du din aktivitet?
         </Text>
 
-        <ScrollView
-          style={styles.durationPicker}
-          showsVerticalScrollIndicator={false}
-        >
-          {durations.map((duration) => (
-            <TouchableOpacity
-              key={duration}
-              style={[
-                styles.durationOption,
-                duration === selectedDuration && styles.selectedDuration,
-              ]}
-              onPress={() => setSelectedDuration(duration)}
-            >
-              <Text
-                style={[
-                  styles.durationText,
-                  duration === selectedDuration && styles.selectedDurationText,
-                ]}
-              >
-                {duration}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </ScrollView>
-        <Text style={styles.unitText}>Minutter</Text>
+        {/* Central Scroll Area */}
+        <View style={styles.scrollContainer}>
+          <View style={styles.centerLine} />
+          <Animated.FlatList
+            ref={flatListRef}
+            data={durations}
+            renderItem={renderDurationItem}
+            keyExtractor={(item) => item.toString()}
+            showsVerticalScrollIndicator={false}
+            snapToInterval={ITEM_HEIGHT}
+            decelerationRate="fast"
+            onScroll={handleScroll}
+            onMomentumScrollEnd={handleMomentumScrollEnd}
+            contentContainerStyle={{
+              paddingVertical: (height - ITEM_HEIGHT) / 2.4 - ITEM_HEIGHT * 2,
+            }}
+            getItemLayout={(data, index) => ({
+              length: ITEM_HEIGHT,
+              offset: ITEM_HEIGHT * index,
+              index,
+            })}
+          />
+        </View>
       </View>
 
+      {/* Footer */}
       <View style={styles.footer}>
         <TouchableOpacity
           style={styles.cancelButton}
           onPress={() => navigation.goBack()}
         >
-          <Text style={styles.cancelButtonText}>Avbryt</Text>
+          <Text style={styles.cancelText}>Avbryt</Text>
         </TouchableOpacity>
         <TouchableOpacity
           style={styles.continueButton}
-          onPress={handleContinue}
+          onPress={() =>
+            navigation.navigate("Confirmation", {
+              activity,
+              duration: durations[selectedIndex],
+            })
+          }
         >
-          <Text style={styles.continueButtonText}>Fortsett</Text>
+          <Text style={styles.continueText}>Fortsett</Text>
         </TouchableOpacity>
       </View>
     </SafeAreaView>
@@ -99,20 +185,17 @@ const styles = StyleSheet.create({
     alignItems: "center",
     padding: 16,
   },
-  backButton: {
-    padding: 8,
-  },
   progressBar: {
     flex: 1,
-    height: 8,
+    height: 4,
     backgroundColor: "#E5F7F6",
-    borderRadius: 4,
+    borderRadius: 2,
     marginHorizontal: 16,
   },
   progressFill: {
     height: "100%",
     backgroundColor: "#00ADB5",
-    borderRadius: 4,
+    borderRadius: 2,
   },
   pageIndicator: {
     fontSize: 16,
@@ -135,62 +218,67 @@ const styles = StyleSheet.create({
     color: "#666666",
     marginBottom: 32,
   },
-  durationPicker: {
+  scrollContainer: {
     flex: 1,
-  },
-  durationOption: {
-    paddingVertical: 16,
     alignItems: "center",
+    justifyContent: "center",
   },
-  selectedDuration: {
+  centerLine: {
+    position: "absolute",
+    width: "100%",
+    height: ITEM_HEIGHT,
     borderTopWidth: 1,
     borderBottomWidth: 1,
     borderColor: "#00ADB5",
+    top: "50%",
+    marginTop: -ITEM_HEIGHT / 2,
+  },
+  durationItem: {
+    height: ITEM_HEIGHT,
+    justifyContent: "center",
+    alignItems: "center",
   },
   durationText: {
     fontSize: 24,
-    color: "#666666",
+    color: "#999",
+    fontWeight: "500",
   },
   selectedDurationText: {
-    fontSize: 32,
+    fontSize: 28,
+    fontWeight: "bold",
     color: "#00ADB5",
-    fontWeight: "600",
-  },
-  unitText: {
-    fontSize: 16,
-    color: "#666666",
-    textAlign: "center",
-    marginTop: 8,
   },
   footer: {
     flexDirection: "row",
     padding: 16,
-    paddingBottom: 32,
-    gap: 16,
+    borderTopWidth: 1,
+    borderTopColor: "#E5E5E5",
   },
   cancelButton: {
     flex: 1,
-    padding: 16,
-    backgroundColor: "#F5F5F5",
+    paddingVertical: 12,
+    marginRight: 8,
     borderRadius: 8,
+    backgroundColor: "#F5F5F5",
     alignItems: "center",
   },
   continueButton: {
     flex: 1,
-    padding: 16,
-    backgroundColor: "#00ADB5",
+    paddingVertical: 12,
+    marginLeft: 8,
     borderRadius: 8,
+    backgroundColor: "#00ADB5",
     alignItems: "center",
   },
-  cancelButtonText: {
-    fontSize: 16,
-    fontWeight: "600",
+  cancelText: {
     color: "#666666",
-  },
-  continueButtonText: {
     fontSize: 16,
-    fontWeight: "600",
+    fontWeight: "500",
+  },
+  continueText: {
     color: "#FFFFFF",
+    fontSize: 16,
+    fontWeight: "500",
   },
 });
 

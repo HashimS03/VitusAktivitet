@@ -15,7 +15,6 @@ import { ChevronLeft, Search } from "lucide-react-native";
 
 const { width, height } = Dimensions.get("window");
 const ITEM_HEIGHT = 60;
-const VISIBLE_ITEMS = 5;
 
 const activities = [
   "Styrke",
@@ -33,20 +32,17 @@ const activities = [
 const ActivitySelect = ({ navigation }) => {
   const [searchQuery, setSearchQuery] = useState("");
   const [showSearch, setShowSearch] = useState(false);
+  const [selectedActivity, setSelectedActivity] = useState(activities[0]);
   const scrollY = useRef(new Animated.Value(1)).current;
-  const [selectedIndex, setSelectedIndex] = useState(0); 
-
+  const [selectedIndex, setSelectedIndex] = useState(0);
   const flatListRef = useRef(null);
 
-  useEffect(() => {
-    // Scroll to the initial selected item
-    flatListRef.current?.scrollToOffset({
-      offset: selectedIndex * ITEM_HEIGHT,
-      animated: false,
-    });
-  }, []);
+  // Filter activities based on search query
+  const filteredActivities = activities.filter((activity) =>
+    activity.toLowerCase().includes(searchQuery.toLowerCase())
+  );
 
-  const renderActivityItem = ({ item, index }) => {
+  const renderScrollItem = ({ item, index }) => {
     const inputRange = [
       (index - 2) * ITEM_HEIGHT,
       (index - 1) * ITEM_HEIGHT,
@@ -67,7 +63,7 @@ const ActivitySelect = ({ navigation }) => {
       extrapolate: "clamp",
     });
 
-    const isSelected = index === selectedIndex;
+    const isSelected = item === selectedActivity;
 
     return (
       <Animated.View
@@ -91,6 +87,42 @@ const ActivitySelect = ({ navigation }) => {
     );
   };
 
+  const renderSearchItem = ({ item }) => {
+    const isSelected = item === selectedActivity;
+
+    return (
+      <TouchableOpacity
+        onPress={() => {
+          const newIndex = activities.indexOf(item);
+          setSelectedActivity(item);
+          setSelectedIndex(newIndex);
+          setShowSearch(false);
+          setSearchQuery("");
+
+          // Add a small delay to ensure smooth transition
+          setTimeout(() => {
+            flatListRef.current?.scrollToOffset({
+              offset: newIndex * ITEM_HEIGHT,
+              animated: false,
+            });
+            // Reset the animation value to match new position
+            scrollY.setValue(newIndex * ITEM_HEIGHT);
+          }, 50);
+        }}
+        style={styles.searchItemContainer}
+      >
+        <Text
+          style={[
+            styles.activityText,
+            isSelected && styles.selectedActivityText,
+          ]}
+        >
+          {item}
+        </Text>
+      </TouchableOpacity>
+    );
+  };
+
   const handleScroll = Animated.event(
     [{ nativeEvent: { contentOffset: { y: scrollY } } }],
     {
@@ -100,6 +132,7 @@ const ActivitySelect = ({ navigation }) => {
         const index = Math.round(offsetY / ITEM_HEIGHT);
         if (index >= 0 && index < activities.length) {
           setSelectedIndex(index);
+          setSelectedActivity(activities[index]);
         }
       },
     }
@@ -110,17 +143,28 @@ const ActivitySelect = ({ navigation }) => {
     const index = Math.round(offsetY / ITEM_HEIGHT);
     if (index >= 0 && index < activities.length) {
       setSelectedIndex(index);
+      setSelectedActivity(activities[index]);
       // Ensure perfect alignment
       flatListRef.current?.scrollToOffset({
         offset: index * ITEM_HEIGHT,
         animated: true,
       });
+      scrollY.setValue(index * ITEM_HEIGHT);
     }
   };
 
+  useEffect(() => {
+    if (!showSearch && flatListRef.current) {
+      flatListRef.current?.scrollToOffset({
+        offset: selectedIndex * ITEM_HEIGHT,
+        animated: false,
+      });
+      scrollY.setValue(selectedIndex * ITEM_HEIGHT);
+    }
+  }, [selectedIndex, showSearch, scrollY]); // Added scrollY to dependencies
+
   return (
     <SafeAreaView style={styles.container}>
-      {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()}>
           <ChevronLeft size={24} color="#000" />
@@ -131,7 +175,6 @@ const ActivitySelect = ({ navigation }) => {
         <Text style={styles.pageIndicator}>1/3</Text>
       </View>
 
-      {/* Content */}
       <View style={styles.content}>
         <Text style={styles.title}>
           Hva er Din <Text style={styles.highlightText}>Aktivitet</Text>
@@ -140,32 +183,43 @@ const ActivitySelect = ({ navigation }) => {
           Velg Hvilke aktivitet du har gjennomført.
         </Text>
 
-        {/* Central Scroll Area */}
         <View style={styles.scrollContainer}>
-          <View style={styles.centerLine} />
+          {!showSearch && <View style={styles.centerLine} />}
 
           {showSearch ? (
-            <View style={styles.searchContainer}>
-              <TextInput
-                style={styles.searchInput}
-                placeholder="Søk aktivitet..."
-                value={searchQuery}
-                onChangeText={setSearchQuery}
-                autoFocus
+            <>
+              <View style={styles.searchContainer}>
+                <TextInput
+                  style={styles.searchInput}
+                  placeholder="Søk aktivitet..."
+                  value={searchQuery}
+                  onChangeText={setSearchQuery}
+                  autoFocus
+                />
+                <TouchableOpacity
+                  style={styles.searchIcon}
+                  onPress={() => {
+                    setShowSearch(false);
+                    setSearchQuery("");
+                  }}
+                >
+                  <Search size={24} color="#00ADB5" />
+                </TouchableOpacity>
+              </View>
+              <Animated.FlatList
+                data={filteredActivities}
+                renderItem={renderSearchItem}
+                keyExtractor={(item) => item}
+                showsVerticalScrollIndicator={false}
+                contentContainerStyle={styles.searchResultsContainer}
               />
-              <TouchableOpacity
-                style={styles.searchIcon}
-                onPress={() => setShowSearch(false)}
-              >
-                <Search size={24} color="#00ADB5" />
-              </TouchableOpacity>
-            </View>
+            </>
           ) : (
             <>
               <Animated.FlatList
                 ref={flatListRef}
                 data={activities}
-                renderItem={renderActivityItem}
+                renderItem={renderScrollItem}
                 keyExtractor={(item) => item}
                 showsVerticalScrollIndicator={false}
                 snapToInterval={ITEM_HEIGHT}
@@ -173,7 +227,8 @@ const ActivitySelect = ({ navigation }) => {
                 onScroll={handleScroll}
                 onMomentumScrollEnd={handleMomentumScrollEnd}
                 contentContainerStyle={{
-                  paddingVertical: (height - ITEM_HEIGHT) / 2.4 - ITEM_HEIGHT * 2,
+                  paddingVertical:
+                    (height - ITEM_HEIGHT) / 2.4 - ITEM_HEIGHT * 2,
                 }}
                 getItemLayout={(data, index) => ({
                   length: ITEM_HEIGHT,
@@ -192,7 +247,6 @@ const ActivitySelect = ({ navigation }) => {
         </View>
       </View>
 
-      {/* Footer */}
       <View style={styles.footer}>
         <TouchableOpacity
           style={styles.cancelButton}
@@ -204,7 +258,7 @@ const ActivitySelect = ({ navigation }) => {
           style={styles.continueButton}
           onPress={() =>
             navigation.navigate("DurationSelect", {
-              activity: activities[selectedIndex],
+              activity: selectedActivity,
             })
           }
         >
@@ -279,27 +333,34 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
   },
+  searchItemContainer: {
+    height: ITEM_HEIGHT,
+    justifyContent: "center",
+    alignItems: "center",
+    borderBottomWidth: 1,
+    borderBottomColor: "#E5E5E5",
+    width: "100%",
+  },
   activityText: {
     fontSize: 24,
     color: "#999",
     fontWeight: "500",
   },
-
   selectedActivityText: {
     fontSize: 28,
     fontWeight: "bold",
     color: "#00ADB5",
   },
-
   searchContainer: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
     width: "100%",
     height: ITEM_HEIGHT,
-    borderTopWidth: 1,
     borderBottomWidth: 1,
-    borderColor: "#00ADB5",
+    borderBottomColor: "#E5E5E5",
+    backgroundColor: "#FFFFFF",
+    marginBottom: 8,
   },
   searchInput: {
     flex: 1,
@@ -319,6 +380,9 @@ const styles = StyleSheet.create({
   },
   searchIcon: {
     padding: 8,
+  },
+  searchResultsContainer: {
+    width: "100%",
   },
   footer: {
     flexDirection: "row",
