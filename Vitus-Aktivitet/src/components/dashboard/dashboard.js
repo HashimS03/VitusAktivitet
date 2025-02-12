@@ -1,24 +1,36 @@
-import { useState, useEffect } from "react"
-import { SafeAreaView, View, Text, TouchableOpacity, StyleSheet, Dimensions, Image, ScrollView } from "react-native"
-import { Users, Bell, Award } from "lucide-react-native"
-import * as Progress from "react-native-progress"
-import Svg, { Circle, Defs, LinearGradient, Stop } from "react-native-svg"
-import StepCounter from "../stepcounter/stepcounter"
-import { useNavigation } from "@react-navigation/native"
-import ConfettiCannon from "react-native-confetti-cannon"
+"use client";
 
-const TEAL_COLOR = "#00ADB5"
-const TEAL_DARK = "#008F96"
-const SCREEN_WIDTH = Dimensions.get("window").width
-const DAILY_STEP_GOAL = 1000
-const PROGRESS_RING_SIZE = 300
-const PROGRESS_RING_THICKNESS = 30
+import { useState, useEffect } from "react";
+import {
+  SafeAreaView,
+  View,
+  Text,
+  TouchableOpacity,
+  StyleSheet,
+  Dimensions,
+  Image,
+  ScrollView,
+} from "react-native";
+import { Users, Bell, Award } from "lucide-react-native";
+import * as Progress from "react-native-progress";
+import Svg, { Circle, Defs, LinearGradient, Stop } from "react-native-svg";
+import StepCounter from "../stepcounter/stepcounter";
+import { useNavigation } from "@react-navigation/native";
+import ConfettiCannon from "react-native-confetti-cannon";
+import FloatingSymbols from "../../components/BackgroundAnimation/FloatingSymbols";
+
+const TEAL_COLOR = "#00ADB5";
+const TEAL_DARK = "#008F96";
+const SCREEN_WIDTH = Dimensions.get("window").width;
+const DAILY_STEP_GOAL = 1000;
+const PROGRESS_RING_SIZE = 300;
+const PROGRESS_RING_THICKNESS = 30;
 
 // Custom Progress Circle with Gradient
 const CustomProgressCircle = ({ progress }) => {
-  const radius = (PROGRESS_RING_SIZE - PROGRESS_RING_THICKNESS) / 2
-  const circumference = radius * 2 * Math.PI
-  const strokeDashoffset = circumference - progress * circumference
+  const radius = (PROGRESS_RING_SIZE - PROGRESS_RING_THICKNESS) / 2;
+  const circumference = radius * 2 * Math.PI;
+  const strokeDashoffset = circumference - progress * circumference;
 
   return (
     <Svg height={PROGRESS_RING_SIZE} width={PROGRESS_RING_SIZE}>
@@ -46,52 +58,75 @@ const CustomProgressCircle = ({ progress }) => {
         strokeDashoffset={strokeDashoffset}
         strokeLinecap="round"
         fill="none"
-        transform={`rotate(-90 ${PROGRESS_RING_SIZE / 2} ${PROGRESS_RING_SIZE / 2})`}
+        transform={`rotate(-90 ${PROGRESS_RING_SIZE / 2} ${
+          PROGRESS_RING_SIZE / 2
+        })`}
       />
     </Svg>
-  )
-}
+  );
+};
 
 export default function Dashboard() {
-  const [stepCount, setStepCount] = useState(0)
-  const [streak, setStreak] = useState(25)
-  const navigation = useNavigation()
-  const [showCelebration, setShowCelebration] = useState(false)
+  const [stepCount, setStepCount] = useState(0);
+  const [streak, setStreak] = useState(25);
+  const navigation = useNavigation();
+  const [showCelebration, setShowCelebration] = useState(false);
 
   useEffect(() => {
     if (stepCount >= DAILY_STEP_GOAL && !showCelebration) {
-      setShowCelebration(true)
-      setTimeout(() => setShowCelebration(false), 4000)
+      setShowCelebration(true);
+      setTimeout(() => setShowCelebration(false), 4000);
     }
-  }, [stepCount, showCelebration])
+  }, [stepCount, showCelebration]);
 
   const handleHistoryPress = () => {
-    navigation.navigate("History")
-  }
+    navigation.navigate("History");
+  };
 
   return (
     <SafeAreaView style={styles.container}>
+      <FloatingSymbols />
       <ScrollView contentContainerStyle={styles.scrollContent}>
-        {showCelebration && <ConfettiCannon count={200} origin={{ x: SCREEN_WIDTH / 2, y: 0 }} fadeOut={true} />}
+        {showCelebration && (
+          <ConfettiCannon
+            count={200}
+            origin={{ x: SCREEN_WIDTH / 2, y: 0 }}
+            fadeOut={true}
+          />
+        )}
         <View style={styles.header}>
-          <TouchableOpacity style={styles.iconButton} onPress={() => navigation.navigate("Stats")}>
+          <TouchableOpacity
+            style={styles.iconButton}
+            onPress={() => navigation.navigate("Stats")}
+          >
             <Users size={24} color="#666" />
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.iconButton} onPress={() => navigation.navigate("Notifications")}>
+          <TouchableOpacity
+            style={styles.iconButton}
+            onPress={() => navigation.navigate("Notifications")}
+          >
             <Bell size={24} color="#666" />
           </TouchableOpacity>
         </View>
 
         <View style={styles.progressWrapper}>
           <View style={styles.progressContainer}>
-            <CustomProgressCircle progress={Math.min(stepCount / DAILY_STEP_GOAL, 1)} />
+            <CustomProgressCircle
+              progress={Math.min(stepCount / DAILY_STEP_GOAL, 1)}
+            />
             <View style={styles.progressContent}>
-              <Image source={require("../../../assets/løper.png")} style={styles.runnerIcon} />
+              <Image
+                source={require("../../../assets/løper.png")}
+                style={styles.runnerIcon}
+              />
               <Text style={styles.stepsText}>{stepCount.toLocaleString()}</Text>
               <Text style={styles.dailyStepsLabel}>DAILY STEPS</Text>
             </View>
-            <TouchableOpacity style={styles.addButton} onPress={() => navigation.navigate("ActivitySelect")}>
+            <TouchableOpacity
+              style={styles.addButton}
+              onPress={() => navigation.navigate("ActivitySelect")}
+            >
               <Text style={styles.addButtonText}>+</Text>
             </TouchableOpacity>
           </View>
@@ -99,12 +134,21 @@ export default function Dashboard() {
 
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Aktive Hendelser</Text>
-          <TouchableOpacity onPress={() => navigation.navigate("Events", { screen: "EventsNavigation" })}>
+          <TouchableOpacity
+            onPress={() =>
+              navigation.navigate("Events", { screen: "EventsNavigation" })
+            }
+          >
             <View style={styles.eventCard}>
-              <Image source={require("../../../assets/event-illustration.png")} style={styles.eventImage} />
+              <Image
+                source={require("../../../assets/event-illustration.png")}
+                style={styles.eventImage}
+              />
               <View style={styles.eventContent}>
                 <Text style={styles.eventTitle}>LØP LØP LØP!</Text>
-                <Text style={styles.eventDescription}>Beskrivelse som forklarer hva hendelsen gjelder</Text>
+                <Text style={styles.eventDescription}>
+                  Beskrivelse som forklarer hva hendelsen gjelder
+                </Text>
                 <Progress.Bar
                   progress={Math.min(stepCount / DAILY_STEP_GOAL, 1)}
                   width={null}
@@ -123,10 +167,16 @@ export default function Dashboard() {
         </View>
 
         <View style={styles.statsContainer}>
-          <TouchableOpacity style={styles.statSection} onPress={handleHistoryPress}>
+          <TouchableOpacity
+            style={styles.statSection}
+            onPress={handleHistoryPress}
+          >
             <Text style={styles.statTitle}>Historikk</Text>
             <View style={styles.streakBox}>
-              <Image source={require("../../../assets/flame-teal.png")} style={styles.flameIcon} />
+              <Image
+                source={require("../../../assets/flame-teal.png")}
+                style={styles.flameIcon}
+              />
               <Text style={styles.streakValue}>21</Text>
             </View>
           </TouchableOpacity>
@@ -161,13 +211,13 @@ export default function Dashboard() {
         <StepCounter setStepCount={setStepCount} />
       </ScrollView>
     </SafeAreaView>
-  )
+  );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#F8F9FA",
+    backgroundColor: "#F8F9FA", 
   },
   scrollContent: {
     flexGrow: 1,
@@ -391,4 +441,4 @@ const styles = StyleSheet.create({
     backgroundColor: "#FFE7BA",
     borderRadius: 8,
   },
-})
+});
