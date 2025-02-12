@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useMemo } from "react";
 import {
   View,
   Text,
@@ -8,98 +8,87 @@ import {
   StyleSheet,
   SafeAreaView,
   Dimensions,
-  Animated,
+  FlatList,
 } from "react-native";
 import { ChevronLeft } from "lucide-react-native";
 
 const { width, height } = Dimensions.get("window");
-const ITEM_HEIGHT = 60;
-const VISIBLE_ITEMS = 5;
+const ITEM_HEIGHT = 60; // Height of each item in the list
+const VISIBLE_ITEMS = 7; // Odd number
+const TOTAL_ITEMS = 60; // Maksimum 3 timer
 
-const durations = Array.from({ length: 9 }, (_, i) => 25 - i);
+const generateDurations = () => {
+  return Array.from({ length: TOTAL_ITEMS }, (_, i) => i + 1);
+};
 
 const DurationSelect = ({ navigation, route }) => {
   const { activity } = route.params;
-  const scrollY = useRef(new Animated.Value(1)).current;
   const [selectedIndex, setSelectedIndex] = useState(0);
   const flatListRef = useRef(null);
 
+  const durations = useMemo(() => generateDurations(), []);
+  const repeatedDurations = useMemo(
+    () => [...durations, ...durations, ...durations],
+    [durations]
+  );
+
   useEffect(() => {
-    // Scroll to the initial selected item
-    flatListRef.current?.scrollToOffset({
-      offset: selectedIndex * ITEM_HEIGHT,
+    // Scroll to the middle set of items initially
+    flatListRef.current?.scrollToIndex({
+      index: TOTAL_ITEMS + Math.floor(VISIBLE_ITEMS / 2),
       animated: false,
     });
   }, []);
 
   const renderDurationItem = ({ item, index }) => {
-    const inputRange = [
-      (index - 2) * ITEM_HEIGHT,
-      (index - 1) * ITEM_HEIGHT,
-      index * ITEM_HEIGHT,
-      (index + 1) * ITEM_HEIGHT,
-      (index + 2) * ITEM_HEIGHT,
-    ];
+    const actualIndex = index % TOTAL_ITEMS;
+    const isSelected = actualIndex === selectedIndex;
 
-    const scale = scrollY.interpolate({
-      inputRange,
-      outputRange: [0.7, 0.8, 1, 0.8, 0.7],
-      extrapolate: "clamp",
-    });
-
-    const opacity = scrollY.interpolate({
-      inputRange,
-      outputRange: [0.3, 0.5, 1, 0.5, 0.3],
-      extrapolate: "clamp",
-    });
-
-    const isSelected = index === selectedIndex;
+    const formatDuration = (minutes) => {
+      if (minutes < 60) {
+        return `${minutes} min`;
+      } else {
+        const hours = Math.floor(minutes / 60);
+        const mins = minutes % 60;
+        return mins > 0 ? `${hours} t ${mins} min` : `${hours} t`;
+      }
+    };
 
     return (
-      <Animated.View
-        style={[
-          styles.durationItem,
-          {
-            transform: [{ scale }],
-            opacity: isSelected ? 1 : opacity,
-          },
-        ]}
-      >
+      <View style={styles.durationItem}>
         <Text
           style={[
             styles.durationText,
             isSelected && styles.selectedDurationText,
           ]}
         >
-          {item} min
+          {formatDuration(item)}
         </Text>
-      </Animated.View>
+      </View>
     );
   };
 
-  const handleScroll = Animated.event(
-    [{ nativeEvent: { contentOffset: { y: scrollY } } }],
-    {
-      useNativeDriver: true,
-      listener: (event) => {
-        const offsetY = event.nativeEvent.contentOffset.y;
-        const index = Math.round(offsetY / ITEM_HEIGHT);
-        if (index >= 0 && index < durations.length) {
-          setSelectedIndex(index);
-        }
-      },
-    }
-  );
+  const handleScroll = (event) => {
+    const offsetY = event.nativeEvent.contentOffset.y;
+    const index = Math.round(offsetY / ITEM_HEIGHT) % TOTAL_ITEMS;
+    setSelectedIndex(index);
+  };
 
   const handleMomentumScrollEnd = (event) => {
     const offsetY = event.nativeEvent.contentOffset.y;
     const index = Math.round(offsetY / ITEM_HEIGHT);
-    if (index >= 0 && index < durations.length) {
-      setSelectedIndex(index);
-      // Ensure perfect alignment
-      flatListRef.current?.scrollToOffset({
-        offset: index * ITEM_HEIGHT,
-        animated: true,
+
+    if (index < TOTAL_ITEMS) {
+      // If we're in the first set, jump to the middle set
+      flatListRef.current?.scrollToIndex({
+        index: index + TOTAL_ITEMS,
+        animated: false,
+      });
+    } else if (index >= TOTAL_ITEMS * 2) {
+      // If we're in the last set, jump to the middle set
+      flatListRef.current?.scrollToIndex({
+        index: index - TOTAL_ITEMS,
+        animated: false,
       });
     }
   };
@@ -129,24 +118,26 @@ const DurationSelect = ({ navigation, route }) => {
         {/* Central Scroll Area */}
         <View style={styles.scrollContainer}>
           <View style={styles.centerLine} />
-          <Animated.FlatList
+          <FlatList
             ref={flatListRef}
-            data={durations}
+            data={repeatedDurations}
             renderItem={renderDurationItem}
-            keyExtractor={(item) => item.toString()}
+            keyExtractor={(item, index) => `${item}-${index}`}
             showsVerticalScrollIndicator={false}
             snapToInterval={ITEM_HEIGHT}
             decelerationRate="fast"
             onScroll={handleScroll}
             onMomentumScrollEnd={handleMomentumScrollEnd}
-            contentContainerStyle={{
-              paddingVertical: (height - ITEM_HEIGHT) / 2.4 - ITEM_HEIGHT * 2,
-            }}
             getItemLayout={(data, index) => ({
               length: ITEM_HEIGHT,
               offset: ITEM_HEIGHT * index,
               index,
             })}
+            contentContainerStyle={{
+              paddingVertical:
+                (height - ITEM_HEIGHT) / 2 -
+                ITEM_HEIGHT * (VISIBLE_ITEMS / 2 - 0.4),
+            }}
           />
         </View>
       </View>
