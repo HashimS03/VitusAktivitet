@@ -48,6 +48,7 @@ import Confirmation from "../components/stepconverter/confirmation";
 import GenderSelection from "../components/genderselection/genderselection";
 import DepartmentSelection from "../components/departmentselection/departmentselection";
 import AvatarSelection from "../components/avatarselection/avatarselection";
+import EventLeaderboard from "../components/events/EventLeaderboard"; // Juster stien etter din mappestruktur
 
 // Create Navigators
 const Tab = createBottomTabNavigator();
@@ -178,15 +179,19 @@ const App = () => {
         <Stack.Screen name="Confirmation" component={Confirmation} />
         <Stack.Screen name="Setting" component={Setting} />
         <Stack.Screen name="Stats" component={Stats} />
-        <Stack.Screen name="Notifications" component={Notifications} /> 
+        <Stack.Screen name="Notifications" component={Notifications} />
         <Stack.Screen name="Language" component={LanguageSelection} />
-        <Stack.Screen name="EditProfile" component={EditProfile} /> 
-        <Stack.Screen name="notificationeditor" component={NotificationEditor} />
+        <Stack.Screen name="EditProfile" component={EditProfile} />
+        <Stack.Screen
+          name="notificationeditor"
+          component={NotificationEditor}
+        />
         <Stack.Screen name="Theme" component={Theme} />
         <Stack.Screen name="contactus" component={ContactUs} />
         <Stack.Screen name="helpsupport" component={HelpSupport} />
         <Stack.Screen name="securityprivacy" component={SecurityPrivacy} />
         <Stack.Screen name="privacypolicy" component={PrivacyPolicy} />
+        <Stack.Screen name="EventLeaderboard" component={EventLeaderboard} />
       </Stack.Navigator>
     </NavigationContainer>
   );
