@@ -1,90 +1,66 @@
 import React from "react";
 import { View, Text, StyleSheet, ScrollView, Image } from "react-native";
+import { useTheme } from "../context/ThemeContext"; // 🌙 Import Theme
 
-const Achievement = ({ icon, level, count, title }) => (
-  <View style={styles.achievementCard}>
+const Achievement = ({ icon, level, count, theme }) => (
+  <View style={[styles.achievementCard, { backgroundColor: theme.surface, shadowColor: theme.shadow }]}>
     <Image source={icon} style={styles.achievementIcon} />
-    <Text style={styles.achievementLevel}>Level {level}</Text>
-    <Text style={styles.achievementCount}>{count}</Text>
+    <Text style={[styles.achievementLevel, { color: theme.text }]}>Level {level}</Text>
+    <Text style={[styles.achievementCount, { color: theme.textSecondary }]}>{count}</Text>
   </View>
 );
 
-const Certification = ({ icon, title, level, progress }) => (
-  <View style={styles.certificationCard}>
+const Certification = ({ icon, title, level, progress, theme }) => (
+  <View style={[styles.certificationCard, { backgroundColor: theme.surface, shadowColor: theme.shadow }]}>
     <Image source={icon} style={styles.certificationIcon} />
     <View style={styles.certificationInfo}>
-      <Text style={styles.certificationTitle}>{title}</Text>
-      <Text style={styles.certificationLevel}>Level {level}</Text>
+      <Text style={[styles.certificationTitle, { color: theme.text }]}>{title}</Text>
+      <Text style={[styles.certificationLevel, { color: theme.textSecondary }]}>Level {level}</Text>
     </View>
   </View>
 );
 
 const Achievements = () => {
+  const { theme } = useTheme(); // Get theme values
+
   return (
-    <ScrollView style={styles.container}>
+    <ScrollView style={[styles.container, { backgroundColor: theme.background }]}>
       {/* Level Progress Section */}
-      <View style={styles.levelCard}>
-        <View style={styles.levelIcon}>
-          <Text>🏆</Text>
+      <View style={[styles.levelCard, { backgroundColor: theme.surface, shadowColor: theme.shadow }]}>
+        <View style={[styles.levelIcon, { backgroundColor: theme.primary }]}>
+          <Text style={{ color: theme.onPrimary }}>🏆</Text>
         </View>
-        <Text style={styles.levelTitle}>Level 2</Text>
-        <Text style={styles.levelSubtitle}>500 Points to next level</Text>
-        <View style={styles.progressBar}>
-          <View style={[styles.progressFill, { width: "75%" }]} />
+        <Text style={[styles.levelTitle, { color: theme.text }]}>Level 2</Text>
+        <Text style={[styles.levelSubtitle, { color: theme.textSecondary }]}>500 Points to next level</Text>
+        <View style={[styles.progressBar, { backgroundColor: theme.border }]}>
+          <View style={[styles.progressFill, { width: "75%", backgroundColor: theme.accent }]} />
         </View>
         <View style={styles.levelNumbers}>
-          <Text>2</Text>
-          <Text>3</Text>
+          <Text style={{ color: theme.textSecondary }}>2</Text>
+          <Text style={{ color: theme.textSecondary }}>3</Text>
         </View>
       </View>
 
       {/* Trophies Section */}
       <View style={styles.section}>
         <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>TROPHIES 12</Text>
-          <Text style={styles.seeAll}>{">"}</Text>
+          <Text style={[styles.sectionTitle, { color: theme.text }]}>TROPHIES 12</Text>
+          <Text style={[styles.seeAll, { color: theme.textSecondary }]}>{">"}</Text>
         </View>
         <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-          <Achievement
-            icon={require("../../../assets/trophy-gold.png")}
-            level={6}
-            count={3}
-          />
-          <Achievement
-            icon={require("../../../assets/trophy-gold.png")}
-            level={4}
-            count={7}
-          />
-          <Achievement
-            icon={require("../../../assets/trophy-gold.png")}
-            level={9}
-            count={2}
-          />
+          <Achievement icon={require("../../../assets/trophy-gold.png")} level={6} count={3} theme={theme} />
+          <Achievement icon={require("../../../assets/trophy-gold.png")} level={4} count={7} theme={theme} />
+          <Achievement icon={require("../../../assets/trophy-gold.png")} level={9} count={2} theme={theme} />
         </ScrollView>
       </View>
 
       {/* Certifications Section */}
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>CERTIFICATIONS 8</Text>
+        <Text style={[styles.sectionTitle, { color: theme.text }]}>CERTIFICATIONS 8</Text>
         <View style={styles.certificationsList}>
-          <Certification
-            icon={require("../../../assets/trophy-gold.png")}
-            title="1000 Steps"
-            level={3}
-            progress="5/5"
-          />
-          <Certification
-            icon={require("../../../assets/trophy-gold.png")}
-            title="30 Streak"
-            level={9}
-            progress="5/5"
-          />
-          <Certification
-            icon={require("../../../assets/trophy-gold.png")}
-            title="1st Place"
-            level={5}
-            progress="3/5"
-          />
+          <Certification icon={require("../../../assets/trophy-gold.png")} title="1000 Steps" level={3} progress="5/5" theme={theme} />
+          <Certification icon={require("../../../assets/trophy-gold.png")} title="30 Streak" level={9} progress="5/5" theme={theme} />
+          <Certification icon={require("../../../assets/trophy-gold.png")} title="1st Place" level={5} progress="3/5" theme={theme} />
         </View>
       </View>
     </ScrollView>
@@ -94,14 +70,11 @@ const Achievements = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#FFFFFF",
   },
   levelCard: {
     margin: 16,
     padding: 16,
-    backgroundColor: "#FFFFFF",
     borderRadius: 16,
-    shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 8,
@@ -111,7 +84,6 @@ const styles = StyleSheet.create({
     width: 48,
     height: 48,
     borderRadius: 24,
-    backgroundColor: "#E5F1FF",
     alignItems: "center",
     justifyContent: "center",
     marginBottom: 8,
@@ -123,18 +95,15 @@ const styles = StyleSheet.create({
   },
   levelSubtitle: {
     fontSize: 14,
-    color: "#9e9fa1",
     marginBottom: 16,
   },
   progressBar: {
     height: 8,
-    backgroundColor: "#E5E5E5",
     borderRadius: 4,
     marginBottom: 8,
   },
   progressFill: {
     height: "100%",
-    backgroundColor: "#00ADB5",
     borderRadius: 4,
   },
   levelNumbers: {
@@ -153,20 +122,16 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 16,
     fontWeight: "600",
-    color: "#9e9fa1",
   },
   seeAll: {
     fontSize: 16,
-    color: "#9e9fa1",
   },
   achievementCard: {
     width: 100,
     height: 100,
-    backgroundColor: "#FFFFFF",
     borderRadius: 16,
     padding: 12,
     marginRight: 12,
-    shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 8,
@@ -185,7 +150,6 @@ const styles = StyleSheet.create({
   },
   achievementCount: {
     fontSize: 12,
-    color: "#9e9fa1",
   },
   certificationsList: {
     gap: 12,
@@ -194,9 +158,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     padding: 16,
-    backgroundColor: "#FFFFFF",
     borderRadius: 16,
-    shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 8,
@@ -217,7 +179,6 @@ const styles = StyleSheet.create({
   },
   certificationLevel: {
     fontSize: 14,
-    color: "#9e9fa1",
   },
 });
 

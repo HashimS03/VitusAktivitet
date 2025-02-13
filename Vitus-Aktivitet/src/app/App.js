@@ -30,6 +30,7 @@ import ContactUs from "../components/Setting/contactus"; // ✅ Import the new s
 import HelpSupport from "../components/Setting/helpsupport"; // ✅ Import the new screen
 import SecurityPrivacy from "../components/Setting/securityprivacy"; // ✅ Import the new screen
 import PrivacyPolicy from "../components/Setting/privacypolicy"; // ✅ Import the new screen
+import { ThemeProvider } from '../components/context/ThemeContext';
 
 // Events and Event Management
 import JoinEvent from "../components/events/JoinEvent";
@@ -107,88 +108,90 @@ const TabNavigator = () => (
 /** Root Stack Navigator - Handles authentication & app navigation */
 const App = () => {
   return (
-    <NavigationContainer>
-      <Stack.Navigator
-        initialRouteName="Start"
-        screenOptions={{
-          headerShown: false,
-        }}
-      >
-        {/* Authentication Screens */}
-        <Stack.Screen name="Start" component={StartScreen} />
-        <Stack.Screen name="Login">
-          {(props) => (
-            <LoginScreen
-              {...props}
-              onLoginSuccess={() =>
-                props.navigation.reset({
-                  index: 0,
-                  routes: [{ name: "MainApp" }],
-                })
-              }
-            />
-          )}
-        </Stack.Screen>
-        <Stack.Screen name="SignUp">
-          {(props) => (
-            <CreateAccountScreen
-              {...props}
-              onSignUpSuccess={() =>
-                props.navigation.reset({
-                  index: 0,
-                  routes: [{ name: "MainApp" }],
-                })
-              }
-            />
-          )}
-        </Stack.Screen>
+    <ThemeProvider>
+      <NavigationContainer>
+        <Stack.Navigator
+          initialRouteName="Start"
+          screenOptions={{
+            headerShown: false,
+          }}
+        >
+          {/* Authentication Screens */}
+          <Stack.Screen name="Start" component={StartScreen} />
+          <Stack.Screen name="Login">
+            {(props) => (
+              <LoginScreen
+                {...props}
+                onLoginSuccess={() =>
+                  props.navigation.reset({
+                    index: 0,
+                    routes: [{ name: "MainApp" }],
+                  })
+                }
+              />
+            )}
+          </Stack.Screen>
+          <Stack.Screen name="SignUp">
+            {(props) => (
+              <CreateAccountScreen
+                {...props}
+                onSignUpSuccess={() =>
+                  props.navigation.reset({
+                    index: 0,
+                    routes: [{ name: "MainApp" }],
+                  })
+                }
+              />
+            )}
+          </Stack.Screen>
 
-        {/* Gender Selection */}
-        <Stack.Screen name="GenderSelection">
-          {(props) => (
-            <GenderSelection
-              {...props}
-              onComplete={(gender) => console.log("Selected Gender:", gender)}
-            />
-          )}
-        </Stack.Screen>
-        {/* Department Selection */}
-        <Stack.Screen name="DepartmentSelection">
-          {(props) => (
-            <DepartmentSelection
-              {...props}
-              onComplete={(department) =>
-                console.log("Selected Department:", department)
-              }
-            />
-          )}
-        </Stack.Screen>
-        {/* History */}
-        <Stack.Screen name="History" component={HistoryScreen} />
+          {/* Gender Selection */}
+          <Stack.Screen name="GenderSelection">
+            {(props) => (
+              <GenderSelection
+                {...props}
+                onComplete={(gender) => console.log("Selected Gender:", gender)}
+              />
+            )}
+          </Stack.Screen>
+          {/* Department Selection */}
+          <Stack.Screen name="DepartmentSelection">
+            {(props) => (
+              <DepartmentSelection
+                {...props}
+                onComplete={(department) =>
+                  console.log("Selected Department:", department)
+                }
+              />
+            )}
+          </Stack.Screen>
+          {/* History */}
+          <Stack.Screen name="History" component={HistoryScreen} />
 
-        {/* Avatar Selection */}
-        <Stack.Screen name="AvatarSelection" component={AvatarSelection} />
+          {/* Avatar Selection */}
+          <Stack.Screen name="AvatarSelection" component={AvatarSelection} />
 
-        {/* Main App (Tabs) */}
-        <Stack.Screen name="MainApp" component={TabNavigator} />
+          {/* Main App (Tabs) */}
+          <Stack.Screen name="MainApp" component={TabNavigator} />
 
-        {/* Other Screens */}
-        <Stack.Screen name="ActivitySelect" component={ActivitySelect} />
-        <Stack.Screen name="DurationSelect" component={DurationSelect} />
-        <Stack.Screen name="Confirmation" component={Confirmation} />
-        <Stack.Screen name="Setting" component={Setting} />
-        <Stack.Screen name="Stats" component={Stats} />
-        <Stack.Screen name="Notifications" component={Notifications} /> 
-        <Stack.Screen name="Language" component={LanguageSelection} />
-        <Stack.Screen name="EditProfile" component={EditProfile} /> 
-        <Stack.Screen name="notificationeditor" component={NotificationEditor} />
-        <Stack.Screen name="Theme" component={Theme} />
-        <Stack.Screen name="contactus" component={ContactUs} />
-        <Stack.Screen name="helpsupport" component={HelpSupport} />
-        <Stack.Screen name="securityprivacy" component={SecurityPrivacy} />
-        <Stack.Screen name="privacypolicy" component={PrivacyPolicy} />
-      </Stack.Navigator>
-    </NavigationContainer>
+          {/* Other Screens */}
+          <Stack.Screen name="ActivitySelect" component={ActivitySelect} />
+          <Stack.Screen name="DurationSelect" component={DurationSelect} />
+          <Stack.Screen name="Confirmation" component={Confirmation} />
+          <Stack.Screen name="Setting" component={Setting} />
+          <Stack.Screen name="Stats" component={Stats} />
+          <Stack.Screen name="Notifications" component={Notifications} /> 
+          <Stack.Screen name="Language" component={LanguageSelection} />
+          <Stack.Screen name="EditProfile" component={EditProfile} /> 
+          <Stack.Screen name="notificationeditor" component={NotificationEditor} />
+          <Stack.Screen name="Theme" component={Theme} />
+          <Stack.Screen name="contactus" component={ContactUs} />
+          <Stack.Screen name="helpsupport" component={HelpSupport} />
+          <Stack.Screen name="securityprivacy" component={SecurityPrivacy} />
+          <Stack.Screen name="privacypolicy" component={PrivacyPolicy} />
+        </Stack.Navigator>
+      </NavigationContainer>
+    </ThemeProvider>
   );
 };
 

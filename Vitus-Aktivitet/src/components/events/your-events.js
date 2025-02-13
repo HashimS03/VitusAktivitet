@@ -9,43 +9,44 @@ import {
 } from "react-native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
+import { useTheme } from "../context/ThemeContext"; // Import Theme Context
 
 const YourEvents = () => {
   const navigation = useNavigation();
+  const { theme, accentColor } = useTheme(); // Get theme values
 
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <View style={styles.container}>
-        
+    <SafeAreaView style={[styles.safeArea, { backgroundColor: theme.background }]}>
+      <View style={[styles.container, { backgroundColor: theme.background }]}>
+
         {/* Action Cards */}
         <TouchableOpacity 
-          style={styles.actionCard} 
+          style={[styles.actionCard, { backgroundColor: theme.surface, shadowColor: theme.shadow }]} 
           onPress={() => navigation.navigate("NewEvent")}
         >
-          <Text style={styles.actionCardText}>Opprett hendelse</Text>
-          <MaterialCommunityIcons name="chevron-right" size={24} color="#1A1A1A" />
+          <Text style={[styles.actionCardText, { color: theme.text }]}>Opprett hendelse</Text>
+          <MaterialCommunityIcons name="chevron-right" size={24} color={theme.text} />
         </TouchableOpacity>
 
         <TouchableOpacity 
-          style={styles.actionCard} 
+          style={[styles.actionCard, { backgroundColor: theme.surface, shadowColor: theme.shadow }]} 
           onPress={() => navigation.navigate("JoinEvent")}
         >
-          <Text style={styles.actionCardText}>Join Hendelse</Text>
-          <MaterialCommunityIcons name="chevron-right" size={24} color="#1A1A1A" />
+          <Text style={[styles.actionCardText, { color: theme.text }]}>Join Hendelse</Text>
+          <MaterialCommunityIcons name="chevron-right" size={24} color={theme.text} />
         </TouchableOpacity>
 
         {/* Active Events Section */}
         <View style={styles.activeEventsSection}>
-          <Text style={styles.sectionTitle}>
-            Dine <Text style={styles.highlightText}>Aktive</Text> Hendelser
+          <Text style={[styles.sectionTitle, { color: theme.text }]}>
+            Dine <Text style={[styles.highlightText, { color: accentColor }]}>Aktive</Text> Hendelser
           </Text>
 
-          
 
           {/* Empty State (No Active Events) */}
-          <View style={styles.noEventsContainer}>
-            <Text style={styles.noEventTitle}>Ingen Aktive Hendelser</Text>
-            <Text style={styles.noEventSubtitle}>
+          <View style={[styles.noEventsContainer, { backgroundColor: theme.surface, shadowColor: theme.shadow }]}>
+            <Text style={[styles.noEventTitle, { color: theme.text }]}>Ingen Aktive Hendelser</Text>
+            <Text style={[styles.noEventSubtitle, { color: theme.textSecondary }]}>
               Du har for øyeblikket ingen aktive hendelser.
             </Text>
           </View>
@@ -60,24 +61,18 @@ const YourEvents = () => {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: "#fff",
-    paddingTop: 30, // ✅ Fix Navbar Padding
   },
   container: {
     flex: 1,
-    backgroundColor: "#fff",
-    paddingBottom: 80, // ✅ Ensure space for bottom navigation
+    paddingBottom: 80, // Ensure space for bottom navigation
   },
-
   actionCard: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    backgroundColor: "#fff",
     borderRadius: 16,
     padding: 20,
     marginBottom: 16,
-    shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
@@ -86,7 +81,6 @@ const styles = StyleSheet.create({
   actionCardText: {
     fontSize: 16,
     fontWeight: "500",
-    color: "#1A1A1A",
   },
   activeEventsSection: {
     marginTop: 8,
@@ -95,16 +89,14 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: "500",
     marginBottom: 16,
-    color: "#1A1A1A",
   },
   highlightText: {
-    color: "#00BFA5",
+    fontWeight: "600",
   },
   eventCard: {
     backgroundColor: "#fff",
     borderRadius: 16,
     overflow: "hidden",
-    shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
@@ -128,24 +120,18 @@ const styles = StyleSheet.create({
   eventTitle: {
     fontSize: 18,
     fontWeight: "600",
-    color: "#1A1A1A",
   },
   eventTime: {
     fontSize: 14,
-    color: "#666",
-    marginBottom: 4,
   },
   eventDate: {
     fontSize: 14,
-    color: "#666",
   },
   noEventsContainer: {
-    backgroundColor: "#FFFFFF",
     borderRadius: 12,
     padding: 50,
     alignItems: "center",
     justifyContent: "center",
-    shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.2,
     shadowRadius: 4,
@@ -155,11 +141,9 @@ const styles = StyleSheet.create({
     fontSize: 22,
     fontWeight: "600",
     marginBottom: 8,
-    color: "#000",
   },
   noEventSubtitle: {
     fontSize: 16,
-    color: "#666",
     textAlign: "center",
     maxWidth: "80%",
     lineHeight: 24,

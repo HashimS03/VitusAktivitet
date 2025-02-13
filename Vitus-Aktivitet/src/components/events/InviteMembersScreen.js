@@ -1,70 +1,79 @@
-import { View, Text, StyleSheet, SafeAreaView, TouchableOpacity, Modal, Share } from "react-native"
-import { MaterialCommunityIcons } from "@expo/vector-icons"
-import QRCode from "react-native-qrcode-svg"
-import { useNavigation } from "@react-navigation/native"
+import { View, Text, StyleSheet, SafeAreaView, TouchableOpacity, Modal, Share } from "react-native";
+import { MaterialCommunityIcons } from "@expo/vector-icons";
+import QRCode from "react-native-qrcode-svg";
+import { useNavigation } from "@react-navigation/native";
+import { useTheme } from "../context/ThemeContext"; // Import Theme Context
 
 const InviteMembersScreen = ({ visible, onClose, eventId }) => {
-  const navigation = useNavigation()
+  const navigation = useNavigation();
+  const { theme, isDarkMode } = useTheme(); // Get theme values
 
   const handleShare = async () => {
     try {
-      const eventLink = `https://yourapp.com/join/${eventId}`
+      const eventLink = `https://yourapp.com/join/${eventId}`;
       await Share.share({
         message: "Join my event!",
         url: eventLink,
-      })
+      });
     } catch (error) {
-      console.error(error)
+      console.error(error);
     }
-  }
+  };
 
   return (
     <Modal animationType="slide" transparent={true} visible={visible} onRequestClose={onClose}>
-      <SafeAreaView style={styles.container}>
+      <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]}>
         <View style={styles.content}>
           {/* Close Button */}
-          <TouchableOpacity style={styles.closeButton} onPress={onClose}>
-            <MaterialCommunityIcons name="close" size={24} color="#000" />
+          <TouchableOpacity
+            style={[styles.closeButton, { backgroundColor: theme.surface }]}
+            onPress={onClose}
+          >
+            <MaterialCommunityIcons name="close" size={24} color={theme.text} />
           </TouchableOpacity>
 
           {/* Title */}
-          <Text style={styles.title}>Din gruppe</Text>
-          <Text style={styles.subtitle}>
-            Dine venner can scanne{"\n"}denne QR koden for å bli{"\n"}med i gruppen
+          <Text style={[styles.title, { color: theme.text }]}>Din gruppe</Text>
+          <Text style={[styles.subtitle, { color: theme.textSecondary }]}>
+            Dine venner kan scanne{"\n"}denne QR koden for å bli{"\n"}med i gruppen
           </Text>
 
-          {/* QR Code */}
-          <View style={styles.qrContainer}>
-            <QRCode value={`https://yourapp.com/join/${eventId}`} size={200} backgroundColor="white" color="black" />
+          {/* QR Code - Matches Background */}
+          <View style={[styles.qrContainer, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+            <QRCode
+              value={`https://yourapp.com/join/${eventId}`}
+              size={200}
+              backgroundColor={theme.background} // Matches background color
+              color={isDarkMode ? "white" : "black"} // White in dark mode, black in light mode
+            />
           </View>
 
           {/* Divider */}
           <View style={styles.dividerContainer}>
-            <View style={styles.divider} />
-            <Text style={styles.dividerText}>Eller</Text>
-            <View style={styles.divider} />
+            <View style={[styles.divider, { backgroundColor: theme.border }]} />
+            <Text style={[styles.dividerText, { color: theme.textSecondary }]}>Eller</Text>
+            <View style={[styles.divider, { backgroundColor: theme.border }]} />
           </View>
 
           {/* Share Link Button */}
-          <TouchableOpacity style={styles.shareButton} onPress={handleShare}>
-            <MaterialCommunityIcons name="share-variant" size={20} color="#000" />
-            <Text style={styles.shareButtonText}>Del Lenke</Text>
+          <TouchableOpacity style={[styles.shareButton, { backgroundColor: theme.surface }]} onPress={handleShare}>
+            <MaterialCommunityIcons name="share-variant" size={20} color={theme.text} />
+            <Text style={[styles.shareButtonText, { color: theme.text }]}>Del Lenke</Text>
           </TouchableOpacity>
 
           {/* Done Button */}
-          <TouchableOpacity style={styles.doneButton} onPress={onClose}>
+          <TouchableOpacity style={[styles.doneButton, { backgroundColor: theme.primary }]} onPress={onClose}>
             <Text style={styles.doneButtonText}>Done</Text>
           </TouchableOpacity>
         </View>
       </SafeAreaView>
     </Modal>
-  )
-}
+  );
+};
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "white",
   },
   content: {
     flex: 1,
@@ -78,7 +87,6 @@ const styles = StyleSheet.create({
     right: 20,
     padding: 8,
     borderRadius: 20,
-    backgroundColor: "#F5F5F5",
   },
   title: {
     fontSize: 32,
@@ -88,20 +96,16 @@ const styles = StyleSheet.create({
   },
   subtitle: {
     fontSize: 16,
-    color: "#666",
     textAlign: "center",
     marginBottom: 40,
     lineHeight: 24,
   },
   qrContainer: {
     padding: 20,
-    backgroundColor: "white",
     borderRadius: 12,
+    borderWidth: 2, // Ensures contrast and separation
     shadowColor: "#000",
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
+    shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 3,
@@ -116,17 +120,14 @@ const styles = StyleSheet.create({
   divider: {
     flex: 1,
     height: 1,
-    backgroundColor: "#E0E0E0",
   },
   dividerText: {
     marginHorizontal: 16,
-    color: "#666",
     fontSize: 16,
   },
   shareButton: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#F5F5F5",
     paddingVertical: 12,
     paddingHorizontal: 24,
     borderRadius: 12,
@@ -142,7 +143,6 @@ const styles = StyleSheet.create({
     bottom: 34,
     left: 20,
     right: 20,
-    backgroundColor: "#00BFA5",
     paddingVertical: 16,
     borderRadius: 12,
   },
@@ -152,7 +152,6 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     textAlign: "center",
   },
-})
+});
 
-export default InviteMembersScreen
-
+export default InviteMembersScreen;

@@ -1,67 +1,78 @@
-import { useState } from "react"
-import { View, Text, StyleSheet, SafeAreaView, TextInput, TouchableOpacity, Image } from "react-native"
-import { MaterialCommunityIcons } from "@expo/vector-icons"
-import Slider from "@react-native-community/slider"
+import { useState } from "react";
+import {
+  View,
+  Text,
+  StyleSheet,
+  SafeAreaView,
+  TextInput,
+  TouchableOpacity,
+  Image,
+} from "react-native";
+import { MaterialCommunityIcons } from "@expo/vector-icons";
+import Slider from "@react-native-community/slider";
+import { useTheme } from "../context/ThemeContext"; // Import Theme Context
 
 const NewEvent = ({ navigation }) => {
-  const [title, setTitle] = useState("")
-  const [description, setDescription] = useState("")
-  const [startDate, setStartDate] = useState("")
-  const [endDate, setEndDate] = useState("")
-  const [goalValue, setGoalValue] = useState(50)
+  const [title, setTitle] = useState("");
+  const [description, setDescription] = useState("");
+  const [goalValue, setGoalValue] = useState(50);
+  const { theme, isDarkMode, accentColor } = useTheme();
 
   const handleConfirm = () => {
-    navigation.navigate("ActiveEvent")
-  }
+    navigation.navigate("ActiveEvent");
+  };
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <SafeAreaView style={[styles.safeArea, { backgroundColor: theme.background }]}>
       <View style={styles.container}>
         <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
-          <MaterialCommunityIcons name="chevron-left" size={28} color="#000" />
+          <MaterialCommunityIcons name="chevron-left" size={28} color={theme.text} />
         </TouchableOpacity>
 
         <Image
-          source={require("../../../assets/animals-bg.png")} // Update with your sleeping cat image
-          style={styles.backgroundImage}
+          source={require("../../../assets/animals-bg.png")}
+          style={[styles.backgroundImage, { opacity: isDarkMode ? 0.5 : 1 }]} // Adjust image opacity
           resizeMode="contain"
         />
 
         <View style={styles.formContainer}>
-          <Text style={styles.label}>Legg til Tittel på Aktivitet</Text>
-          <View style={styles.inputContainer}>
-            <TextInput 
-              style={styles.input} 
-              value={title} 
-              onChangeText={setTitle} 
-              placeholder="Tittle"
-              placeholderTextColor="#999" 
+          {/* Title Input */}
+          <Text style={[styles.label, { color: theme.text }]}>Legg til Tittel på Aktivitet</Text>
+          <View style={[styles.inputContainer, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+            <TextInput
+              style={[styles.input, { color: theme.text }]}
+              value={title}
+              onChangeText={setTitle}
+              placeholder="Tittel"
+              placeholderTextColor={theme.textSecondary}
             />
             {title !== "" && (
               <TouchableOpacity style={styles.clearButton} onPress={() => setTitle("")}>
-                <MaterialCommunityIcons name="close" size={20} color="#999" />
+                <MaterialCommunityIcons name="close" size={20} color={theme.textSecondary} />
               </TouchableOpacity>
             )}
           </View>
 
-          <Text style={styles.label}>Legg til Beskrivelse på Aktivitet</Text>
-          <View style={styles.inputContainer}>
+          {/* Description Input */}
+          <Text style={[styles.label, { color: theme.text }]}>Legg til Beskrivelse på Aktivitet</Text>
+          <View style={[styles.inputContainer, { backgroundColor: theme.surface, borderColor: theme.border }]}>
             <TextInput
-              style={styles.input}
+              style={[styles.input, { color: theme.text }]}
               value={description}
               onChangeText={setDescription}
-              placeholder="Description"
-              placeholderTextColor="#999"
+              placeholder="Beskrivelse"
+              placeholderTextColor={theme.textSecondary}
               multiline
             />
             {description !== "" && (
               <TouchableOpacity style={styles.clearButton} onPress={() => setDescription("")}>
-                <MaterialCommunityIcons name="close" size={20} color="#999" />
+                <MaterialCommunityIcons name="close" size={20} color={theme.textSecondary} />
               </TouchableOpacity>
             )}
           </View>
 
-          <Text style={styles.label}>Velg et Mål</Text>
+          {/* Goal Selection */}
+          <Text style={[styles.label, { color: theme.text }]}>Velg et Mål</Text>
           <View style={styles.sliderContainer}>
             <Slider
               style={styles.slider}
@@ -69,52 +80,47 @@ const NewEvent = ({ navigation }) => {
               onValueChange={setGoalValue}
               minimumValue={0}
               maximumValue={100}
-              minimumTrackTintColor="#00BFA5"
-              maximumTrackTintColor="#E5E5E5"
-              thumbTintColor="#00BFA5"
+              minimumTrackTintColor={accentColor}
+              maximumTrackTintColor={theme.border}
+              thumbTintColor={accentColor}
             />
           </View>
 
-          <Text style={styles.label}>Velg en Dato</Text>
+          {/* Date Selection */}
+          <Text style={[styles.label, { color: theme.text }]}>Velg en Dato</Text>
           <View style={styles.dateContainer}>
-            <TouchableOpacity style={styles.dateInput}>
-              <Text style={styles.dateText}>Start Date</Text>
+            <TouchableOpacity style={[styles.dateInput, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+              <Text style={[styles.dateText, { color: theme.textSecondary }]}>Start Date</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.dateInput}>
-              <Text style={styles.dateText}>End Date</Text>
+            <TouchableOpacity style={[styles.dateInput, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+              <Text style={[styles.dateText, { color: theme.textSecondary }]}>End Date</Text>
             </TouchableOpacity>
           </View>
 
+          {/* Buttons */}
           <View style={styles.buttonContainer}>
-            <TouchableOpacity 
-              style={styles.cancelButton}
-              onPress={() => navigation.goBack()}
-            >
-              <Text style={[styles.buttonText, styles.cancelText]}>Avbryt</Text>
+            <TouchableOpacity style={[styles.cancelButton, { backgroundColor: theme.surface }]} onPress={() => navigation.goBack()}>
+              <Text style={[styles.buttonText, { color: theme.textSecondary }]}>Avbryt</Text>
             </TouchableOpacity>
-            <TouchableOpacity 
-              style={styles.confirmButton}
-              onPress={handleConfirm}
-            >
-              <Text style={[styles.buttonText, styles.confirmText]}>Godta</Text>
+            <TouchableOpacity style={[styles.confirmButton, { backgroundColor: accentColor }]} onPress={handleConfirm}>
+              <Text style={[styles.buttonText, { color: theme.background }]}>Godta</Text>
             </TouchableOpacity>
           </View>
         </View>
       </View>
     </SafeAreaView>
-  )
-}
+  );
+};
 
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: "#fff",
   },
   container: {
     flex: 1,
   },
   backButton: {
-    position: 'absolute',
+    position: "absolute",
     top: 16,
     left: 16,
     zIndex: 1,
@@ -132,23 +138,19 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: "600",
     marginBottom: 12,
-    color: "#1A1A1A",
   },
   inputContainer: {
     flexDirection: "row",
     alignItems: "center",
     borderWidth: 1,
-    borderColor: "#E0E0E0",
     borderRadius: 12,
     marginBottom: 24,
-    backgroundColor: "#fff",
     height: 56,
   },
   input: {
     flex: 1,
     paddingHorizontal: 16,
     fontSize: 16,
-    color: "#1A1A1A",
   },
   clearButton: {
     padding: 8,
@@ -169,15 +171,12 @@ const styles = StyleSheet.create({
   dateInput: {
     flex: 1,
     height: 56,
-    justifyContent: 'center',
+    justifyContent: "center",
     paddingHorizontal: 16,
     borderWidth: 1,
-    borderColor: "#E0E0E0",
     borderRadius: 12,
-    backgroundColor: "#fff",
   },
   dateText: {
-    color: "#999",
     fontSize: 16,
   },
   buttonContainer: {
@@ -190,16 +189,14 @@ const styles = StyleSheet.create({
   cancelButton: {
     flex: 1,
     height: 56,
-    backgroundColor: "#FFF2F2",
-    justifyContent: 'center',
+    justifyContent: "center",
     alignItems: "center",
     borderRadius: 12,
   },
   confirmButton: {
     flex: 1,
     height: 56,
-    backgroundColor: "#00BFA5",
-    justifyContent: 'center',
+    justifyContent: "center",
     alignItems: "center",
     borderRadius: 12,
   },
@@ -207,12 +204,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "600",
   },
-  cancelText: {
-    color: "#FF0000",
-  },
-  confirmText: {
-    color: "#FFF",
-  },
-})
+});
 
-export default NewEvent
+export default NewEvent;

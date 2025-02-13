@@ -9,9 +9,11 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
+import { useTheme } from "../context/ThemeContext"; // 🌙 Import Theme Support
 
 const Language = () => {
   const navigation = useNavigation();
+  const { theme, accentColor } = useTheme(); // Get theme and accent color
 
   // State for selected language
   const [selectedLanguage, setSelectedLanguage] = useState("Norsk Bokmål");
@@ -29,46 +31,62 @@ const Language = () => {
   ];
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: theme.background }]}>
       {/* Header Section */}
-      <View style={styles.headerWrapper}>
+      <View style={[styles.headerWrapper, { borderBottomColor: theme.border }]}>
         {/* Back Button */}
         <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
-          <Ionicons name="chevron-back" size={28} color="#000" />
+          <Ionicons name="chevron-back" size={28} color={theme.text} />
         </TouchableOpacity>
 
         {/* Title */}
-        <Text style={styles.header}>Språk</Text>
+        <Text style={[styles.header, { color: theme.text }]}>Språk</Text>
       </View>
 
       {/* Language Selection */}
       <ScrollView contentContainerStyle={styles.scrollContent}>
         {/* Suggested Languages */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Suggested</Text>
+          <Text style={[styles.sectionTitle, { color: theme.textSecondary }]}>Suggested</Text>
           {suggestedLanguages.map((language) => (
             <TouchableOpacity
               key={language}
               style={styles.row}
               onPress={() => setSelectedLanguage(language)}
             >
-              <Text style={styles.label}>{language}</Text>
-              <View style={selectedLanguage === language ? styles.radioSelected : styles.radio} />
+              <Text style={[styles.label, { color: theme.text }]}>{language}</Text>
+              <View
+                style={[
+                  styles.radio,
+                  selectedLanguage === language && {
+                    borderColor: accentColor,
+                    backgroundColor: accentColor,
+                  },
+                ]}
+              />
             </TouchableOpacity>
           ))}
         </View>
 
         {/* Other Languages */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Others</Text>
+          <Text style={[styles.sectionTitle, { color: theme.textSecondary }]}>Others</Text>
           {otherLanguages.map((language) => (
             <TouchableOpacity
               key={language}
               style={styles.row}
               onPress={() => setSelectedLanguage(language)}
             >
-              <Text style={styles.label}>{language}</Text>
-              <View style={selectedLanguage === language ? styles.radioSelected : styles.radio} />
+              <Text style={[styles.label, { color: theme.text }]}>{language}</Text>
+              <View
+                style={[
+                  styles.radio,
+                  selectedLanguage === language && {
+                    borderColor: accentColor,
+                    backgroundColor: accentColor,
+                  },
+                ]}
+              />
             </TouchableOpacity>
           ))}
         </View>
@@ -81,7 +99,6 @@ const Language = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#F6F6F6",
     paddingTop: Platform.OS === "ios" ? 60 : 40, // Adjust for status bar height
   },
   headerWrapper: {
@@ -90,6 +107,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     height: 60,
     position: "relative",
+    borderBottomWidth: 1, // Adds bottom border for separation
   },
   backButton: {
     position: "absolute",
@@ -122,25 +140,14 @@ const styles = StyleSheet.create({
   },
   label: {
     fontSize: 16,
-    color: "#333",
   },
   radio: {
     width: 24,
     height: 24,
     borderRadius: 12,
     borderWidth: 2,
-    borderColor: "#B3E5FC",
+    borderColor: "#B3E5FC", // Default border color for unselected
     backgroundColor: "transparent",
-  },
-  radioSelected: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    borderWidth: 2,
-    borderColor: "#48CAB2",
-    backgroundColor: "#48CAB2",
-    justifyContent: "center",
-    alignItems: "center",
   },
 });
 
