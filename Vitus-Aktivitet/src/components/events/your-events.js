@@ -1,11 +1,11 @@
 import React from "react";
-import { 
-  View, 
-  Text, 
-  StyleSheet, 
-  SafeAreaView, 
-  TouchableOpacity, 
-  Image 
+import {
+  View,
+  Text,
+  StyleSheet,
+  SafeAreaView,
+  TouchableOpacity,
+  Image,
 } from "react-native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
@@ -16,22 +16,29 @@ const YourEvents = () => {
   return (
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.container}>
-        
         {/* Action Cards */}
-        <TouchableOpacity 
-          style={styles.actionCard} 
+        <TouchableOpacity
+          style={styles.actionCard}
           onPress={() => navigation.navigate("NewEvent")}
         >
           <Text style={styles.actionCardText}>Opprett hendelse</Text>
-          <MaterialCommunityIcons name="chevron-right" size={24} color="#1A1A1A" />
+          <MaterialCommunityIcons
+            name="chevron-right"
+            size={24}
+            color="#1A1A1A"
+          />
         </TouchableOpacity>
 
-        <TouchableOpacity 
-          style={styles.actionCard} 
+        <TouchableOpacity
+          style={styles.actionCard}
           onPress={() => navigation.navigate("JoinEvent")}
         >
           <Text style={styles.actionCardText}>Join Hendelse</Text>
-          <MaterialCommunityIcons name="chevron-right" size={24} color="#1A1A1A" />
+          <MaterialCommunityIcons
+            name="chevron-right"
+            size={24}
+            color="#1A1A1A"
+          />
         </TouchableOpacity>
 
         {/* Active Events Section */}
@@ -40,18 +47,28 @@ const YourEvents = () => {
             Dine <Text style={styles.highlightText}>Aktive</Text> Hendelser
           </Text>
 
-          
-
           {/* Empty State (No Active Events) */}
-          <View style={styles.noEventsContainer}>
-            <Text style={styles.noEventTitle}>Ingen Aktive Hendelser</Text>
-            <Text style={styles.noEventSubtitle}>
-              Du har for øyeblikket ingen aktive hendelser.
-            </Text>
-          </View>
-
+          <TouchableOpacity
+            style={styles.noEventsContainer}
+            onPress={() =>
+              navigation.navigate("EventLeaderboard", {
+                isEventActive: false,
+              })
+            }
+          >
+            <View>
+              <Text style={styles.noEventTitle}>Ingen Aktive Hendelser</Text>
+              <Text style={styles.noEventSubtitle}>
+                Du har for øyeblikket ingen aktive hendelser.
+              </Text>
+            </View>
+            <MaterialCommunityIcons
+              name="chevron-right"
+              size={24}
+              color="#666"
+            />
+          </TouchableOpacity>
         </View>
-
       </View>
     </SafeAreaView>
   );
@@ -68,7 +85,6 @@ const styles = StyleSheet.create({
     backgroundColor: "#fff",
     paddingBottom: 80, // ✅ Ensure space for bottom navigation
   },
-
   actionCard: {
     flexDirection: "row",
     alignItems: "center",
@@ -142,9 +158,10 @@ const styles = StyleSheet.create({
   noEventsContainer: {
     backgroundColor: "#FFFFFF",
     borderRadius: 12,
-    padding: 50,
+    padding: 20,
+    flexDirection: "row",
     alignItems: "center",
-    justifyContent: "center",
+    justifyContent: "space-between",
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.2,
@@ -160,7 +177,6 @@ const styles = StyleSheet.create({
   noEventSubtitle: {
     fontSize: 16,
     color: "#666",
-    textAlign: "center",
     maxWidth: "80%",
     lineHeight: 24,
   },
