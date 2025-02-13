@@ -14,15 +14,21 @@ import * as ImagePicker from "expo-image-picker";
 const TEAL_COLOR = "#00B6AA";
 
 const avatars = [
-  { id: 1, source: require("../../../assets/avatars/avatar-1.png") },
-  { id: 2, source: require("../../../assets/avatars/avatar-2.png") },
-  { id: 3, source: require("../../../assets/avatars/avatar-3.png") },
-  { id: 4, source: require("../../../assets/avatars/avatar-4.png") },
-  { id: 5, source: require("../../../assets/avatars/avatar-5.png") },
-  { id: 6, source: require("../../../assets/avatars/avatar-6.png") },
-  { id: 7, source: require("../../../assets/avatars/avatar-7.png") },
-  { id: 8, source: require("../../../assets/avatars/avatar-8.png") },
-  { id: 9, source: require("../../../assets/avatars/avatar-9.png") },
+  { id: 1, source: require("../../../assets/avatars/memo_34.png") },
+  { id: 2, source: require("../../../assets/avatars/memo_9.png") },
+  { id: 3, source: require("../../../assets/avatars/memo_2.png") },
+  { id: 4, source: require("../../../assets/avatars/memo_10.png") },
+  { id: 5, source: require("../../../assets/avatars/memo_20.png") },
+  { id: 6, source: require("../../../assets/avatars/memo_1.png") },
+  { id: 7, source: require("../../../assets/avatars/memo_32.png") },
+  { id: 8, source: require("../../../assets/avatars/memo_7.png") },
+  { id: 9, source: require("../../../assets/avatars/memo_33.png") },
+  { id: 10, source: require("../../../assets/avatars/memo_16.png") },
+  { id: 11, source: require("../../../assets/avatars/memo_31.png") },
+  { id: 12, source: require("../../../assets/avatars/memo_5.png") },
+  { id: 13, source: require("../../../assets/avatars/memo_35.png") },
+  { id: 14, source: require("../../../assets/avatars/memo_28.png") },
+  { id: 15, source: require("../../../assets/avatars/memo_8.png") },
 ];
 
 export default function AvatarSelection({ navigation }) {
