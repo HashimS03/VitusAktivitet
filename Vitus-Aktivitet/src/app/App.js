@@ -37,6 +37,8 @@ import NewEvent from "../components/events/NewEvent";
 import ActiveEventImproved from "../components/events/active-event";
 import InviteMembersScreen from "../components/events/InviteMembersScreen";
 import UpcommingEvents from "../components/events/upcoming-events";
+import LogRecordingScreen from "../components/events/LogRecordingScreen";
+import EventLeaderboard from "../components/events/EventLeaderboard";
 
 // Step Counting and Activity Tracking
 import StepCounter from "../components/stepcounter/stepcounter";
@@ -48,7 +50,7 @@ import Confirmation from "../components/stepconverter/confirmation";
 import GenderSelection from "../components/genderselection/genderselection";
 import DepartmentSelection from "../components/departmentselection/departmentselection";
 import AvatarSelection from "../components/avatarselection/avatarselection";
-import EventLeaderboard from "../components/events/EventLeaderboard"; // Juster stien etter din mappestruktur
+
 
 // Create Navigators
 const Tab = createBottomTabNavigator();
@@ -192,6 +194,10 @@ const App = () => {
         <Stack.Screen name="securityprivacy" component={SecurityPrivacy} />
         <Stack.Screen name="privacypolicy" component={PrivacyPolicy} />
         <Stack.Screen name="EventLeaderboard" component={EventLeaderboard} />
+        <Stack.Screen
+          name="LogRecordingScreen"
+          component={LogRecordingScreen}
+        />
       </Stack.Navigator>
     </NavigationContainer>
   );

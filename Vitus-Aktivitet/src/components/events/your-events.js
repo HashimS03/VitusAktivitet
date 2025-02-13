@@ -51,7 +51,7 @@ const YourEvents = () => {
           <TouchableOpacity
             style={styles.noEventsContainer}
             onPress={() =>
-              navigation.navigate("EventLeaderboard", {
+              navigation.navigate("LogRecordingScreen", {
                 isEventActive: false,
               })
             }
