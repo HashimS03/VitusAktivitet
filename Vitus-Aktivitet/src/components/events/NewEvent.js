@@ -57,6 +57,9 @@ const NewEvent = ({ navigation }) => {
   const [showStartPicker, setShowStartPicker] = useState(false);
   const [showEndPicker, setShowEndPicker] = useState(false);
   const [showWarning, setShowWarning] = useState(false);
+  const [location, setLocation] = useState("");
+  const [time, setTime] = useState(null);
+  const [showTimePicker, setShowTimePicker] = useState(false);
 
   // Funksjon for å håndtere dato-valg
   const handleDateChange = (event, selectedDate, type) => {
@@ -218,6 +221,25 @@ const NewEvent = ({ navigation }) => {
             </Text>
           </View>
 
+          <Text style={styles.label}>Velg Lokasjon/Sted</Text>
+          <View style={styles.inputContainer}>
+            <TextInput
+              style={styles.input}
+              value={location}
+              onChangeText={setLocation}
+              placeholder="Skriv inn lokasjon"
+              placeholderTextColor="#999"
+            />
+            {location !== "" && (
+              <TouchableOpacity
+                style={styles.clearButton}
+                onPress={() => setLocation("")}
+              >
+                <MaterialCommunityIcons name="close" size={20} color="#999" />
+              </TouchableOpacity>
+            )}
+          </View>
+
           <View style={styles.formContainer}>
             <Text style={styles.label}>Velg en Dato</Text>
             <View style={styles.dateContainer}>
@@ -260,6 +282,35 @@ const NewEvent = ({ navigation }) => {
                 mode="date"
                 display={Platform.OS === "ios" ? "inline" : "default"}
                 onChange={(event, date) => handleDateChange(event, date, "end")}
+              />
+            )}
+
+            <View style={styles.timeContainer}>
+              <Text style={styles.label}>Velg Klokkeslett</Text>
+              <TouchableOpacity
+                style={styles.dateInput}
+                onPress={() => setShowTimePicker(true)}
+              >
+                <Text style={styles.dateText}>
+                  {time
+                    ? time.toLocaleTimeString([], {
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })
+                    : "Velg klokkeslett"}
+                </Text>
+              </TouchableOpacity>
+            </View>
+
+            {showTimePicker && (
+              <DateTimePicker
+                value={time || new Date()}
+                mode="time"
+                display={Platform.OS === "ios" ? "spinner" : "default"}
+                onChange={(event, selectedTime) => {
+                  setShowTimePicker(false);
+                  if (selectedTime) setTime(selectedTime);
+                }}
               />
             )}
 
@@ -336,6 +387,10 @@ const NewEvent = ({ navigation }) => {
 };
 
 const styles = StyleSheet.create({
+  timeContainer: {
+    marginBottom: 24,
+  },
+
   // Behold alle dine eksisterende stiler
   safeArea: {
     flex: 1,
@@ -389,6 +444,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#fff",
     height: 56,
   },
+
   input: {
     flex: 1,
     paddingHorizontal: 16,
