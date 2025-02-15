@@ -9,9 +9,11 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
+import { useTheme } from "../context/ThemeContext"; // 🌙 Import Theme Support
 
 const HelpSupport = () => {
   const navigation = useNavigation();
+  const { theme, accentColor } = useTheme(); // Get theme values & accent color
 
   // State to track which FAQ is open
   const [openFAQ, setOpenFAQ] = useState(null);
@@ -37,39 +39,39 @@ const HelpSupport = () => {
   ];
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: theme.background }]}>
       {/* Header Section */}
-      <View style={styles.headerWrapper}>
+      <View style={[styles.headerWrapper, { borderBottomColor: theme.border }]}>
         {/* Back Button */}
         <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
-          <Ionicons name="chevron-back" size={28} color="#000" />
+          <Ionicons name="chevron-back" size={28} color={theme.text} />
         </TouchableOpacity>
 
         {/* Header Title */}
-        <Text style={styles.header}>Hjelp & Support</Text>
+        <Text style={[styles.header, { color: theme.text }]}>Hjelp & Support</Text>
       </View>
 
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         {/* FAQ Section */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Ofte stilte spørsmål</Text>
+          <Text style={[styles.sectionTitle, { color: theme.text }]}>Ofte stilte spørsmål</Text>
           {faqs.map((faq, index) => (
             <View key={index}>
               <TouchableOpacity
                 style={styles.faqQuestion}
                 onPress={() => setOpenFAQ(openFAQ === index ? null : index)}
               >
-                <Text style={styles.label}>{faq.question}</Text>
-                <Ionicons name={openFAQ === index ? "chevron-up" : "chevron-down"} size={20} color="#48CAB2" />
+                <Text style={[styles.label, { color: theme.text }]}>{faq.question}</Text>
+                <Ionicons name={openFAQ === index ? "chevron-up" : "chevron-down"} size={20} color={accentColor} />
               </TouchableOpacity>
-              {openFAQ === index && <Text style={styles.faqAnswer}>{faq.answer}</Text>}
+              {openFAQ === index && <Text style={[styles.faqAnswer, { color: theme.textSecondary }]}>{faq.answer}</Text>}
             </View>
           ))}
         </View>
 
         {/* Contact Support Button */}
         <TouchableOpacity
-          style={styles.supportButton}
+          style={[styles.supportButton, { backgroundColor: accentColor }]}
           onPress={() => navigation.navigate("contactus")}
         >
           <Text style={styles.supportButtonText}>Kontakt Support</Text>
@@ -83,7 +85,6 @@ const HelpSupport = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#F6F6F6",
   },
   headerWrapper: {
     flexDirection: "row",
@@ -91,6 +92,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     height: 60,
     marginTop: Platform.OS === "ios" ? 60 : 40, // Adjust for status bar height
+    borderBottomWidth: 1,
     position: "relative",
   },
   backButton: {
@@ -111,8 +113,6 @@ const styles = StyleSheet.create({
   section: {
     marginBottom: 20,
     paddingBottom: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: "#EAEAEA",
   },
   sectionTitle: {
     fontSize: 16,
@@ -125,20 +125,16 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: "#EAEAEA",
   },
   faqAnswer: {
     fontSize: 14,
-    color: "#666",
     paddingVertical: 10,
     paddingLeft: 10,
   },
   label: {
     fontSize: 16,
-    color: "#333",
   },
   supportButton: {
-    backgroundColor: "#48CAB2",
     borderRadius: 8,
     padding: 16,
     alignItems: "center",

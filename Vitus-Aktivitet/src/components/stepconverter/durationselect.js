@@ -9,8 +9,10 @@ import {
   SafeAreaView,
   Dimensions,
   FlatList,
+  Animated,
 } from "react-native";
 import { ChevronLeft } from "lucide-react-native";
+import { useTheme } from "../context/ThemeContext"; // 🌙 Import Theme Support
 
 const { width, height } = Dimensions.get("window");
 const ITEM_HEIGHT = 60; // Height of each item in the list
@@ -22,9 +24,11 @@ const generateDurations = () => {
 };
 
 const DurationSelect = ({ navigation, route }) => {
+  const { theme, accentColor } = useTheme(); // 🌙 Get Theme & Accent Color
   const { activity } = route.params;
   const [selectedIndex, setSelectedIndex] = useState(0);
   const flatListRef = useRef(null);
+  const scrollY = useRef(new Animated.Value(0)).current;
 
   const durations = useMemo(() => generateDurations(), []);
   const repeatedDurations = useMemo(
@@ -54,71 +58,87 @@ const DurationSelect = ({ navigation, route }) => {
       }
     };
 
+    const inputRange = [
+      (index - 2) * ITEM_HEIGHT,
+      (index - 1) * ITEM_HEIGHT,
+      index * ITEM_HEIGHT,
+      (index + 1) * ITEM_HEIGHT,
+      (index + 2) * ITEM_HEIGHT,
+    ];
+
+    const scale = scrollY.interpolate({
+      inputRange,
+      outputRange: [0.8, 0.9, 1, 0.9, 0.8],
+      extrapolate: "clamp",
+    });
+
+    const opacity = scrollY.interpolate({
+      inputRange,
+      outputRange: [0.2, 0.5, 1, 0.5, 0.2], // More grey as it fades
+      extrapolate: "clamp",
+    });
+
     return (
-      <View style={styles.durationItem}>
+      <Animated.View
+        style={[
+          styles.durationItem,
+          {
+            transform: [{ scale }],
+            opacity,
+          },
+        ]}
+      >
         <Text
           style={[
             styles.durationText,
+            { color: isSelected ? accentColor : theme.textSecondary }, // ✅ Uses theme color for selected & faded text
             isSelected && styles.selectedDurationText,
           ]}
         >
           {formatDuration(item)}
         </Text>
-      </View>
+      </Animated.View>
     );
   };
 
-  const handleScroll = (event) => {
-    const offsetY = event.nativeEvent.contentOffset.y;
-    const index = Math.round(offsetY / ITEM_HEIGHT) % TOTAL_ITEMS;
-    setSelectedIndex(index);
-  };
-
-  const handleMomentumScrollEnd = (event) => {
-    const offsetY = event.nativeEvent.contentOffset.y;
-    const index = Math.round(offsetY / ITEM_HEIGHT);
-
-    if (index < TOTAL_ITEMS) {
-      // If we're in the first set, jump to the middle set
-      flatListRef.current?.scrollToIndex({
-        index: index + TOTAL_ITEMS,
-        animated: false,
-      });
-    } else if (index >= TOTAL_ITEMS * 2) {
-      // If we're in the last set, jump to the middle set
-      flatListRef.current?.scrollToIndex({
-        index: index - TOTAL_ITEMS,
-        animated: false,
-      });
+  const handleScroll = Animated.event(
+    [{ nativeEvent: { contentOffset: { y: scrollY } } }],
+    {
+      useNativeDriver: true,
+      listener: (event) => {
+        const offsetY = event.nativeEvent.contentOffset.y;
+        const index = Math.round(offsetY / ITEM_HEIGHT) % TOTAL_ITEMS;
+        setSelectedIndex(index);
+      },
     }
-  };
+  );
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]}>
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()}>
-          <ChevronLeft size={24} color="#000" />
+          <ChevronLeft size={24} color={theme.text} />
         </TouchableOpacity>
-        <View style={styles.progressBar}>
-          <View style={[styles.progressFill, { width: "66%" }]} />
+        <View style={[styles.progressBar, { backgroundColor: theme.surface }]}>
+          <View style={[styles.progressFill, { backgroundColor: accentColor, width: "66%" }]} />
         </View>
-        <Text style={styles.pageIndicator}>2/3</Text>
+        <Text style={[styles.pageIndicator, { color: theme.text }]}>2/3</Text>
       </View>
 
       {/* Content */}
       <View style={styles.content}>
-        <Text style={styles.title}>
-          Velg hvor <Text style={styles.highlightText}>Lenge</Text>
+        <Text style={[styles.title, { color: theme.text }]}>
+          Velg hvor <Text style={[styles.highlightText, { color: accentColor }]}>Lenge</Text>
         </Text>
-        <Text style={styles.subtitle}>
+        <Text style={[styles.subtitle, { color: theme.textSecondary }]}>
           Hvor lang tid utførte du din aktivitet?
         </Text>
 
         {/* Central Scroll Area */}
         <View style={styles.scrollContainer}>
-          <View style={styles.centerLine} />
-          <FlatList
+          <View style={[styles.centerLine, { borderColor: accentColor }]} />
+          <Animated.FlatList
             ref={flatListRef}
             data={repeatedDurations}
             renderItem={renderDurationItem}
@@ -127,7 +147,6 @@ const DurationSelect = ({ navigation, route }) => {
             snapToInterval={ITEM_HEIGHT}
             decelerationRate="fast"
             onScroll={handleScroll}
-            onMomentumScrollEnd={handleMomentumScrollEnd}
             getItemLayout={(data, index) => ({
               length: ITEM_HEIGHT,
               offset: ITEM_HEIGHT * index,
@@ -145,13 +164,13 @@ const DurationSelect = ({ navigation, route }) => {
       {/* Footer */}
       <View style={styles.footer}>
         <TouchableOpacity
-          style={styles.cancelButton}
+          style={[styles.cancelButton, { backgroundColor: theme.surface }]}
           onPress={() => navigation.goBack()}
         >
-          <Text style={styles.cancelText}>Avbryt</Text>
+          <Text style={[styles.cancelText, { color: theme.textSecondary }]}>Avbryt</Text>
         </TouchableOpacity>
         <TouchableOpacity
-          style={styles.continueButton}
+          style={[styles.continueButton, { backgroundColor: accentColor }]}
           onPress={() =>
             navigation.navigate("Confirmation", {
               activity,
@@ -159,7 +178,7 @@ const DurationSelect = ({ navigation, route }) => {
             })
           }
         >
-          <Text style={styles.continueText}>Fortsett</Text>
+          <Text style={[styles.continueText, { color: theme.textContrast }]}>Fortsett</Text>
         </TouchableOpacity>
       </View>
     </SafeAreaView>
@@ -169,7 +188,6 @@ const DurationSelect = ({ navigation, route }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#FFFFFF",
   },
   header: {
     flexDirection: "row",
@@ -179,13 +197,11 @@ const styles = StyleSheet.create({
   progressBar: {
     flex: 1,
     height: 4,
-    backgroundColor: "#E5F7F6",
     borderRadius: 2,
     marginHorizontal: 16,
   },
   progressFill: {
     height: "100%",
-    backgroundColor: "#00ADB5",
     borderRadius: 2,
   },
   pageIndicator: {
@@ -202,11 +218,10 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   highlightText: {
-    color: "#00ADB5",
+    fontWeight: "bold",
   },
   subtitle: {
     fontSize: 16,
-    color: "#666666",
     marginBottom: 32,
   },
   scrollContainer: {
@@ -220,7 +235,6 @@ const styles = StyleSheet.create({
     height: ITEM_HEIGHT,
     borderTopWidth: 1,
     borderBottomWidth: 1,
-    borderColor: "#00ADB5",
     top: "50%",
     marginTop: -ITEM_HEIGHT / 2,
   },
@@ -231,26 +245,22 @@ const styles = StyleSheet.create({
   },
   durationText: {
     fontSize: 24,
-    color: "#999",
     fontWeight: "500",
   },
   selectedDurationText: {
     fontSize: 28,
     fontWeight: "bold",
-    color: "#00ADB5",
   },
   footer: {
     flexDirection: "row",
     padding: 16,
     borderTopWidth: 1,
-    borderTopColor: "#E5E5E5",
   },
   cancelButton: {
     flex: 1,
     paddingVertical: 12,
     marginRight: 8,
     borderRadius: 8,
-    backgroundColor: "#F5F5F5",
     alignItems: "center",
   },
   continueButton: {
@@ -258,16 +268,13 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     marginLeft: 8,
     borderRadius: 8,
-    backgroundColor: "#00ADB5",
     alignItems: "center",
   },
   cancelText: {
-    color: "#666666",
     fontSize: 16,
     fontWeight: "500",
   },
   continueText: {
-    color: "#FFFFFF",
     fontSize: 16,
     fontWeight: "500",
   },

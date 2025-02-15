@@ -10,9 +10,11 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
+import { useTheme } from "../context/ThemeContext"; // ✅ Import Theme
 
 const NotificationEditor = () => {
   const navigation = useNavigation();
+  const { theme, accentColor } = useTheme(); // ✅ Get theme & accent color
 
   // State for toggles
   const [generalNotifications, setGeneralNotifications] = useState(true);
@@ -27,120 +29,117 @@ const NotificationEditor = () => {
   const [dailyGoals, setDailyGoals] = useState(true);
 
   return (
-    <View style={styles.container}>
-      {/* Header Section */}
-      <View style={styles.headerWrapper}>
-        {/* Back Button */}
+    <View style={[styles.container, { backgroundColor: theme.background }]}>
+      {/* Header Section (Fixed Spacing) */}
+      <View style={[styles.headerWrapper, { borderBottomColor: theme.border }]}>
         <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
-          <Ionicons name="chevron-back" size={28} color="#000" />
+          <Ionicons name="chevron-back" size={28} color={theme.text} />
         </TouchableOpacity>
-
-        {/* Header Title */}
-        <Text style={styles.header}>Varslinger</Text>
+        <Text style={[styles.header, { color: theme.text }]}>Varslinger</Text>
       </View>
 
       <ScrollView contentContainerStyle={styles.scrollContent}>
         {/* General Notifications Section */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Generelt</Text>
+        <View style={[styles.section, { borderBottomColor: theme.border }]}>
+          <Text style={[styles.sectionTitle, { color: theme.text }]}>Generelt</Text>
           <View style={styles.row}>
-            <Text style={styles.label}>Generelle Varslinger</Text>
+            <Text style={[styles.label, { color: theme.text }]}>Generelle Varslinger</Text>
             <Switch
               value={generalNotifications}
               onValueChange={setGeneralNotifications}
-              trackColor={{ false: "#ccc", true: "#48CAB2" }}
-              thumbColor={"#FFFFFF"} // ✅ Always white dot
+              trackColor={{ false: theme.border, true: accentColor }}
+              thumbColor={"#FFFFFF"}
             />
           </View>
           <View style={styles.row}>
-            <Text style={styles.label}>Lyd</Text>
+            <Text style={[styles.label, { color: theme.text }]}>Lyd</Text>
             <Switch
               value={sound}
               onValueChange={setSound}
-              trackColor={{ false: "#ccc", true: "#48CAB2" }}
-              thumbColor={"#FFFFFF"} // ✅ Always white dot
+              trackColor={{ false: theme.border, true: accentColor }}
+              thumbColor={"#FFFFFF"}
             />
           </View>
           <View style={styles.row}>
-            <Text style={styles.label}>Vibrasjon</Text>
+            <Text style={[styles.label, { color: theme.text }]}>Vibrasjon</Text>
             <Switch
               value={vibration}
               onValueChange={setVibration}
-              trackColor={{ false: "#ccc", true: "#48CAB2" }}
-              thumbColor={"#FFFFFF"} // ✅ Always white dot
+              trackColor={{ false: theme.border, true: accentColor }}
+              thumbColor={"#FFFFFF"}
             />
           </View>
         </View>
 
         {/* System and Service Section */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>System og Service</Text>
+        <View style={[styles.section, { borderBottomColor: theme.border }]}>
+          <Text style={[styles.sectionTitle, { color: theme.text }]}>System og Service</Text>
           <View style={styles.row}>
-            <Text style={styles.label}>App Oppdateringer</Text>
+            <Text style={[styles.label, { color: theme.text }]}>App Oppdateringer</Text>
             <Switch
               value={appUpdates}
               onValueChange={setAppUpdates}
-              trackColor={{ false: "#ccc", true: "#48CAB2" }}
-              thumbColor={"#FFFFFF"} // ✅ Always white dot
+              trackColor={{ false: theme.border, true: accentColor }}
+              thumbColor={"#FFFFFF"}
             />
           </View>
           <View style={styles.row}>
-            <Text style={styles.label}>Fullførte Hendelser</Text>
+            <Text style={[styles.label, { color: theme.text }]}>Fullførte Hendelser</Text>
             <Switch
               value={completedEvents}
               onValueChange={setCompletedEvents}
-              trackColor={{ false: "#ccc", true: "#48CAB2" }}
-              thumbColor={"#FFFFFF"} // ✅ Always white dot
+              trackColor={{ false: theme.border, true: accentColor }}
+              thumbColor={"#FFFFFF"}
             />
           </View>
           <View style={styles.row}>
-            <Text style={styles.label}>Nye Hendelser</Text>
+            <Text style={[styles.label, { color: theme.text }]}>Nye Hendelser</Text>
             <Switch
               value={newEvents}
               onValueChange={setNewEvents}
-              trackColor={{ false: "#ccc", true: "#48CAB2" }}
-              thumbColor={"#FFFFFF"} // ✅ Always white dot
+              trackColor={{ false: theme.border, true: accentColor }}
+              thumbColor={"#FFFFFF"}
             />
           </View>
           <View style={styles.row}>
-            <Text style={styles.label}>Kommende Hendelser</Text>
+            <Text style={[styles.label, { color: theme.text }]}>Kommende Hendelser</Text>
             <Switch
               value={upcomingEvents}
               onValueChange={setUpcomingEvents}
-              trackColor={{ false: "#ccc", true: "#48CAB2" }}
-              thumbColor={"#FFFFFF"} // ✅ Always white dot
+              trackColor={{ false: theme.border, true: accentColor }}
+              thumbColor={"#FFFFFF"}
             />
           </View>
           <View style={styles.row}>
-            <Text style={styles.label}>Utløpte Hendelser</Text>
+            <Text style={[styles.label, { color: theme.text }]}>Utløpte Hendelser</Text>
             <Switch
               value={expiredEvents}
               onValueChange={setExpiredEvents}
-              trackColor={{ false: "#ccc", true: "#48CAB2" }}
-              thumbColor={"#FFFFFF"} // ✅ Always white dot
+              trackColor={{ false: theme.border, true: accentColor }}
+              thumbColor={"#FFFFFF"}
             />
           </View>
         </View>
 
         {/* Other Notifications Section */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Andre</Text>
+        <View style={[styles.section, { borderBottomColor: theme.border }]}>
+          <Text style={[styles.sectionTitle, { color: theme.text }]}>Andre</Text>
           <View style={styles.row}>
-            <Text style={styles.label}>Endring på plass i Leaderboard</Text>
+            <Text style={[styles.label, { color: theme.text }]}>Endring på plass i Leaderboard</Text>
             <Switch
               value={leaderboardChanges}
               onValueChange={setLeaderboardChanges}
-              trackColor={{ false: "#ccc", true: "#48CAB2" }}
-              thumbColor={"#FFFFFF"} // ✅ Always white dot
+              trackColor={{ false: theme.border, true: accentColor }}
+              thumbColor={"#FFFFFF"}
             />
           </View>
           <View style={styles.row}>
-            <Text style={styles.label}>Fullført Daglige Mål</Text>
+            <Text style={[styles.label, { color: theme.text }]}>Fullført Daglige Mål</Text>
             <Switch
               value={dailyGoals}
               onValueChange={setDailyGoals}
-              trackColor={{ false: "#ccc", true: "#48CAB2" }}
-              thumbColor={"#FFFFFF"} // ✅ Always white dot
+              trackColor={{ false: theme.border, true: accentColor }}
+              thumbColor={"#FFFFFF"}
             />
           </View>
         </View>
@@ -163,6 +162,7 @@ const styles = StyleSheet.create({
     height: 60,
     position: "relative",
   },
+
   backButton: {
     position: "absolute",
     left: 20,
@@ -172,7 +172,6 @@ const styles = StyleSheet.create({
     fontSize: 22,
     fontWeight: "bold",
     textAlign: "center",
-    marginTop: 10, // Moves the title lower
   },
   scrollContent: {
     paddingHorizontal: 20,
@@ -182,12 +181,10 @@ const styles = StyleSheet.create({
     marginBottom: 20,
     paddingBottom: 10,
     borderBottomWidth: 1,
-    borderBottomColor: "#EAEAEA",
   },
   sectionTitle: {
     fontSize: 16,
     fontWeight: "bold",
-    marginBottom: 10,
   },
   row: {
     flexDirection: "row",
@@ -197,7 +194,6 @@ const styles = StyleSheet.create({
   },
   label: {
     fontSize: 16,
-    color: "#333",
   },
 });
 

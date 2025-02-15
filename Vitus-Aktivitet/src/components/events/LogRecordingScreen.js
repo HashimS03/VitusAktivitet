@@ -8,11 +8,13 @@ import {
   Alert,
 } from "react-native";
 import { useNavigation, useRoute } from "@react-navigation/native";
+import { useTheme } from "../context/ThemeContext"; // 🌙 Import Theme Support
 
 const LogRecordingScreen = () => {
   const navigation = useNavigation();
   const route = useRoute();
   const { eventId, eventTitle } = route.params || {};
+  const { theme, accentColor } = useTheme(); // 🌙 Get Theme & Accent Color
 
   const [result, setResult] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -39,18 +41,26 @@ const LogRecordingScreen = () => {
   };
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>{eventTitle || "Loggføring"}</Text>
-      <Text style={styles.label}>Skriv inn ditt resultat</Text>
+    <View style={[styles.container, { backgroundColor: theme.background }]}>
+      <Text style={[styles.title, { color: theme.text }]}>
+        {eventTitle || "Loggføring"}
+      </Text>
+      <Text style={[styles.label, { color: theme.text }]}>
+        Skriv inn ditt resultat
+      </Text>
       <TextInput
-        style={styles.input}
+        style={[styles.input, { backgroundColor: theme.surface, color: theme.text, borderColor: theme.border }]}
         value={result}
         onChangeText={setResult}
         placeholder="F.eks. 50 push-ups eller 2 km"
+        placeholderTextColor={theme.textSecondary}
         keyboardType="default"
       />
       <TouchableOpacity
-        style={[styles.submitButton, isSubmitting && styles.disabledButton]}
+        style={[
+          styles.submitButton,
+          { backgroundColor: isSubmitting ? theme.disabled : accentColor },
+        ]}
         onPress={handleSubmit}
         disabled={isSubmitting}
       >
@@ -67,7 +77,6 @@ const styles = StyleSheet.create({
     flex: 1,
     padding: 20,
     justifyContent: "center",
-    backgroundColor: "#fff",
   },
   title: {
     fontSize: 24,
@@ -81,20 +90,15 @@ const styles = StyleSheet.create({
   },
   input: {
     borderWidth: 1,
-    borderColor: "#ccc",
     borderRadius: 8,
     padding: 12,
     fontSize: 16,
     marginBottom: 20,
   },
   submitButton: {
-    backgroundColor: "#00BFA5",
     padding: 15,
     borderRadius: 8,
     alignItems: "center",
-  },
-  disabledButton: {
-    backgroundColor: "#ccc",
   },
   submitText: {
     color: "#fff",

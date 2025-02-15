@@ -7,6 +7,7 @@ import {
   SafeAreaView,
 } from "react-native";
 import { ChevronLeft } from "lucide-react-native";
+import { useTheme } from "../context/ThemeContext"; // 🌙 Import Theme Support
 
 const STEPS_PER_MINUTE = {
   Gå: 83.33, // About 1750 steps in 21 minutes
@@ -24,6 +25,7 @@ const STEPS_PER_MINUTE = {
 const StepConfirmation = ({ navigation, route }) => {
   const { activity, duration } = route.params;
   const steps = Math.round(STEPS_PER_MINUTE[activity] * duration);
+  const { theme, accentColor } = useTheme(); // 🌙 Get Theme & Accent Color
 
   const handleConfirm = () => {
     // Here you would typically save the activity and update the step count
@@ -31,42 +33,47 @@ const StepConfirmation = ({ navigation, route }) => {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]}>
       <View style={styles.header}>
         <TouchableOpacity
           onPress={() => navigation.goBack()}
           style={styles.backButton}
         >
-          <ChevronLeft size={24} color="#000" />
+          <ChevronLeft size={24} color={theme.text} />
         </TouchableOpacity>
-        <View style={styles.progressBar}>
-          <View style={[styles.progressFill, { width: "100%" }]} />
+        <View style={[styles.progressBar, { backgroundColor: theme.surface }]}>
+          <View
+            style={[styles.progressFill, { backgroundColor: accentColor, width: "100%" }]}
+          />
         </View>
-        <Text style={styles.pageIndicator}>3/3</Text>
+        <Text style={[styles.pageIndicator, { color: theme.text }]}>3/3</Text>
       </View>
 
       <View style={styles.content}>
-        <Text style={styles.title}>
-          Godta <Text style={styles.highlightText}>Skritt</Text>
+        <Text style={[styles.title, { color: theme.text }]}>
+          Godta <Text style={[styles.highlightText, { color: accentColor }]}>Skritt</Text>
         </Text>
 
         <View style={styles.confirmationBox}>
-          <Text style={styles.confirmationText}>
-            <Text style={styles.highlightText}>{duration}</Text> Minutter med å{" "}
-            <Text style={styles.highlightText}>{activity}</Text> tilsvarer{"\n"}
-            <Text style={styles.highlightText}>{steps}</Text> Skritt
+          <Text style={[styles.confirmationText, { color: theme.text }]}>
+            <Text style={[styles.highlightText, { color: accentColor }]}>{duration}</Text> Minutter med å{" "}
+            <Text style={[styles.highlightText, { color: accentColor }]}>{activity}</Text> tilsvarer{"\n"}
+            <Text style={[styles.highlightText, { color: accentColor }]}>{steps}</Text> Skritt
           </Text>
         </View>
       </View>
 
       <View style={styles.footer}>
         <TouchableOpacity
-          style={styles.cancelButton}
+          style={[styles.cancelButton, { backgroundColor: theme.surface }]}
           onPress={() => navigation.goBack()}
         >
-          <Text style={styles.cancelButtonText}>Avbryt</Text>
+          <Text style={[styles.cancelButtonText, { color: theme.textSecondary }]}>Avbryt</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.confirmButton} onPress={handleConfirm}>
+        <TouchableOpacity
+          style={[styles.confirmButton, { backgroundColor: accentColor }]}
+          onPress={handleConfirm}
+        >
           <Text style={styles.confirmButtonText}>Godta</Text>
         </TouchableOpacity>
       </View>
@@ -77,7 +84,6 @@ const StepConfirmation = ({ navigation, route }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#FFFFFF",
   },
   header: {
     flexDirection: "row",
@@ -90,13 +96,11 @@ const styles = StyleSheet.create({
   progressBar: {
     flex: 1,
     height: 8,
-    backgroundColor: "#E5F7F6",
     borderRadius: 4,
     marginHorizontal: 16,
   },
   progressFill: {
     height: "100%",
-    backgroundColor: "#00ADB5",
     borderRadius: 4,
   },
   pageIndicator: {
@@ -115,7 +119,7 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
   highlightText: {
-    color: "#00ADB5",
+    fontWeight: "bold",
   },
   confirmationBox: {
     padding: 24,
@@ -135,21 +139,18 @@ const styles = StyleSheet.create({
   cancelButton: {
     flex: 1,
     padding: 16,
-    backgroundColor: "#F5F5F5",
     borderRadius: 8,
     alignItems: "center",
   },
   confirmButton: {
     flex: 1,
     padding: 16,
-    backgroundColor: "#00ADB5",
     borderRadius: 8,
     alignItems: "center",
   },
   cancelButtonText: {
     fontSize: 16,
     fontWeight: "600",
-    color: "#666666",
   },
   confirmButtonText: {
     fontSize: 16,

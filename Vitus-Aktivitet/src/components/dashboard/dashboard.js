@@ -18,33 +18,39 @@ import StepCounter from "../stepcounter/stepcounter";
 import { useNavigation } from "@react-navigation/native";
 import ConfettiCannon from "react-native-confetti-cannon";
 import FloatingSymbols from "../../components/BackgroundAnimation/FloatingSymbols";
+import { useTheme } from '../context/ThemeContext';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
+import Color from 'color';
 
-const TEAL_COLOR = "#00ADB5";
-const TEAL_DARK = "#008F96";
 const SCREEN_WIDTH = Dimensions.get("window").width;
 const DAILY_STEP_GOAL = 1000;
 const PROGRESS_RING_SIZE = 300;
 const PROGRESS_RING_THICKNESS = 30;
 
 // Custom Progress Circle with Gradient
-const CustomProgressCircle = ({ progress }) => {
+const CustomProgressCircle = ({ progress, accentColor }) => {
   const radius = (PROGRESS_RING_SIZE - PROGRESS_RING_THICKNESS) / 2;
   const circumference = radius * 2 * Math.PI;
   const strokeDashoffset = circumference - progress * circumference;
+
+  // Create a semi-transparent version of the accent color for the background ring
+  const transparentAccentColor = Color(accentColor).alpha(0.2).toString();
 
   return (
     <Svg height={PROGRESS_RING_SIZE} width={PROGRESS_RING_SIZE}>
       <Defs>
         <LinearGradient id="grad" x1="0" y1="0" x2="1" y2="1">
-          <Stop offset="0" stopColor={TEAL_COLOR} stopOpacity="1" />
-          <Stop offset="1" stopColor={TEAL_DARK} stopOpacity="1" />
+          <Stop offset="0" stopColor={accentColor} stopOpacity="1" />
+          <Stop offset="1" stopColor={accentColor} stopOpacity="0.8" />
         </LinearGradient>
       </Defs>
+      
+      {/* Background Ring (Semi-Transparent) */}
       <Circle
         cx={PROGRESS_RING_SIZE / 2}
         cy={PROGRESS_RING_SIZE / 2}
         r={radius}
-        stroke="#E5F7F6"
+        stroke={transparentAccentColor}  // ✅ Semi-transparent accent color
         strokeWidth={PROGRESS_RING_THICKNESS}
         fill="none"
       />
@@ -58,9 +64,7 @@ const CustomProgressCircle = ({ progress }) => {
         strokeDashoffset={strokeDashoffset}
         strokeLinecap="round"
         fill="none"
-        transform={`rotate(-90 ${PROGRESS_RING_SIZE / 2} ${
-          PROGRESS_RING_SIZE / 2
-        })`}
+        transform={`rotate(-90 ${PROGRESS_RING_SIZE / 2} ${PROGRESS_RING_SIZE / 2})`}
       />
     </Svg>
   );
@@ -71,6 +75,7 @@ export default function Dashboard() {
   const [streak, setStreak] = useState(25);
   const navigation = useNavigation();
   const [showCelebration, setShowCelebration] = useState(false);
+  const { theme, accentColor } = useTheme();
 
   useEffect(() => {
     if (stepCount >= DAILY_STEP_GOAL && !showCelebration) {
@@ -84,7 +89,7 @@ export default function Dashboard() {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]}>
       <FloatingSymbols />
       <ScrollView contentContainerStyle={styles.scrollContent}>
         {showCelebration && (
@@ -96,17 +101,17 @@ export default function Dashboard() {
         )}
         <View style={styles.header}>
           <TouchableOpacity
-            style={styles.iconButton}
+            style={[styles.iconButton, { backgroundColor: theme.surface }]}
             onPress={() => navigation.navigate("Stats")}
           >
-            <Users size={24} color="#666" />
+            <Users size={24} color={theme.textSecondary} />
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={styles.iconButton}
+            style={[styles.iconButton, { backgroundColor: theme.surface }]}
             onPress={() => navigation.navigate("Notifications")}
           >
-            <Bell size={24} color="#666" />
+            <Bell size={24} color={theme.textSecondary} />
           </TouchableOpacity>
         </View>
 
@@ -114,51 +119,50 @@ export default function Dashboard() {
           <View style={styles.progressContainer}>
             <CustomProgressCircle
               progress={Math.min(stepCount / DAILY_STEP_GOAL, 1)}
+              accentColor={accentColor}
             />
             <View style={styles.progressContent}>
               <Image
                 source={require("../../../assets/løper.png")}
                 style={styles.runnerIcon}
               />
-              <Text style={styles.stepsText}>{stepCount.toLocaleString()}</Text>
-              <Text style={styles.dailyStepsLabel}>DAILY STEPS</Text>
+              <Text style={[styles.stepsText, { color: accentColor }]}>{stepCount.toLocaleString()}</Text>
+              <Text style={[styles.dailyStepsLabel, { color: theme.textSecondary }]}>DAILY STEPS</Text>
             </View>
             <TouchableOpacity
-              style={styles.addButton}
+              style={[styles.addButton, { backgroundColor: theme.surface, borderColor: theme.border }]}
               onPress={() => navigation.navigate("ActivitySelect")}
             >
-              <Text style={styles.addButtonText}>+</Text>
+              <Text style={[styles.addButtonText, { color: accentColor }]}>+</Text>
             </TouchableOpacity>
           </View>
         </View>
 
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Aktive Hendelser</Text>
+          <Text style={[styles.sectionTitle, { color: theme.text }]}>Aktive Hendelser</Text>
           <TouchableOpacity
-            onPress={() =>
-              navigation.navigate("Events", { screen: "EventsNavigation" })
-            }
+            onPress={() => navigation.navigate("Events", { screen: "EventsNavigation" })}
           >
-            <View style={styles.eventCard}>
+            <View style={[styles.eventCard, { backgroundColor: theme.surface }]}>
               <Image
                 source={require("../../../assets/event-illustration.png")}
                 style={styles.eventImage}
               />
               <View style={styles.eventContent}>
-                <Text style={styles.eventTitle}>LØP LØP LØP!</Text>
-                <Text style={styles.eventDescription}>
+                <Text style={[styles.eventTitle, { color: theme.text }]}>LØP LØP LØP!</Text>
+                <Text style={[styles.eventDescription, { color: theme.textSecondary }]}>
                   Beskrivelse som forklarer hva hendelsen gjelder
                 </Text>
                 <Progress.Bar
                   progress={Math.min(stepCount / DAILY_STEP_GOAL, 1)}
                   width={null}
-                  color={TEAL_COLOR}
+                  color={accentColor}
                   unfilledColor="#E5F7F6"
                   borderWidth={0}
                   height={6}
                   borderRadius={3}
                 />
-                <Text style={styles.progressText}>
+                <Text style={[styles.progressText, { color: theme.textSecondary }]}>
                   {stepCount} / {DAILY_STEP_GOAL}
                 </Text>
               </View>
@@ -171,37 +175,34 @@ export default function Dashboard() {
             style={styles.statSection}
             onPress={handleHistoryPress}
           >
-            <Text style={styles.statTitle}>Historikk</Text>
-            <View style={styles.streakBox}>
-              <Image
-                source={require("../../../assets/flame-teal.png")}
-                style={styles.flameIcon}
-              />
-              <Text style={styles.streakValue}>21</Text>
+            <Text style={[styles.statTitle, { color: theme.text }]}>Historikk</Text>
+            <View style={[styles.streakBox, { backgroundColor: theme.surface }]}>
+              <MaterialCommunityIcons name="fire" size={40} color={accentColor} />
+              <Text style={[styles.streakValue, { color: accentColor }]}>21</Text>
             </View>
           </TouchableOpacity>
 
           <View style={styles.statSection}>
-            <Text style={styles.statTitle}>Belønninger</Text>
-            <View style={styles.rewardBox}>
+            <Text style={[styles.statTitle, { color: theme.text }]}>Belønninger</Text>
+            <View style={[styles.rewardBox, { backgroundColor: theme.surface }]}>
               <View style={styles.rewardHeader}>
-                <Text style={styles.levelText}>Level 2</Text>
-                <View style={styles.badgeContainer}>
-                  <Award size={16} color="#8E97A9" />
+                <Text style={[styles.levelText, { color: theme.text }]}>Level 2</Text>
+                <View style={[styles.badgeContainer, { backgroundColor: theme.border }]}>
+                  <Award size={16} color={theme.textSecondary} />
                 </View>
               </View>
-              <Text style={styles.pointsText}>5500/6000</Text>
+              <Text style={[styles.pointsText, { color: theme.textSecondary }]}>5500/6000</Text>
               <View style={styles.levelProgress}>
                 <View style={styles.numberContainer}>
                   <View style={styles.currentLevel}>
                     <Text style={styles.currentLevelText}>2</Text>
                   </View>
-                  <View style={styles.nextLevel}>
-                    <Text style={styles.nextLevelText}>3</Text>
+                  <View style={[styles.nextLevel, { backgroundColor: theme.border }]}>
+                    <Text style={[styles.nextLevelText, { color: theme.textSecondary }]}>3</Text>
                   </View>
                 </View>
-                <View style={styles.progressBarContainer}>
-                  <View style={styles.progressBar} />
+                <View style={[styles.progressBarContainer, { backgroundColor: theme.border }]}>
+                  <View style={[styles.progressBar, { backgroundColor: accentColor }]} />
                 </View>
               </View>
             </View>
@@ -217,7 +218,6 @@ export default function Dashboard() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#F8F9FA", 
   },
   scrollContent: {
     flexGrow: 1,
@@ -229,7 +229,6 @@ const styles = StyleSheet.create({
   },
   iconButton: {
     padding: 12,
-    backgroundColor: "#FFF",
     borderRadius: 24,
   },
   progressWrapper: {
@@ -255,17 +254,14 @@ const styles = StyleSheet.create({
   stepsText: {
     fontSize: 36,
     fontWeight: "bold",
-    color: TEAL_COLOR,
   },
   dailyStepsLabel: {
     fontSize: 14,
-    color: "#666",
   },
   addButton: {
     position: "absolute",
     bottom: 0,
     alignSelf: "center",
-    backgroundColor: "#FFF",
     width: 50,
     height: 50,
     borderRadius: 25,
@@ -273,11 +269,9 @@ const styles = StyleSheet.create({
     alignItems: "center",
     elevation: 5,
     borderWidth: 2,
-    borderColor: "#E0E0E0",
   },
   addButtonText: {
     fontSize: 24,
-    color: TEAL_COLOR,
   },
   section: {
     marginTop: 8,
@@ -291,7 +285,6 @@ const styles = StyleSheet.create({
   eventCard: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#FFF",
     borderRadius: 16,
     padding: 12,
     shadowColor: "#000",
@@ -316,12 +309,10 @@ const styles = StyleSheet.create({
   },
   eventDescription: {
     fontSize: 14,
-    color: "#666",
     marginBottom: 8,
   },
   progressText: {
     fontSize: 12,
-    color: "#666",
   },
   statsContainer: {
     flexDirection: "row",
@@ -337,10 +328,8 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: "600",
     marginBottom: 8,
-    color: "#000",
   },
   streakBox: {
-    backgroundColor: "#FFF",
     borderRadius: 16,
     padding: 12,
     height: 100,
@@ -362,10 +351,8 @@ const styles = StyleSheet.create({
   streakValue: {
     fontSize: 32,
     fontWeight: "bold",
-    color: "#00ADB5",
   },
   rewardBox: {
-    backgroundColor: "#FFF",
     borderRadius: 16,
     padding: 12,
     height: 100,
@@ -384,17 +371,14 @@ const styles = StyleSheet.create({
   levelText: {
     fontSize: 16,
     fontWeight: "600",
-    color: "#000",
   },
   badgeContainer: {
-    backgroundColor: "#F0F3F9",
     borderRadius: 16,
     padding: 6,
     opacity: 0.8,
   },
   pointsText: {
     fontSize: 11,
-    color: "#8E97A9",
     marginBottom: 4,
     opacity: 0.8,
   },
@@ -419,7 +403,6 @@ const styles = StyleSheet.create({
     color: "#000",
   },
   nextLevel: {
-    backgroundColor: "#F0F3F9",
     borderRadius: 10,
     paddingHorizontal: 10,
     paddingVertical: 2,
@@ -427,18 +410,15 @@ const styles = StyleSheet.create({
   nextLevelText: {
     fontSize: 14,
     fontWeight: "bold",
-    color: "#8E97A9",
   },
   progressBarContainer: {
     height: 16,
-    backgroundColor: "#F0F3F9",
     borderRadius: 8,
     overflow: "hidden",
   },
   progressBar: {
     width: "75%",
     height: "100%",
-    backgroundColor: "#FFE7BA",
     borderRadius: 8,
   },
 });

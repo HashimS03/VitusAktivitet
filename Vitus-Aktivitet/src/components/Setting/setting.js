@@ -11,129 +11,141 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
+import { useTheme } from "../context/ThemeContext"; // 🌙 Import Theme Support
 
-const SettingsRow = ({ icon, title, value, onPress }) => (
-  <TouchableOpacity style={styles.settingsRow} onPress={onPress}>
-    <View style={styles.settingsLeft}>
-      <Ionicons name={icon} size={24} color="#000" />
-      <Text style={styles.settingsText}>{title}</Text>
-    </View>
-    {value && (
-      <Text
-        style={[styles.settingsValue, value === "ON" && styles.activeValue]}
-      >
-        {value}
-      </Text>
-    )}
-  </TouchableOpacity>
-);
+const SettingsRow = ({ icon, title, value, onPress, isLastItem }) => {
+  const { theme, accentColor } = useTheme(); // Get Theme & Accent Color
 
-const SettingsSection = ({ children }) => (
-  <View style={styles.settingsSection}>{children}</View>
-);
+  return (
+    <TouchableOpacity
+      style={[
+        styles.settingsRow,
+        !isLastItem && { borderBottomColor: theme.border, borderBottomWidth: 1 }, // ✅ Only add border if NOT last item
+      ]}
+      onPress={onPress}
+    >
+      <View style={styles.settingsLeft}>
+        <Ionicons name={icon} size={24} color={theme.text} />
+        <Text style={[styles.settingsText, { color: theme.text }]}>{title}</Text>
+      </View>
+      {value && (
+        <Text
+          style={[styles.settingsValue, { color: accentColor }, value === "ON" && styles.activeValue]}
+        >
+          {value}
+        </Text>
+      )}
+    </TouchableOpacity>
+  );
+};
+
+const SettingsSection = ({ children }) => {
+  const { theme } = useTheme();
+  return <View style={[styles.settingsSection, { backgroundColor: theme.surface }]}>{children}</View>;
+};
 
 export default function SettingScreen() {
   const navigation = useNavigation();
+  const { theme, isDarkMode } = useTheme(); // ✅ Ensure correct theme state
 
   // 🔴 Logout Confirmation Function
   const handleLogout = () => {
-    Alert.alert(
-      "Logg ut",
-      "Er du sikker på at du vil logge ut?",
-      [
-        { text: "Avbryt", style: "cancel" },
-        {
-          text: "Logg ut",
-          style: "destructive",
-          onPress: () => navigation.reset({ index: 0, routes: [{ name: "Start" }] }),
-        },
-      ]
-    );
+    Alert.alert("Logg ut", "Er du sikker på at du vil logge ut?", [
+      { text: "Avbryt", style: "cancel" },
+      {
+        text: "Logg ut",
+        style: "destructive",
+        onPress: () => navigation.reset({ index: 0, routes: [{ name: "Start" }] }),
+      },
+    ]);
   };
 
+  // ✅ Correctly detect theme mode (light/dark)
+  const themeMode = isDarkMode ? "Mørk Modus" : "Lys Modus"; // 🔥 FIXED
+
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]}>
       <ScrollView>
-        {/* 🔙 Back Button */}
-        <TouchableOpacity
-          style={styles.backButton}
-          onPress={() => navigation.goBack()}
-        >
-          <Ionicons name="chevron-back" size={24} color="#000" />
-        </TouchableOpacity>
+        {/* 🔹 Header Section */}
+        <View style={styles.headerContainer}>
+          {/* 🔙 Back Button */}
+          <TouchableOpacity
+            style={styles.backButton}
+            onPress={() => navigation.goBack()}
+          >
+            <Ionicons name="chevron-back" size={24} color={theme.text} />
+          </TouchableOpacity>
 
-        {/* Settings Header */}
-        <Text style={styles.settingsHeader}>Innstillinger</Text>
+          {/* 🏷 Title Aligned with Back Button */}
+          <Text style={[styles.settingsHeader, { color: theme.text }]}>Innstillinger</Text>
+        </View>
 
-        {/* Avatar Section */}
+        {/* 🔹 Avatar Section */}
         <View style={styles.avatarSection}>
           <View style={styles.avatarContainer}>
             <Image
               source={require("../../../assets/figure/aura.jpeg")}
               style={styles.avatar}
             />
-            <TouchableOpacity style={styles.editButton}>
-              <Ionicons name="pencil" size={20} color="#000" />
+            <TouchableOpacity style={[styles.editButton, { backgroundColor: theme.surface }]}>
+              <Ionicons name="pencil" size={20} color={theme.text} />
             </TouchableOpacity>
           </View>
-          <Text style={styles.name}>Hashem Sheikh</Text>
-          <Text style={styles.contact}>
+          <Text style={[styles.name, { color: theme.text }]}>Hashem Sheikh</Text>
+          <Text style={[styles.contact, { color: theme.textSecondary }]}>
             youremail@domain.com | +47 256 27 189
           </Text>
         </View>
 
-        {/* Settings Sections */}
+        {/* 🔹 Settings Sections */}
         <SettingsSection>
-          <SettingsRow
-            icon="document-text"
-            title="Rediger Profil Informasjon"
-            onPress={() => navigation.navigate("EditProfile")}
-          />
-          <SettingsRow
-            icon="notifications"
-            title="Varslinger"
-            value="ON"
-            onPress={() => navigation.navigate("notificationeditor")}
-          />
-          <SettingsRow
-            icon="language"
-            title="Språk"
-            value="Norsk"
-            onPress={() => navigation.navigate("Language")}
-          />
+          {[
+            { icon: "document-text", title: "Rediger Profil Informasjon", route: "EditProfile" },
+            { icon: "notifications", title: "Varslinger", value: "ON", route: "notificationeditor" },
+            { icon: "language", title: "Språk", value: "Norsk", route: "Language" },
+          ].map((item, index, array) => (
+            <SettingsRow
+              key={item.title}
+              icon={item.icon}
+              title={item.title}
+              value={item.value}
+              onPress={() => navigation.navigate(item.route)}
+              isLastItem={index === array.length - 1} // ✅ Last item gets NO border
+            />
+          ))}
         </SettingsSection>
 
         <SettingsSection>
-          <SettingsRow
-            icon="shield-checkmark"
-            title="Sikkerhet og Personvern"
-            onPress={() => navigation.navigate("securityprivacy")}
-          />
-          <SettingsRow
-            icon="color-palette"
-            title="Tema"
-            value="Lys Modus"
-            onPress={() => navigation.navigate("Theme")}
-          />
+          {[
+            { icon: "shield-checkmark", title: "Sikkerhet og Personvern", route: "securityprivacy" },
+            { icon: "color-palette", title: "Tema", value: themeMode, route: "Theme" }, // ✅ FIXED
+          ].map((item, index, array) => (
+            <SettingsRow
+              key={item.title}
+              icon={item.icon}
+              title={item.title}
+              value={item.value}
+              onPress={() => navigation.navigate(item.route)}
+              isLastItem={index === array.length - 1}
+            />
+          ))}
         </SettingsSection>
 
         <SettingsSection>
-          <SettingsRow
-            icon="help-circle"
-            title="Help & Support"
-            onPress={() => navigation.navigate("helpsupport")}
-          />
-          <SettingsRow
-            icon="chatbubbles"
-            title="Kontakt oss"
-            onPress={() => navigation.navigate("contactus")}
-          />
-          <SettingsRow
-            icon="lock-closed"
-            title="Personvern og Retningslinjer"
-            onPress={() => navigation.navigate("privacypolicy")}
-          />
-          <SettingsRow icon="log-out" title="Logg ut" onPress={handleLogout} />
+          {[
+            { icon: "help-circle", title: "Help & Support", route: "helpsupport" },
+            { icon: "chatbubbles", title: "Kontakt oss", route: "contactus" },
+            { icon: "lock-closed", title: "Personvern og Retningslinjer", route: "privacypolicy" },
+            { icon: "log-out", title: "Logg ut", onPress: handleLogout },
+          ].map((item, index, array) => (
+            <SettingsRow
+              key={item.title}
+              icon={item.icon}
+              title={item.title}
+              onPress={item.onPress ? item.onPress : () => navigation.navigate(item.route)}
+              isLastItem={index === array.length - 1}
+            />
+          ))}
         </SettingsSection>
       </ScrollView>
     </SafeAreaView>
@@ -141,34 +153,40 @@ export default function SettingScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#E5F3F3" },
+  container: { flex: 1 },
+  
+  // ✅ Header Fix: Aligns title and back button properly
+  headerContainer: {
+    flexDirection: "row",
+    alignItems: "center", // Aligns items on the same row
+    paddingHorizontal: 16,
+    paddingVertical: 16, // ✅ Moves title up
+  },
+  
   backButton: {
-    padding: 16,
-    position: "absolute",
-    top: 16,
-    left: 16,
-    zIndex: 10,
+    padding: 8,
   },
+
   settingsHeader: {
-    fontSize: 24,
+    fontSize: 20,
     fontWeight: "bold",
+    flex: 1, // ✅ Ensures title is centered while back button stays on the left
+    left: -10, // ✅ Moves title slightly left to balance alignment
     textAlign: "center",
-    marginTop: 60,
-    marginBottom: 20,
+    marginLeft: -24, // ✅ Moves title slightly left to balance alignment
   },
+
   avatarSection: { alignItems: "center", marginBottom: 24 },
   avatarContainer: { position: "relative", marginBottom: 16 },
   avatar: {
     width: 100,
     height: 100,
     borderRadius: 50,
-    backgroundColor: "#E6E6FA",
   },
   editButton: {
     position: "absolute",
     right: 0,
     bottom: 0,
-    backgroundColor: "white",
     borderRadius: 12,
     padding: 6,
     shadowColor: "#000",
@@ -178,9 +196,8 @@ const styles = StyleSheet.create({
     elevation: 5,
   },
   name: { fontSize: 24, fontWeight: "bold", marginBottom: 8 },
-  contact: { color: "#666", marginBottom: 24 },
+  contact: { marginBottom: 24 },
   settingsSection: {
-    backgroundColor: "white",
     borderRadius: 12,
     marginHorizontal: 16,
     marginBottom: 16,
@@ -194,6 +211,6 @@ const styles = StyleSheet.create({
   },
   settingsLeft: { flexDirection: "row", alignItems: "center", gap: 12 },
   settingsText: { fontSize: 16 },
-  settingsValue: { color: "#0066FF" },
+  settingsValue: { fontSize: 16 },
   activeValue: { fontWeight: "600" },
 });
