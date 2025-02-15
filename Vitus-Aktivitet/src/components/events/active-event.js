@@ -1,14 +1,23 @@
-import { useState, useEffect } from "react"
-import { View, Text, StyleSheet, SafeAreaView, TouchableOpacity, Image, ScrollView, Modal } from "react-native"
-import { MaterialCommunityIcons } from "@expo/vector-icons"
-import { useNavigation } from "@react-navigation/native"
-import InviteMembersScreen from "./InviteMembersScreen"
+import { useState, useEffect } from "react";
+import {
+  View,
+  Text,
+  StyleSheet,
+  SafeAreaView,
+  TouchableOpacity,
+  Image,
+  ScrollView,
+  Modal,
+} from "react-native";
+import { MaterialCommunityIcons } from "@expo/vector-icons";
+import { useNavigation } from "@react-navigation/native";
+import InviteMembersScreen from "./InviteMembersScreen";
 
 const ActiveEventImproved = ({ route }) => {
-  const { eventDetails } = route.params || {}
-  const [isModalVisible, setModalVisible] = useState(false)
-  const [showInviteScreen, setShowInviteScreen] = useState(false)
-  const navigation = useNavigation()
+  const { eventDetails } = route.params || {};
+  const [isModalVisible, setModalVisible] = useState(false);
+  const [showInviteScreen, setShowInviteScreen] = useState(false);
+  const navigation = useNavigation();
 
   useEffect(() => {
     navigation.setOptions({
@@ -35,18 +44,18 @@ const ActiveEventImproved = ({ route }) => {
               },
             ],
           },
-        }
+        };
       },
-    })
-  }, [navigation])
+    });
+  }, [navigation]);
 
   const toggleModal = () => {
-    setModalVisible(!isModalVisible)
-  }
+    setModalVisible(!isModalVisible);
+  };
 
   const handleBackPress = () => {
-    navigation.navigate("EventsMain", { screen: "YourEvents" })
-  }
+    navigation.navigate("EventsMain", { screen: "YourEvents" });
+  };
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -55,23 +64,38 @@ const ActiveEventImproved = ({ route }) => {
           <TouchableOpacity onPress={handleBackPress} style={styles.backButton}>
             <MaterialCommunityIcons name="arrow-left" size={24} color="#000" />
           </TouchableOpacity>
-          <Text style={styles.title}>{eventDetails?.title || "Din gruppe"}</Text>
+          <Text style={styles.title}>
+            {eventDetails?.title || "Din gruppe"}
+          </Text>
           <TouchableOpacity onPress={toggleModal} style={styles.menuButton}>
-            <MaterialCommunityIcons name="dots-vertical" size={24} color="#000" />
+            <MaterialCommunityIcons
+              name="dots-vertical"
+              size={24}
+              color="#000"
+            />
           </TouchableOpacity>
         </View>
 
-        <Image source={require("../../../assets/event-illustration.png")} style={styles.eventBanner} />
+        <Image
+         //source={require("../../../assets/vitusaktivitet_v2_sq.png")}
+          //style={styles.eventBanner}
+        />
 
         <View style={styles.eventInfoContainer}>
-          <Text style={styles.eventTitle}>{eventDetails?.title || "Hvem er sterkest? Push ups konkurranse"}</Text>
+          <Text style={styles.eventTitle}>
+            {eventDetails?.title || "Hvem er sterkest? Push ups konkurranse"}
+          </Text>
           <View style={styles.eventDetails}>
             <MaterialCommunityIcons name="calendar" size={20} color="#666" />
-            <Text style={styles.eventDetailText}>{eventDetails?.date || "Fri, Apr 23 • 6:00 PM"}</Text>
+            <Text style={styles.eventDetailText}>
+              {eventDetails?.date || "Fri, Apr 23 • 6:00 PM"}
+            </Text>
           </View>
           <View style={styles.eventDetails}>
             <MaterialCommunityIcons name="map-marker" size={20} color="#666" />
-            <Text style={styles.eventDetailText}>{eventDetails?.location || "Alf bjeckes vei 28 • Oslo"}</Text>
+            <Text style={styles.eventDetailText}>
+              {eventDetails?.location || "Alf bjeckes vei 28 • Oslo"}
+            </Text>
           </View>
         </View>
 
@@ -79,13 +103,24 @@ const ActiveEventImproved = ({ route }) => {
           <Text style={styles.sectionTitle}>Medlemmer</Text>
           <Text style={styles.memberCount}>1 av 4 medlemmer</Text>
 
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.membersList}>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            style={styles.membersList}
+          >
             <View style={styles.memberAvatar}>
-              <Image source={require("../../../assets/member-avatar.png")} style={styles.avatarImage} />
+              <Image
+                source={require("../../../assets/member-avatar.png")}
+                style={styles.avatarImage}
+              />
               <Text style={styles.memberName}>Hanne</Text>
             </View>
             {[1, 2, 3].map((i) => (
-              <TouchableOpacity key={i} style={styles.emptyAvatar} onPress={() => setShowInviteScreen(true)}>
+              <TouchableOpacity
+                key={i}
+                style={styles.emptyAvatar}
+                onPress={() => setShowInviteScreen(true)}
+              >
                 <MaterialCommunityIcons name="plus" size={24} color="#00BFA5" />
               </TouchableOpacity>
             ))}
@@ -100,13 +135,21 @@ const ActiveEventImproved = ({ route }) => {
           </Text>
         </View>
 
-        <TouchableOpacity style={styles.inviteButton} onPress={() => setShowInviteScreen(true)}>
+        <TouchableOpacity
+          style={styles.inviteButton}
+          onPress={() => setShowInviteScreen(true)}
+        >
           <MaterialCommunityIcons name="account-plus" size={24} color="#FFF" />
           <Text style={styles.inviteButtonText}>Inviter medlemmer</Text>
         </TouchableOpacity>
       </ScrollView>
 
-      <Modal animationType="fade" transparent={true} visible={isModalVisible} onRequestClose={toggleModal}>
+      <Modal
+        animationType="fade"
+        transparent={true}
+        visible={isModalVisible}
+        onRequestClose={toggleModal}
+      >
         <View style={styles.modalContainer}>
           <View style={styles.modalContent}>
             <TouchableOpacity style={styles.modalOption}>
@@ -115,9 +158,14 @@ const ActiveEventImproved = ({ route }) => {
             </TouchableOpacity>
             <TouchableOpacity style={styles.modalOption}>
               <MaterialCommunityIcons name="delete" size={24} color="#FF0000" />
-              <Text style={[styles.modalOptionText, { color: "#FF0000" }]}>Slett hendelse</Text>
+              <Text style={[styles.modalOptionText, { color: "#FF0000" }]}>
+                Slett hendelse
+              </Text>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.modalCloseButton} onPress={toggleModal}>
+            <TouchableOpacity
+              style={styles.modalCloseButton}
+              onPress={toggleModal}
+            >
               <Text style={styles.modalCloseButtonText}>Lukk</Text>
             </TouchableOpacity>
           </View>
@@ -130,8 +178,8 @@ const ActiveEventImproved = ({ route }) => {
         eventId={eventDetails?.id || "123"}
       />
     </SafeAreaView>
-  )
-}
+  );
+};
 
 const styles = StyleSheet.create({
   safeArea: {
@@ -158,11 +206,11 @@ const styles = StyleSheet.create({
   menuButton: {
     padding: 8,
   },
-  eventBanner: {
+  /*eventBanner: {
     width: "100%",
     height: 200,
-    resizeMode: "cover",
-  },
+    alignSelf: "center",
+  },*/
   eventInfoContainer: {
     padding: 16,
     backgroundColor: "#F5F5F5",
@@ -280,7 +328,6 @@ const styles = StyleSheet.create({
     color: "#00BFA5",
     fontWeight: "600",
   },
-})
+});
 
-export default ActiveEventImproved
-
+export default ActiveEventImproved;
