@@ -4,6 +4,7 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { Dimensions } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { Svg, Rect } from 'react-native-svg';
+import { useTheme } from '../context/ThemeContext'; // Import theme context
 
 const screenWidth = Dimensions.get('window').width - 40;
 
@@ -12,46 +13,49 @@ const weekData = {
   values: [6500, 3200, 6800, 5200, 4000, 2000, 6500],
 };
 
-const maxBarHeight = 200; // Increased height
+const maxBarHeight = 200;
 const maxValue = Math.max(...weekData.values);
 const barWidth = 26;
 const spacing = (screenWidth - 60) / weekData.labels.length;
-
 const yAxisLabels = ['7K', '6K', '5K', '4K', '3K', '2K', '1K', '0'];
 const yAxisSpacing = maxBarHeight / (yAxisLabels.length - 1);
 
 const HistoryScreen = () => {
   const navigation = useNavigation();
   const [selectedPeriod, setSelectedPeriod] = useState('Uke');
+  const { theme, isDarkMode } = useTheme(); // Get theme from context
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]}>
       <ScrollView contentContainerStyle={styles.scrollContainer}>
+        {/* Header */}
         <View style={styles.header}>
           <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-            <MaterialCommunityIcons name="chevron-left" size={32} color="#000" />
+            <MaterialCommunityIcons name="chevron-left" size={32} color={theme.text} />
           </TouchableOpacity>
-          <Text style={styles.title}>Historikk</Text>
+          <Text style={[styles.title, { color: theme.text }]}>Historikk</Text>
         </View>
 
-        <View style={styles.statsCard}>
+        {/* Stats Card (White in Light Mode, Dark Grey in Dark Mode) */}
+        <View style={[styles.statsCard, { backgroundColor: isDarkMode ? '#333333' : '#FFFFFF' }]}>
           <View style={styles.statItem}>
-            <MaterialCommunityIcons name="walk" size={24} color="#000" />
-            <Text style={styles.statNumber}>258 903</Text>
-            <Text style={styles.statLabel}>Total Skritt gjennom tiden</Text>
+            <MaterialCommunityIcons name="walk" size={24} color={theme.primary} />
+            <Text style={[styles.statNumber, { color: theme.primary }]}>258 903</Text>
+            <Text style={[styles.statLabel, { color: theme.text }]}>Total Skritt gjennom tiden</Text>
           </View>
 
           <View style={styles.statItem}>
-            <MaterialCommunityIcons name="fire" size={24} color="#000" />
-            <Text style={styles.statNumber}>25</Text>
-            <Text style={styles.statLabel}>Høyeste Streak gjennom tiden</Text>
+            <MaterialCommunityIcons name="fire" size={24} color={theme.primary} />
+            <Text style={[styles.statNumber, { color: theme.primary }]}>25</Text>
+            <Text style={[styles.statLabel, { color: theme.text }]}>Høyeste Streak gjennom tiden</Text>
           </View>
         </View>
 
-        <View style={styles.chartContainer}>
+        {/* Chart Section (White in Light Mode, Dark Grey in Dark Mode) */}
+        <View style={[styles.chartContainer, { backgroundColor: isDarkMode ? '#333333' : '#FFFFFF' }]}>
           <View style={styles.statisticsHeader}>
-            <Text style={styles.statisticsTitle}>Statistikk</Text>
-            <TouchableOpacity style={styles.periodButton}>
+            <Text style={[styles.statisticsTitle, { color: theme.text }]}>Statistikk</Text>
+            <TouchableOpacity style={[styles.periodButton, { backgroundColor: theme.primary }]}>
               <MaterialCommunityIcons name="equalizer" size={20} color="#fff" />
               <Text style={styles.periodButtonText}>Uke</Text>
             </TouchableOpacity>
@@ -65,7 +69,7 @@ const HistoryScreen = () => {
                   key={index} 
                   style={[
                     styles.yLabel, 
-                    { top: index * yAxisSpacing - 10 }
+                    { top: index * yAxisSpacing - 10, color: theme.text }
                   ]}
                 >
                   {label}
@@ -78,7 +82,7 @@ const HistoryScreen = () => {
               {weekData.values.map((value, index) => {
                 const barHeight = (value / maxValue) * maxBarHeight;
                 const x = 30 + index * spacing;
-                const y = 200 - barHeight; // Adjusted y position
+                const y = 200 - barHeight;
 
                 return (
                   <Rect
@@ -89,7 +93,7 @@ const HistoryScreen = () => {
                     ry={8}
                     width={barWidth}
                     height={barHeight}
-                    fill="#48CAB2"
+                    fill={theme.primary} // Dynamic Accent Color
                   />
                 );
               })}
@@ -102,7 +106,7 @@ const HistoryScreen = () => {
                   key={index} 
                   style={[
                     styles.xLabel, 
-                    { left: 30 + index * spacing + (barWidth / 2) - 12 }
+                    { left: 30 + index * spacing + (barWidth / 2) - 12, color: theme.text }
                   ]}
                 >
                   {label}
@@ -116,10 +120,10 @@ const HistoryScreen = () => {
   );
 };
 
+// Styles (White Containers for Light Mode, Dark Grey for Dark Mode)
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F8F9FA',
   },
   scrollContainer: {
     flexGrow: 1,
@@ -143,7 +147,6 @@ const styles = StyleSheet.create({
   statsCard: {
     margin: 20,
     padding: 20,
-    backgroundColor: '#fff',
     borderRadius: 16,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
@@ -158,26 +161,23 @@ const styles = StyleSheet.create({
   statNumber: {
     fontSize: 36,
     fontWeight: 'bold',
-    color: '#48CAB2',
     marginVertical: 5,
   },
   statLabel: {
     fontSize: 16,
-    color: '#666',
     textAlign: 'center',
   },
   chartContainer: {
     margin: 20,
     padding: 15,
-    paddingBottom: 25, // Added padding at bottom
-    backgroundColor: '#fff',
+    paddingBottom: 25,
     borderRadius: 16,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 3,
-    height: 340, // Increased container height
+    height: 340,
   },
   statisticsHeader: {
     flexDirection: 'row',
@@ -192,7 +192,6 @@ const styles = StyleSheet.create({
   periodButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#48CAB2',
     borderRadius: 20,
     paddingHorizontal: 16,
     paddingVertical: 8,
@@ -207,7 +206,7 @@ const styles = StyleSheet.create({
     position: 'relative',
     marginLeft: 0,
     marginTop: 0,
-    height: 250, // Increased wrapper height
+    height: 250,
   },
   yAxis: {
     position: 'absolute',
@@ -218,19 +217,17 @@ const styles = StyleSheet.create({
   },
   yLabel: {
     fontSize: 12,
-    color: '#BDBDBD',
     position: 'absolute',
     left: 0,
   },
   xAxis: {
     position: 'absolute',
-    bottom: 35, // Reduced space between bars and labels
+    bottom: 35,
     left: 0,
     right: 0,
   },
   xLabel: {
     fontSize: 14,
-    color: '#666',
     position: 'absolute',
     textAlign: 'center',
   },

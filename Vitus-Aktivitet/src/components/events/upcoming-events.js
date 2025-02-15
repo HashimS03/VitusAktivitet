@@ -1,9 +1,12 @@
 import React from "react";
 import { View, Text, StyleSheet, Image, SafeAreaView } from "react-native";
+import { useTheme } from "../context/ThemeContext"; // Import Theme Context
 
 const UpcomingEvents = () => {
+  const { theme } = useTheme();
+
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <SafeAreaView style={[styles.safeArea, { backgroundColor: theme.background }]}>
       <View style={styles.content}>
         {/* No Events Illustration */}
         <Image
@@ -13,8 +16,8 @@ const UpcomingEvents = () => {
         />
 
         {/* No Events Message */}
-        <Text style={styles.noEventTitle}>No Upcoming Event</Text>
-        <Text style={styles.noEventSubtitle}>
+        <Text style={[styles.noEventTitle, { color: theme.text }]}>No Upcoming Event</Text>
+        <Text style={[styles.noEventSubtitle, { color: theme.textSecondary }]}>
           Det er desverre ingen kommende hendelser per nå...
         </Text>
       </View>
@@ -25,7 +28,6 @@ const UpcomingEvents = () => {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: "#f8f9fa",
   },
   content: {
     flex: 1,
@@ -43,12 +45,9 @@ const styles = StyleSheet.create({
     fontSize: 28,
     fontWeight: "bold",
     marginBottom: 12,
-    color: "#000",
-    textAlign: "center",
   },
   noEventSubtitle: {
     fontSize: 16,
-    color: "#666",
     textAlign: "center",
     maxWidth: "80%",
     lineHeight: 24,

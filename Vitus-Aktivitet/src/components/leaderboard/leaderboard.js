@@ -11,16 +11,15 @@ import {
   Modal,
 } from "react-native";
 import { Filter, TrendingUp, TrendingDown } from "lucide-react-native";
-
-const TEAL_COLOR = "#00BFA5";
+import { useTheme } from "../context/ThemeContext"; // Import Theme Context
 
 const Leaderboard = () => {
   const [selectedSegment, setSelectedSegment] = useState("I DAG");
   const [fadeAnim] = useState(new Animated.Value(1));
   const [filterVisible, setFilterVisible] = useState(false);
   const [filterOption, setFilterOption] = useState("Everybody");
+  const { theme, isDarkMode } = useTheme(); // Get theme values
 
-  // Full leaderboard data
   const fullLeaderboardData = [
     { id: '1', name: 'Ho Daniel', points: 2000, department: 'IT', avatar: require('../../../assets/figure/daniel.png') },
     { id: '2', name: 'Hashem', points: 1500, department: 'HR', avatar: require('../../../assets/figure/hashem.png') },
@@ -34,19 +33,16 @@ const Leaderboard = () => {
     { id: "10", name: "Isabella", points: 750, change: +4, department: "Finance", avatar: require("../../../assets/figure/avatar7.jpeg") },
   ];
 
-  // Apply filter based on selected option
   const filteredLeaderboardData =
     filterOption === "Everybody"
       ? fullLeaderboardData
       : fullLeaderboardData.filter((player) => player.department === filterOption);
 
-  // Function to handle filter selection
   const handleFilterChange = (option) => {
     setFilterOption(option);
     setFilterVisible(false);
   };
 
-  // Function to animate leaderboard refresh
   const handleSegmentChange = (segment) => {
     Animated.sequence([
       Animated.timing(fadeAnim, { toValue: 0, duration: 150, useNativeDriver: true }),
@@ -55,11 +51,19 @@ const Leaderboard = () => {
     setSelectedSegment(segment);
   };
 
-  // Function to render leaderboard items
-  const renderLeaderboardItem = ({ item, index }) => (
-    <Animated.View style={[styles.leaderboardRow, { opacity: fadeAnim }]}>
+  const renderLeaderboardItem = ({ item }) => (
+    <Animated.View
+      style={[
+        styles.leaderboardRow,
+        { opacity: fadeAnim, backgroundColor: isDarkMode ? "#333333" : "#F0F0F0" },
+      ]}
+    >
       <View style={styles.rankContainer}>
-        {item.change > 0 ? <TrendingUp size={16} color="#4CAF50" /> : <TrendingDown size={16} color="#F44336" />}
+        {item.change > 0 ? (
+          <TrendingUp size={16} color="#4CAF50" />
+        ) : (
+          <TrendingDown size={16} color="#F44336" />
+        )}
         <Text style={[styles.changeText, item.change > 0 ? styles.positive : styles.negative]}>
           {Math.abs(item.change)}
         </Text>
@@ -67,56 +71,47 @@ const Leaderboard = () => {
       <View style={styles.playerInfo}>
         <Image source={item.avatar} style={styles.listAvatar} />
         <View>
-          <Text style={styles.playerName}>{item.name}</Text>
-          <Text style={styles.playerRank}>{item.department}</Text>
+          <Text style={[styles.playerName, { color: theme.text }]}>{item.name}</Text>
+          <Text style={[styles.playerRank, { color: theme.textSecondary }]}>{item.department}</Text>
         </View>
       </View>
-      <Text style={styles.pointsText}>{item.points.toLocaleString()} Poeng</Text>
+      <Text style={[styles.pointsText, { color: theme.primary }]}>
+        {item.points.toLocaleString()} Poeng
+      </Text>
     </Animated.View>
   );
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]}>
       {/* Header with Filter Button */}
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>Leaderboard</Text>
-        <TouchableOpacity style={styles.filterButton} onPress={() => setFilterVisible(true)}>
-          <Filter size={24} color="#666" />
+        <Text style={[styles.headerTitle, { color: theme.text }]}>Leaderboard</Text>
+        <TouchableOpacity
+          style={[styles.filterButton, { backgroundColor: isDarkMode ? "#333333" : "#F5F5F5" }]}
+          onPress={() => setFilterVisible(true)}
+        >
+          <Filter size={24} color={theme.textSecondary} />
         </TouchableOpacity>
       </View>
 
       {/* Filter Modal */}
       <Modal visible={filterVisible} transparent animationType="fade">
         <TouchableOpacity style={styles.modalOverlay} onPress={() => setFilterVisible(false)}>
-          <View style={styles.filterModal}>
-            <Text style={styles.filterTitle}>Filter by</Text>
-            <TouchableOpacity
-              style={[styles.filterOption, filterOption === "Everybody" && styles.selectedOption]}
-              onPress={() => handleFilterChange("Everybody")}
-            >
-              <Text style={styles.filterText}>Everybody</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.filterOption, filterOption === "IT" && styles.selectedOption]}
-              onPress={() => handleFilterChange("IT")}
-            >
-              <Text style={styles.filterText}>IT Department</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.filterOption, filterOption === "HR" && styles.selectedOption]}
-              onPress={() => handleFilterChange("HR")}
-            >
-              <Text style={styles.filterText}>HR Department</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.filterOption, filterOption === "Finance" && styles.selectedOption]}
-              onPress={() => handleFilterChange("Finance")}
-            >
-              <Text style={styles.filterText}>Finance Department</Text>
-            </TouchableOpacity>
+          <View style={styles.filterModal(theme)}>
+            <Text style={styles.filterTitle(theme)}>Filter by</Text>
+            {["Everybody", "IT", "HR", "Finance"].map((option) => (
+              <TouchableOpacity
+                key={option}
+                style={styles.filterOption(theme, filterOption === option)}
+                onPress={() => handleFilterChange(option)}
+              >
+                <Text style={styles.filterText(theme, filterOption === option)}>{option}</Text>
+              </TouchableOpacity>
+            ))}
           </View>
         </TouchableOpacity>
       </Modal>
+
 
       {/* Leaderboard List */}
       <FlatList
@@ -134,7 +129,6 @@ const Leaderboard = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#FFF",
   },
   header: {
     flexDirection: "row",
@@ -146,51 +140,14 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 32,
     fontWeight: "700",
-    color: "#000",
   },
   filterButton: {
     padding: 8,
     borderRadius: 12,
-    backgroundColor: "#F5F5F5",
-  },
-  modalOverlay: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    backgroundColor: "rgba(0, 0, 0, 0.5)",
-  },
-  filterModal: {
-    width: 250,
-    backgroundColor: "#FFF",
-    borderRadius: 12,
-    padding: 16,
-    alignItems: "center",
-  },
-  filterTitle: {
-    fontSize: 18,
-    fontWeight: "700",
-    marginBottom: 12,
-  },
-  filterOption: {
-    paddingVertical: 10,
-    width: "100%",
-    alignItems: "center",
-    borderRadius: 8,
-    marginVertical: 4,
-    backgroundColor: "#E5E5E5",
-  },
-  selectedOption: {
-    backgroundColor: TEAL_COLOR,
-  },
-  filterText: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: "#000",
   },
   leaderboardRow: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#F8F8F8",
     padding: 16,
     marginHorizontal: 20,
     borderRadius: 12,
@@ -202,9 +159,9 @@ const styles = StyleSheet.create({
     width: 50,
   },
   playerInfo: {
-    flex: 1,
     flexDirection: "row",
     alignItems: "center",
+    flex: 1,
   },
   listAvatar: {
     width: 48,
@@ -215,17 +172,70 @@ const styles = StyleSheet.create({
   playerName: {
     fontSize: 16,
     fontWeight: "600",
-    color: "#000",
   },
   playerRank: {
     fontSize: 12,
-    color: "#666",
   },
   pointsText: {
     fontSize: 16,
     fontWeight: "600",
-    color: TEAL_COLOR,
   },
+
+  // 🔹 MODAL OVERLAY FIXES
+  modalOverlay: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "rgba(0, 0, 0, 0.5)", // ✅ Ensures proper blur
+  },
+
+  // 🔹 FIXED FILTER MODAL CONTAINER - Uses theme colors
+  filterModal: (theme) => ({
+    width: 280,
+    borderRadius: 16, // Increased radius for smooth UI
+    paddingVertical: 20,
+    paddingHorizontal: 18,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: theme.surface, // ✅ Dark mode support
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 6,
+    elevation: 8,
+  }),
+
+  // 🔹 MODAL TITLE - Uses theme text color
+  filterTitle: (theme) => ({
+    fontSize: 18,
+    fontWeight: "700",
+    marginBottom: 16,
+    color: theme.text, // ✅ Dynamic text color
+  }),
+
+  // 🔹 FILTER OPTION FIXES - Uses theme colors
+  filterOption: (theme, selected) => ({
+    paddingVertical: 14, // More height for better tap experience
+    paddingHorizontal: 12,
+    width: "100%",
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: 8,
+    marginVertical: 6,
+    backgroundColor: selected ? theme.primary : theme.surface, // ✅ Better contrast
+    borderWidth: selected ? 2 : 0, // Highlight selected option
+    borderColor: selected ? theme.primary : "transparent",
+  }),
+
+  // 🔹 FILTER TEXT FIX - Dynamic text color
+  filterText: (theme, selected) => ({
+    fontSize: 16,
+    fontWeight: "600",
+    textAlign: "center",
+    width: "100%",
+    color: selected ? theme.background : theme.text, // ✅ Better contrast
+  }),
 });
+
 
 export default Leaderboard;

@@ -1,4 +1,6 @@
-import React, { useState } from "react";
+'use client';
+
+import React, { useEffect, useState } from "react";
 import {
   View,
   Text,
@@ -10,58 +12,62 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
+import { useTheme } from '../context/ThemeContext';
 
 const Theme = () => {
   const navigation = useNavigation();
-
-  // State for dark mode toggle
-  const [isDarkMode, setIsDarkMode] = useState(false);
-
-  // State for accent color selection
-  const [selectedColor, setSelectedColor] = useState("#48CAB2");
-
+  const { isDarkMode, toggleTheme, theme, changeAccentColor, accentColor } = useTheme(); // Get theme values
+  
   // Predefined accent colors
   const accentColors = ["#48CAB2", "#FF6B6B", "#FFD93D", "#4C82FB", "#8A4FFF"];
 
   return (
-    <View style={[styles.container, { backgroundColor: isDarkMode ? "#222" : "#F6F6F6" }]}>
+    <View style={[styles.container, { backgroundColor: theme.background }]}>
       {/* Header Section */}
       <View style={styles.headerWrapper}>
         {/* Back Button */}
         <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
-          <Ionicons name="chevron-back" size={28} color={isDarkMode ? "#FFF" : "#000"} />
+          <Ionicons name="chevron-back" size={28} color={theme.text} />
         </TouchableOpacity>
 
         {/* Header Title */}
-        <Text style={[styles.header, { color: isDarkMode ? "#FFF" : "#000" }]}>Tema</Text>
+        <Text style={[styles.header, { color: theme.text }]}>Tema</Text>
       </View>
 
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         {/* Dark Mode Toggle */}
-        <View style={styles.section}>
-          <Text style={[styles.sectionTitle, { color: isDarkMode ? "#FFF" : "#333" }]}>Tema Modus</Text>
+        <View style={[styles.section, { borderBottomColor: theme.border }]}>
+          <Text style={[styles.sectionTitle, { color: theme.text }]}>Tema Modus</Text>
           <View style={styles.row}>
-            <Text style={[styles.label, { color: isDarkMode ? "#FFF" : "#333" }]}>Mørk Modus</Text>
+            <Text style={[styles.label, { color: theme.text }]}>Mørk Modus</Text>
             <Switch
               value={isDarkMode}
-              onValueChange={setIsDarkMode}
-              trackColor={{ false: "#ccc", true: selectedColor }}
-              thumbColor={"#FFFFFF"} // ✅ Always white dot
+              onValueChange={toggleTheme}
+              trackColor={{ false: "#ccc", true: accentColor }}
+              thumbColor={"#FFFFFF"}
             />
           </View>
         </View>
 
         {/* Accent Color Selection */}
-        <View style={styles.section}>
-          <Text style={[styles.sectionTitle, { color: isDarkMode ? "#FFF" : "#333" }]}>Fargevalg</Text>
+        <View style={[styles.section, { borderBottomColor: theme.border }]}>
+          <Text style={[styles.sectionTitle, { color: theme.text }]}>Fargevalg</Text>
           <View style={styles.colorRow}>
             {accentColors.map((color) => (
               <TouchableOpacity
                 key={color}
-                style={[styles.colorCircle, { backgroundColor: color, borderColor: selectedColor === color ? "#FFF" : "transparent" }]}
-                onPress={() => setSelectedColor(color)}
+                style={[
+                  styles.colorCircle, 
+                  { 
+                    backgroundColor: color,
+                    borderColor: accentColor === color ? theme.text : "transparent"
+                  }
+                ]}
+                onPress={() => changeAccentColor(color)} // Now directly updates global theme
               >
-                {selectedColor === color && <Ionicons name="checkmark" size={18} color="#FFF" />}
+                {accentColor === color && (
+                  <Ionicons name="checkmark" size={18} color="#FFF" />
+                )}
               </TouchableOpacity>
             ))}
           </View>
@@ -81,7 +87,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     height: 60,
-    marginTop: Platform.OS === "ios" ? 60 : 40, // Adjust for status bar height
+    marginTop: Platform.OS === "ios" ? 60 : 40,
     position: "relative",
   },
   backButton: {
@@ -103,7 +109,6 @@ const styles = StyleSheet.create({
     marginBottom: 20,
     paddingBottom: 10,
     borderBottomWidth: 1,
-    borderBottomColor: "#EAEAEA",
   },
   sectionTitle: {
     fontSize: 16,

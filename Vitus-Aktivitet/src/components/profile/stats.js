@@ -17,6 +17,7 @@ import {
   TrendingUp,
 } from "lucide-react-native";
 import { useNavigation } from "@react-navigation/native";
+import { useTheme } from "../context/ThemeContext"; // 🌙 Import Theme Support
 import Achievements from "./achievements";
 import Activity from "./activity";
 
@@ -25,6 +26,7 @@ const TABS = ["STATS", "ACHIEVEMENTS", "ACTIVITY"];
 const Stats = () => {
   const [activeTab, setActiveTab] = useState("STATS");
   const navigation = useNavigation();
+  const { theme, accentColor } = useTheme(); // Get theme values & accent color
 
   const statsData = [
     {
@@ -79,7 +81,7 @@ const Stats = () => {
     <>
       <View style={styles.statsContainer}>
         {statsData.map((stat, index) => (
-          <View key={index} style={styles.statCard}>
+          <View key={index} style={[styles.statCard, { backgroundColor: theme.surface }]}>
             <View
               style={[
                 styles.iconContainer,
@@ -89,27 +91,27 @@ const Stats = () => {
               <stat.icon size={20} color={stat.iconColor} />
             </View>
             <View style={styles.statTextContainer}>
-              <Text style={styles.statValue}>{stat.value}</Text>
-              <Text style={styles.statLabel}>{stat.label}</Text>
+              <Text style={[styles.statValue, { color: theme.text }]}>{stat.value}</Text>
+              <Text style={[styles.statLabel, { color: theme.textSecondary }]}>{stat.label}</Text>
             </View>
           </View>
         ))}
       </View>
 
-      <View style={styles.racesContainer}>
-        <Text style={styles.sectionTitle}>Latest Races</Text>
+      <View style={[styles.racesContainer, { backgroundColor: theme.surface }]}>
+        <Text style={[styles.sectionTitle, { color: theme.text }]}>Latest Races</Text>
         {races.map((race, index) => (
           <View key={index} style={styles.raceItem}>
             <Image source={race.image} style={styles.raceImage} />
             <View style={styles.raceContent}>
-              <Text style={styles.raceTitle}>{race.title}</Text>
+              <Text style={[styles.raceTitle, { color: theme.text }]}>{race.title}</Text>
               <View style={styles.progressBar}>
                 <View
                   style={[styles.progressFill, { width: `${race.progress}%` }]}
                 />
               </View>
             </View>
-            <Text style={styles.progressText}>{race.progress}% Complete</Text>
+            <Text style={[styles.progressText, { color: theme.textSecondary }]}>{race.progress}% Complete</Text>
           </View>
         ))}
       </View>
@@ -128,13 +130,13 @@ const Stats = () => {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]}>
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()}>
-          <ChevronLeft size={24} color="#000" />
+          <ChevronLeft size={24} color={theme.text} />
         </TouchableOpacity>
         <TouchableOpacity onPress={() => navigation.navigate("Setting")}>
-          <Settings size={24} color="#000" />
+          <Settings size={24} color={theme.text} />
         </TouchableOpacity>
       </View>
 
@@ -144,24 +146,39 @@ const Stats = () => {
             source={require("../../../assets/figure/aura.jpeg")}
             style={styles.avatar}
           />
-          <Text style={styles.name}>Hashem Sheikh</Text>
+          <Text style={[styles.name, { color: theme.text }]}>Hashem Sheikh</Text>
         </View>
 
+        {/* Tabs with theme-based accent color */}
         <View style={styles.tabsContainer}>
           {TABS.map((tab) => (
             <TouchableOpacity
               key={tab}
               onPress={() => setActiveTab(tab)}
-              style={[styles.tab, activeTab === tab && styles.activeTab]}
+              style={[
+                styles.tab,
+                activeTab === tab && { borderBottomColor: accentColor },
+              ]}
             >
               <Text
                 style={[
                   styles.tabText,
-                  activeTab === tab && styles.activeTabText,
+                  {
+                    color: activeTab === tab ? accentColor : theme.textSecondary,
+                  },
                 ]}
               >
                 {tab}
               </Text>
+              <View
+                style={[
+                  styles.tabUnderline,
+                  {
+                    backgroundColor: activeTab === tab ? accentColor : theme.textSecondary, // FIXED
+                  },
+                ]}
+              />
+              
             </TouchableOpacity>
           ))}
         </View>
@@ -175,7 +192,6 @@ const Stats = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#fff",
   },
   header: {
     flexDirection: "row",
@@ -195,7 +211,6 @@ const styles = StyleSheet.create({
     width: 100,
     height: 100,
     borderRadius: 50,
-    backgroundColor: "#E5F1FF",
   },
   name: {
     fontSize: 24,
@@ -210,21 +225,17 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   tab: {
+    
+    alignItems: "center",
+    justifyContent: "center",
     paddingVertical: 8,
     paddingHorizontal: 16,
     marginHorizontal: 8,
   },
-  activeTab: {
-    borderBottomWidth: 2,
-    borderBottomColor: "#00ADB5",
-  },
+  
+  
   tabText: {
     fontSize: 14,
-    color: "#9e9fa1",
-  },
-  activeTabText: {
-    color: "#00ADB5",
-    fontWeight: "600",
   },
   statsContainer: {
     flexDirection: "row",
@@ -235,10 +246,8 @@ const styles = StyleSheet.create({
   },
   statCard: {
     width: "48%",
-    backgroundColor: "#FFFFFF",
     borderRadius: 25,
     padding: 12,
-    shadowColor: "#000",
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.05,
     shadowRadius: 4,
@@ -265,14 +274,11 @@ const styles = StyleSheet.create({
   },
   statLabel: {
     fontSize: 12,
-    color: "#9e9fa1",
   },
   racesContainer: {
-    backgroundColor: "#FFFFFF",
     borderRadius: 20,
     padding: 16,
     margin: 16,
-    shadowColor: "#000",
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.05,
     shadowRadius: 4,
@@ -281,7 +287,6 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 18,
     fontWeight: "600",
-    color: "#1A1A1A",
     marginBottom: 16,
   },
   raceItem: {
@@ -306,19 +311,28 @@ const styles = StyleSheet.create({
   },
   progressBar: {
     height: 4,
-    backgroundColor: "#E5E5E5",
     borderRadius: 2,
   },
   progressFill: {
     height: "100%",
-    backgroundColor: "#4CAF50",
     borderRadius: 2,
   },
   progressText: {
     fontSize: 14,
-    color: "#9e9fa1",
     width: 80,
   },
+
+  
+  tabUnderline: {
+    height: 2, // Thin line
+    width: "80%", // Ensures all underlines are the same length relative to their tab
+    marginTop: 8, // Adds space between text and underline
+    borderRadius: 1, // Smooth edges
+    alignSelf: "center", // Ensures the line stays centered
+  },
+  
+  
 });
+
 
 export default Stats;

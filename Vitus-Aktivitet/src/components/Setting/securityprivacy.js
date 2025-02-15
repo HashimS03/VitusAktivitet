@@ -10,9 +10,11 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
+import { useTheme } from "../context/ThemeContext"; // 🌙 Import Theme Support
 
 const SecurityPrivacy = () => {
   const navigation = useNavigation();
+  const { theme, accentColor } = useTheme(); // 🌙 Get Theme & Accent Color
 
   // State for security toggles
   const [twoFactorAuth, setTwoFactorAuth] = useState(false);
@@ -21,47 +23,47 @@ const SecurityPrivacy = () => {
   const [dataSharing, setDataSharing] = useState(true);
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: theme.background }]}>
       {/* Header Section */}
-      <View style={styles.headerWrapper}>
+      <View style={[styles.headerWrapper, { borderBottomColor: theme.border }]}>
         {/* Back Button */}
         <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
-          <Ionicons name="chevron-back" size={28} color="#000" />
+          <Ionicons name="chevron-back" size={28} color={theme.text} />
         </TouchableOpacity>
 
         {/* Header Title */}
-        <Text style={styles.header}>Sikkerhet & Personvern</Text>
+        <Text style={[styles.header, { color: theme.text }]}>Sikkerhet & Personvern</Text>
       </View>
 
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         {/* Security Settings Section */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Sikkerhet</Text>
+          <Text style={[styles.sectionTitle, { color: theme.text }]}>Sikkerhet</Text>
 
           {/* Change Password */}
           <TouchableOpacity style={styles.row} onPress={() => alert("Gå til endre passord-siden")}>
-            <Text style={styles.label}>Endre passord</Text>
-            <Ionicons name="chevron-forward" size={20} color="#48CAB2" />
+            <Text style={[styles.label, { color: theme.textSecondary }]}>Endre passord</Text>
+            <Ionicons name="chevron-forward" size={20} color={accentColor} />
           </TouchableOpacity>
 
           {/* Two-Factor Authentication */}
           <View style={styles.row}>
-            <Text style={styles.label}>Tofaktorautentisering</Text>
+            <Text style={[styles.label, { color: theme.textSecondary }]}>Tofaktorautentisering</Text>
             <Switch
               value={twoFactorAuth}
               onValueChange={setTwoFactorAuth}
-              trackColor={{ false: "#ccc", true: "#48CAB2" }}
+              trackColor={{ false: theme.switchOff, true: accentColor }}
               thumbColor={"#FFFFFF"} // ✅ Always white dot
             />
           </View>
 
           {/* Biometric Login */}
           <View style={styles.row}>
-            <Text style={styles.label}>Biometrisk innlogging</Text>
+            <Text style={[styles.label, { color: theme.textSecondary }]}>Biometrisk innlogging</Text>
             <Switch
               value={biometricLogin}
               onValueChange={setBiometricLogin}
-              trackColor={{ false: "#ccc", true: "#48CAB2" }}
+              trackColor={{ false: theme.switchOff, true: accentColor }}
               thumbColor={"#FFFFFF"} // ✅ Always white dot
             />
           </View>
@@ -69,33 +71,33 @@ const SecurityPrivacy = () => {
 
         {/* Privacy Settings Section */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Personvern</Text>
+          <Text style={[styles.sectionTitle, { color: theme.text }]}>Personvern</Text>
 
           {/* Ad Tracking */}
           <View style={styles.row}>
-            <Text style={styles.label}>Sporing av annonser</Text>
+            <Text style={[styles.label, { color: theme.textSecondary }]}>Sporing av annonser</Text>
             <Switch
               value={adTracking}
               onValueChange={setAdTracking}
-              trackColor={{ false: "#ccc", true: "#48CAB2" }}
+              trackColor={{ false: theme.switchOff, true: accentColor }}
               thumbColor={"#FFFFFF"} // ✅ Always white dot
             />
           </View>
 
           {/* Data Sharing */}
           <View style={styles.row}>
-            <Text style={styles.label}>Deling av data</Text>
+            <Text style={[styles.label, { color: theme.textSecondary }]}>Deling av data</Text>
             <Switch
               value={dataSharing}
               onValueChange={setDataSharing}
-              trackColor={{ false: "#ccc", true: "#48CAB2" }}
+              trackColor={{ false: theme.switchOff, true: accentColor }}
               thumbColor={"#FFFFFF"} // ✅ Always white dot
             />
           </View>
         </View>
 
         {/* Privacy Policy Button */}
-        <TouchableOpacity style={styles.privacyButton} onPress={() => alert("Vis personvernregler")}>
+        <TouchableOpacity style={[styles.privacyButton, { backgroundColor: accentColor }]} onPress={() => alert("Vis personvernregler")}>
           <Text style={styles.privacyButtonText}>Vis Personvernregler</Text>
         </TouchableOpacity>
       </ScrollView>
@@ -107,7 +109,6 @@ const SecurityPrivacy = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#F6F6F6",
   },
   headerWrapper: {
     flexDirection: "row",
@@ -136,7 +137,6 @@ const styles = StyleSheet.create({
     marginBottom: 20,
     paddingBottom: 10,
     borderBottomWidth: 1,
-    borderBottomColor: "#EAEAEA",
   },
   sectionTitle: {
     fontSize: 16,
@@ -151,10 +151,8 @@ const styles = StyleSheet.create({
   },
   label: {
     fontSize: 16,
-    color: "#333",
   },
   privacyButton: {
-    backgroundColor: "#48CAB2",
     borderRadius: 8,
     padding: 16,
     alignItems: "center",
