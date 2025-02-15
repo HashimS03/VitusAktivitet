@@ -38,7 +38,7 @@ const ActiveEventImproved = ({ route }) => {
 
   const handleEditEvent = () => {
     toggleModal()
-    navigation.navigate("EditEvent", { eventDetails })
+    navigation.navigate("NewEvent", { eventDetails })
   }
 
   const handleDeleteEvent = () => {
