@@ -2,15 +2,11 @@
 
 import { useEffect, useRef, useState, useCallback } from "react";
 import { View, Image, Animated, Easing, Dimensions } from "react-native";
+import { useTheme } from "../context/ThemeContext"; // Import Theme Support
 
 const { width, height } = Dimensions.get("window");
 
-const FloatingSymbol = ({
-  symbol,
-  startPosition,
-  size,
-  onAnimationComplete,
-}) => {
+const FloatingSymbol = ({ symbol, startPosition, size, onAnimationComplete }) => {
   const translateX = useRef(new Animated.Value(0)).current;
   const translateY = useRef(new Animated.Value(0)).current;
   const opacity = useRef(new Animated.Value(0)).current;
@@ -67,37 +63,39 @@ const FloatingSymbol = ({
         opacity,
       }}
     >
-      <Image
-        source={symbol}
-        style={{ width: size, height: size }}
-        resizeMode="contain"
-      />
+      <Image source={symbol} style={{ width: size, height: size }} resizeMode="contain" />
     </Animated.View>
   );
 };
 
 const FloatingSymbols = () => {
+  const { accentColor } = useTheme(); // Get active accent color
   const [symbols, setSymbols] = useState([]);
   const symbolCounter = useRef(0);
   const timerRef = useRef(null);
 
-  const symbols_images = [
-    require("../../../assets/cross_teal_v2.png"),
-    require("../../../assets/cross_teal_v2.png"),
-    require("../../../assets/cross_teal_v2.png"),
-    // Add more symbols as needed
-  ];
+  // Map accent colors to the correct symbol images
+  const symbolImages = {
+    "#48CAB2": require("../../../assets/cross_teal_v2.png"),
+    "#FF6B6B": require("../../../assets/cross_red_v2.png"),
+    "#FFD93D": require("../../../assets/cross_gold_v2.png"),
+    "#4C82FB": require("../../../assets/cross_blue_v2.png"),
+    "#8A4FFF": require("../../../assets/cross_purple_v2.png"),
+  };
+
+  // Get the correct image for the selected accent color
+  const selectedSymbol = symbolImages[accentColor] || require("../../../assets/cross_teal_v2.png");
 
   const createSymbol = useCallback(() => {
     const startPosition = {
       x: Math.random() * width,
       y: Math.random() * height,
     };
-    const size = Math.floor(Math.random() * (30 - 20 + 1) + 20); // Tilfeldig størrelse mellom 20 og 30
+    const size = Math.floor(Math.random() * (30 - 20 + 1) + 20); // Random size between 20 and 30
 
     const newSymbol = {
       id: symbolCounter.current++,
-      symbol: symbols_images[Math.floor(Math.random() * symbols_images.length)],
+      symbol: selectedSymbol,
       startPosition,
       size,
     };
@@ -106,34 +104,35 @@ const FloatingSymbols = () => {
       if (prevSymbols.length >= 15) return prevSymbols;
       return [...prevSymbols, newSymbol];
     });
-  }, [symbols_images, setSymbols]); // Fixed dependency
+  }, [selectedSymbol]);
 
   const removeSymbol = useCallback(
     (id) => {
-      setSymbols((prevSymbols) =>
-        prevSymbols.filter((symbol) => symbol.id !== id)
-      );
+      setSymbols((prevSymbols) => prevSymbols.filter((symbol) => symbol.id !== id));
     },
     [setSymbols]
   );
 
   useEffect(() => {
-    // Initialiser med noen symboler
+    // Clear existing symbols when the accent color changes
+    setSymbols([]);
+
+    // Initialize with a few symbols
     for (let i = 0; i < 8; i++) {
       createSymbol();
     }
 
-    // Sett opp intervallet for å legge til nye symboler
+    // Set up interval to add new symbols
     timerRef.current = setInterval(() => {
       createSymbol();
-    }, 2000); // Prøv å legge til et nytt symbol hvert sekund
+    }, 2000);
 
     return () => {
       if (timerRef.current) {
         clearInterval(timerRef.current);
       }
     };
-  }, [createSymbol]);
+  }, [createSymbol, accentColor]); // Re-run when `accentColor` changes
 
   return (
     <View style={{ position: "absolute", width, height }}>
