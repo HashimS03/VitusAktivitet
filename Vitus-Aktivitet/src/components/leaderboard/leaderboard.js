@@ -1,6 +1,6 @@
-"use client"
+"use client";
 
-import { useState, useRef, useCallback, useMemo } from "react"
+import { useState, useRef, useCallback, useMemo } from "react";
 import {
   SafeAreaView,
   View,
@@ -15,28 +15,34 @@ import {
   TextInput,
   Modal,
   Switch,
-} from "react-native"
-import { TrendingUp, TrendingDown, ChevronDown, Search, X } from "lucide-react-native"
-import { useTheme } from "../context/ThemeContext"
-import { BlurView } from "expo-blur"
-import { LinearGradient } from "expo-linear-gradient"
+} from "react-native";
+import {
+  TrendingUp,
+  TrendingDown,
+  ChevronDown,
+  Search,
+  X,
+} from "lucide-react-native";
+import { useTheme } from "../context/ThemeContext";
+import { BlurView } from "expo-blur";
+import { LinearGradient } from "expo-linear-gradient";
 
-const AnimatedFlatList = Animated.createAnimatedComponent(FlatList)
+const AnimatedFlatList = Animated.createAnimatedComponent(FlatList);
 
-const { width: SCREEN_WIDTH } = Dimensions.get("window")
+const { width: SCREEN_WIDTH } = Dimensions.get("window");
 
-const SEGMENT_OPTIONS = ["Daily", "Weekly", "Monthly", "All Time"]
+const SEGMENT_OPTIONS = ["Daily", "Weekly", "Monthly", "All Time"];
 
 const Leaderboard = () => {
-  const scrollY = useRef(new Animated.Value(0)).current
-  const [selectedSegment, setSelectedSegment] = useState("Daily")
-  const [filterOption, setFilterOption] = useState("All")
-  const [showSearch, setShowSearch] = useState(false)
-  const [showFilterModal, setShowFilterModal] = useState(false)
-  const [searchQuery, setSearchQuery] = useState("")
-  const { theme, isDarkMode, toggleTheme } = useTheme()
+  const scrollY = useRef(new Animated.Value(0)).current;
+  const [selectedSegment, setSelectedSegment] = useState("Daily");
+  const [filterOption, setFilterOption] = useState("All");
+  const [showSearch, setShowSearch] = useState(false);
+  const [showFilterModal, setShowFilterModal] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const { theme, isDarkMode, toggleTheme } = useTheme();
 
-  const searchAnimation = useRef(new Animated.Value(0)).current
+  const searchAnimation = useRef(new Animated.Value(0)).current;
 
   const leaderboardData = [
     {
@@ -119,27 +125,28 @@ const Leaderboard = () => {
       avatar: require("../../../assets/figure/avatar7.jpeg"),
       change: -3,
     },
-  ]
+  ];
 
   const filteredData = useMemo(() => {
     return leaderboardData
       .filter(
         (item) =>
           (filterOption === "All" || item.department === filterOption) &&
-          (searchQuery === "" || item.name.toLowerCase().includes(searchQuery.toLowerCase())),
+          (searchQuery === "" ||
+            item.name.toLowerCase().includes(searchQuery.toLowerCase()))
       )
-      .sort((a, b) => b.points - a.points)
-  }, [filterOption, searchQuery]) // Removed leaderboardData dependency
+      .sort((a, b) => b.points - a.points);
+  }, [filterOption, searchQuery]); // Removed leaderboardData dependency
 
   const toggleSearch = useCallback(() => {
-    setShowSearch(!showSearch)
+    setShowSearch(!showSearch);
     Animated.timing(searchAnimation, {
       toValue: showSearch ? 0 : 1,
       duration: 300,
       easing: Easing.inOut(Easing.ease),
       useNativeDriver: false,
-    }).start()
-  }, [showSearch, searchAnimation])
+    }).start();
+  }, [showSearch, searchAnimation]);
 
   const renderLeaderboardItem = useCallback(
     ({ item, index }) => (
@@ -152,7 +159,7 @@ const Leaderboard = () => {
               {
                 translateX: searchAnimation.interpolate({
                   inputRange: [0, 1],
-                  outputRange: [0, -50],
+                  outputRange: [0, 0], 
                 }),
               },
             ],
@@ -166,15 +173,23 @@ const Leaderboard = () => {
           style={StyleSheet.absoluteFill}
         />
         <View style={styles.rankContainer}>
-          <Text style={[styles.rankText, { color: theme.text }]}>{index + 1}</Text>
+          <Text style={[styles.rankText, { color: theme.text }]}>
+            {index + 1}
+          </Text>
         </View>
         <Image source={item.avatar} style={styles.avatar} />
         <View style={styles.infoContainer}>
-          <Text style={[styles.nameText, { color: theme.text }]}>{item.name}</Text>
-          <Text style={[styles.departmentText, { color: theme.textSecondary }]}>{item.department}</Text>
+          <Text style={[styles.nameText, { color: theme.text }]}>
+            {item.name}
+          </Text>
+          <Text style={[styles.departmentText, { color: theme.textSecondary }]}>
+            {item.department}
+          </Text>
         </View>
         <View style={styles.pointsContainer}>
-          <Text style={[styles.pointsText, { color: theme.primary }]}>{item.points}</Text>
+          <Text style={[styles.pointsText, { color: theme.primary }]}>
+            {item.points}
+          </Text>
           {item.change !== 0 && (
             <View style={styles.changeContainer}>
               {item.change > 0 ? (
@@ -182,7 +197,12 @@ const Leaderboard = () => {
               ) : (
                 <TrendingDown size={12} color={theme.error} />
               )}
-              <Text style={[styles.changeText, { color: item.change > 0 ? theme.success : theme.error }]}>
+              <Text
+                style={[
+                  styles.changeText,
+                  { color: item.change > 0 ? theme.success : theme.error },
+                ]}
+              >
                 {Math.abs(item.change)}
               </Text>
             </View>
@@ -190,27 +210,39 @@ const Leaderboard = () => {
         </View>
       </Animated.View>
     ),
-    [theme, searchAnimation],
-  )
+    [theme, searchAnimation]
+  );
 
   const renderHeader = useCallback(
     () => (
       <View style={styles.header}>
-        <BlurView intensity={100} style={StyleSheet.absoluteFill} tint={isDarkMode ? "dark" : "light"} />
+        <BlurView
+          intensity={100}
+          style={StyleSheet.absoluteFill}
+          tint={isDarkMode ? "dark" : "light"}
+        />
         <View style={styles.headerContent}>
           <Text style={[styles.title, { color: theme.text }]}>Leaderboard</Text>
           <View style={styles.headerButtons}>
             <TouchableOpacity
-              style={[styles.iconButton, { backgroundColor: theme.surfaceVariant }]}
+              style={[
+                styles.iconButton,
+                { backgroundColor: theme.surfaceVariant },
+              ]}
               onPress={toggleSearch}
             >
               <Search size={20} color={theme.text} />
             </TouchableOpacity>
             <TouchableOpacity
-              style={[styles.filterButton, { backgroundColor: theme.surfaceVariant }]}
+              style={[
+                styles.filterButton,
+                { backgroundColor: theme.surfaceVariant },
+              ]}
               onPress={() => setShowFilterModal(true)}
             >
-              <Text style={[styles.filterButtonText, { color: theme.text }]}>{filterOption}</Text>
+              <Text style={[styles.filterButtonText, { color: theme.text }]}>
+                {filterOption}
+              </Text>
               <ChevronDown size={20} color={theme.text} />
             </TouchableOpacity>
           </View>
@@ -227,8 +259,17 @@ const Leaderboard = () => {
             },
           ]}
         >
-          <BlurView intensity={100} style={StyleSheet.absoluteFill} tint={isDarkMode ? "dark" : "light"} />
-          <View style={[styles.searchInputContainer, { backgroundColor: theme.surfaceVariant }]}>
+          <BlurView
+            intensity={100}
+            style={StyleSheet.absoluteFill}
+            tint={isDarkMode ? "dark" : "light"}
+          />
+          <View
+            style={[
+              styles.searchInputContainer,
+              { backgroundColor: theme.surfaceVariant },
+            ]}
+          >
             <Search size={20} color={theme.textSecondary} />
             <TextInput
               style={[styles.searchInput, { color: theme.text }]}
@@ -248,13 +289,23 @@ const Leaderboard = () => {
           {SEGMENT_OPTIONS.map((option) => (
             <TouchableOpacity
               key={option}
-              style={[styles.segmentOption, selectedSegment === option && { backgroundColor: theme.primary }]}
+              style={[
+                styles.segmentOption,
+                selectedSegment === option && {
+                  backgroundColor: theme.primary,
+                },
+              ]}
               onPress={() => setSelectedSegment(option)}
             >
               <Text
                 style={[
                   styles.segmentOptionText,
-                  { color: selectedSegment === option ? theme.background : theme.text },
+                  {
+                    color:
+                      selectedSegment === option
+                        ? theme.background
+                        : theme.text,
+                  },
                 ]}
               >
                 {option}
@@ -264,31 +315,64 @@ const Leaderboard = () => {
         </View>
       </View>
     ),
-    [theme, isDarkMode, searchAnimation, filterOption, selectedSegment, searchQuery, toggleSearch],
-  )
+    [
+      theme,
+      isDarkMode,
+      searchAnimation,
+      filterOption,
+      selectedSegment,
+      searchQuery,
+      toggleSearch,
+    ]
+  );
 
   const renderFilterModal = () => (
-    <Modal visible={showFilterModal} transparent animationType="fade" onRequestClose={() => setShowFilterModal(false)}>
+    <Modal
+      visible={showFilterModal}
+      transparent
+      animationType="fade"
+      onRequestClose={() => setShowFilterModal(false)}
+    >
       <View style={styles.modalOverlay}>
-        <BlurView intensity={100} style={StyleSheet.absoluteFill} tint={isDarkMode ? "dark" : "light"} />
+        <BlurView
+          intensity={100}
+          style={StyleSheet.absoluteFill}
+          tint={isDarkMode ? "dark" : "light"}
+        />
         <View style={[styles.modalContent, { backgroundColor: theme.surface }]}>
-          <Text style={[styles.modalTitle, { color: theme.text }]}>Filter Options</Text>
+          <Text style={[styles.modalTitle, { color: theme.text }]}>
+            Filter Options
+          </Text>
           {["All", "IT", "HR", "Finance"].map((option) => (
             <TouchableOpacity
               key={option}
-              style={[styles.filterOption, filterOption === option && { backgroundColor: theme.primaryContainer }]}
+              style={[
+                styles.filterOption,
+                filterOption === option && {
+                  backgroundColor: theme.primaryContainer,
+                },
+              ]}
               onPress={() => {
-                setFilterOption(option)
-                setShowFilterModal(false)
+                setFilterOption(option);
+                setShowFilterModal(false);
               }}
             >
-              <Text style={[styles.filterOptionText, { color: filterOption === option ? theme.primary : theme.text }]}>
+              <Text
+                style={[
+                  styles.filterOptionText,
+                  {
+                    color: filterOption === option ? theme.primary : theme.text,
+                  },
+                ]}
+              >
                 {option}
               </Text>
             </TouchableOpacity>
           ))}
           <View style={styles.themeToggleContainer}>
-            <Text style={[styles.themeToggleText, { color: theme.text }]}>Dark Mode</Text>
+            <Text style={[styles.themeToggleText, { color: theme.text }]}>
+              Dark Mode
+            </Text>
             <Switch
               value={isDarkMode}
               onValueChange={toggleTheme}
@@ -299,10 +383,12 @@ const Leaderboard = () => {
         </View>
       </View>
     </Modal>
-  )
+  );
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]}>
+    <SafeAreaView
+      style={[styles.container, { backgroundColor: theme.background }]}
+    >
       {renderHeader()}
       <AnimatedFlatList
         data={filteredData}
@@ -310,13 +396,16 @@ const Leaderboard = () => {
         keyExtractor={(item) => item.id}
         contentContainerStyle={styles.listContent}
         showsVerticalScrollIndicator={false}
-        onScroll={Animated.event([{ nativeEvent: { contentOffset: { y: scrollY } } }], { useNativeDriver: true })}
+        onScroll={Animated.event(
+          [{ nativeEvent: { contentOffset: { y: scrollY } } }],
+          { useNativeDriver: true }
+        )}
         scrollEventThrottle={16}
       />
       {renderFilterModal()}
     </SafeAreaView>
-  )
-}
+  );
+};
 
 const styles = StyleSheet.create({
   container: {
@@ -396,6 +485,7 @@ const styles = StyleSheet.create({
   leaderboardItem: {
     flexDirection: "row",
     alignItems: "center",
+    alignSelf: "center",
     marginBottom: 12,
     padding: 12,
     borderRadius: 12,
@@ -475,7 +565,6 @@ const styles = StyleSheet.create({
   themeToggleText: {
     fontSize: 16,
   },
-})
+});
 
-export default Leaderboard
-
+export default Leaderboard;
