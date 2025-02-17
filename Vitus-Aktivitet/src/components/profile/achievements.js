@@ -1,183 +1,163 @@
 import React from "react";
-import { View, Text, StyleSheet, ScrollView, Image } from "react-native";
-import { useTheme } from "../context/ThemeContext"; // 🌙 Import Theme
+import {
+  View,
+  Text,
+  StyleSheet,
+  FlatList,
+  TouchableOpacity,
+  SafeAreaView,
+  StatusBar,
+} from "react-native";
+import { useNavigation } from "@react-navigation/native";
+import { useTheme } from "../context/ThemeContext";
+import { Trophy } from "lucide-react-native";
 
-const Achievement = ({ icon, level, count, theme }) => (
-  <View style={[styles.achievementCard, { backgroundColor: theme.surface, shadowColor: theme.shadow }]}>
-    <Image source={icon} style={styles.achievementIcon} />
-    <Text style={[styles.achievementLevel, { color: theme.text }]}>Level {level}</Text>
-    <Text style={[styles.achievementCount, { color: theme.textSecondary }]}>{count}</Text>
-  </View>
-);
+// 🎖️ Trophy Data
+export const trophyData = {
+  "Step Streaker": {
+    id: "1",
+    name: "Step Streaker",
+    description: "Master your daily steps",
+    levels: [
+      { level: 1, requirement: "5,000 steps daily for a week", icon: "🥉" },
+      { level: 2, requirement: "10,000 steps daily for a month", icon: "🥈" },
+      { level: 3, requirement: "15,000 steps daily for 3 months", icon: "🥇" },
+    ],
+  },
+  "Workout Wonder": {
+    id: "2",
+    name: "Workout Wonder",
+    description: "Become a workout champion",
+    levels: [
+      { level: 1, requirement: "Complete 10 workouts", icon: "🥉" },
+      { level: 2, requirement: "Complete 50 workouts", icon: "🥈" },
+      { level: 3, requirement: "Complete 100 workouts", icon: "🥇" },
+    ],
+  },
+  "Sleep Master": {
+    id: "3",
+    name: "Sleep Master",
+    description: "Perfect your sleep routine",
+    levels: [
+      { level: 1, requirement: "7 hours sleep for 7 days", icon: "🥉" },
+      { level: 2, requirement: "8 hours sleep for 30 days", icon: "🥈" },
+      { level: 3, requirement: "8 hours sleep for 90 days", icon: "🥇" },
+    ],
+  },
+  "Nutrition Tracker": {
+    id: "4",
+    name: "Nutrition Tracker",
+    description: "Track your nutrition journey",
+    levels: [
+      { level: 1, requirement: "Log meals for 7 days", icon: "🥉" },
+      { level: 2, requirement: "Log meals for 30 days", icon: "🥈" },
+      { level: 3, requirement: "Log meals for 90 days", icon: "🥇" },
+    ],
+  },
+  "Meditation Guru": {
+    id: "5",
+    name: "Meditation Guru",
+    description: "Achieve meditation mastery",
+    levels: [
+      { level: 1, requirement: "Meditate for 5 minutes daily for a week", icon: "🥉" },
+      { level: 2, requirement: "Meditate for 10 minutes daily for a month", icon: "🥈" },
+      { level: 3, requirement: "Meditate for 20 minutes daily for 3 months", icon: "🥇" },
+    ],
+  },
+  "Hydration Hero": {
+    id: "6",
+    name: "Hydration Hero",
+    description: "Stay perfectly hydrated",
+    levels: [
+      { level: 1, requirement: "Log 6 glasses daily for a week", icon: "🥉" },
+      { level: 2, requirement: "Log 8 glasses daily for a month", icon: "🥈" },
+      { level: 3, requirement: "Log 10 glasses daily for 3 months", icon: "🥇" },
+    ],
+  },
+};
 
-const Certification = ({ icon, title, level, progress, theme }) => (
-  <View style={[styles.certificationCard, { backgroundColor: theme.surface, shadowColor: theme.shadow }]}>
-    <Image source={icon} style={styles.certificationIcon} />
-    <View style={styles.certificationInfo}>
-      <Text style={[styles.certificationTitle, { color: theme.text }]}>{title}</Text>
-      <Text style={[styles.certificationLevel, { color: theme.textSecondary }]}>Level {level}</Text>
+// Convert to list format
+const trophies = Object.values(trophyData);
+
+// 🏆 Trophy Item Component
+const TrophyItem = ({ item, onPress, theme }) => (
+  <TouchableOpacity
+    style={[styles.trophyItem, { backgroundColor: theme.surface }]}
+    onPress={onPress}
+  >
+    <View style={[styles.trophyIconContainer, { backgroundColor: theme.background }]}>
+      <Trophy size={24} color={theme.text} />
     </View>
-  </View>
+    <View style={styles.trophyInfo}>
+      <Text style={[styles.trophyName, { color: theme.text }]}>{item.name}</Text>
+      <Text style={[styles.trophyDescription, { color: theme.textSecondary }]}>
+        {item.description}
+      </Text>
+    </View>
+  </TouchableOpacity>
 );
 
+// 🏆 Achievements Screen
 const Achievements = () => {
-  const { theme } = useTheme(); // Get theme values
+  const { theme } = useTheme();
+  const navigation = useNavigation();
 
   return (
-    <ScrollView style={[styles.container, { backgroundColor: theme.background }]}>
-      {/* Level Progress Section */}
-      <View style={[styles.levelCard, { backgroundColor: theme.surface, shadowColor: theme.shadow }]}>
-        <View style={[styles.levelIcon, { backgroundColor: theme.primary }]}>
-          <Text style={{ color: theme.onPrimary }}>🏆</Text>
-        </View>
-        <Text style={[styles.levelTitle, { color: theme.text }]}>Level 2</Text>
-        <Text style={[styles.levelSubtitle, { color: theme.textSecondary }]}>500 Points to next level</Text>
-        <View style={[styles.progressBar, { backgroundColor: theme.border }]}>
-          <View style={[styles.progressFill, { width: "75%", backgroundColor: theme.accent }]} />
-        </View>
-        <View style={styles.levelNumbers}>
-          <Text style={{ color: theme.textSecondary }}>2</Text>
-          <Text style={{ color: theme.textSecondary }}>3</Text>
-        </View>
-      </View>
-
-      {/* Trophies Section */}
-      <View style={styles.section}>
-        <View style={styles.sectionHeader}>
-          <Text style={[styles.sectionTitle, { color: theme.text }]}>TROPHIES 12</Text>
-          <Text style={[styles.seeAll, { color: theme.textSecondary }]}>{">"}</Text>
-        </View>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-          <Achievement icon={require("../../../assets/trophy-gold.png")} level={6} count={3} theme={theme} />
-          <Achievement icon={require("../../../assets/trophy-gold.png")} level={4} count={7} theme={theme} />
-          <Achievement icon={require("../../../assets/trophy-gold.png")} level={9} count={2} theme={theme} />
-        </ScrollView>
-      </View>
-
-      {/* Certifications Section */}
-      <View style={styles.section}>
-        <Text style={[styles.sectionTitle, { color: theme.text }]}>CERTIFICATIONS 8</Text>
-        <View style={styles.certificationsList}>
-          <Certification icon={require("../../../assets/trophy-gold.png")} title="1000 Steps" level={3} progress="5/5" theme={theme} />
-          <Certification icon={require("../../../assets/trophy-gold.png")} title="30 Streak" level={9} progress="5/5" theme={theme} />
-          <Certification icon={require("../../../assets/trophy-gold.png")} title="1st Place" level={5} progress="3/5" theme={theme} />
-        </View>
-      </View>
-    </ScrollView>
+    <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]}>
+      <StatusBar barStyle={theme.dark ? "light-content" : "dark-content"} />
+      <FlatList
+        data={trophies}
+        renderItem={({ item }) => (
+          <TrophyItem
+            item={item}
+            onPress={() => navigation.navigate("TrophyDetails", { trophy: item })}
+            theme={theme}
+          />
+        )}
+        keyExtractor={(item) => item.id}
+        contentContainerStyle={styles.listContent}
+        showsVerticalScrollIndicator={false}
+      />
+    </SafeAreaView>
   );
 };
 
+// 🎨 Styles
 const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
-  levelCard: {
-    margin: 16,
+  listContent: {
     padding: 16,
+  },
+  trophyItem: {
     borderRadius: 16,
+    padding: 16,
+    marginBottom: 16,
+    flexDirection: "row",
+    alignItems: "center",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 8,
     elevation: 4,
   },
-  levelIcon: {
+  trophyIconContainer: {
     width: 48,
     height: 48,
     borderRadius: 24,
     alignItems: "center",
     justifyContent: "center",
-    marginBottom: 8,
-  },
-  levelTitle: {
-    fontSize: 24,
-    fontWeight: "bold",
-    marginBottom: 4,
-  },
-  levelSubtitle: {
-    fontSize: 14,
-    marginBottom: 16,
-  },
-  progressBar: {
-    height: 8,
-    borderRadius: 4,
-    marginBottom: 8,
-  },
-  progressFill: {
-    height: "100%",
-    borderRadius: 4,
-  },
-  levelNumbers: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-  },
-  section: {
-    padding: 16,
-  },
-  sectionHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 16,
-  },
-  sectionTitle: {
-    fontSize: 16,
-    fontWeight: "600",
-  },
-  seeAll: {
-    fontSize: 16,
-  },
-  achievementCard: {
-    width: 100,
-    height: 100,
-    borderRadius: 16,
-    padding: 12,
-    marginRight: 12,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 4,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  achievementIcon: {
-    width: 48,
-    height: 48,
-    marginBottom: 8,
-  },
-  achievementLevel: {
-    fontSize: 14,
-    fontWeight: "600",
-  },
-  achievementCount: {
-    fontSize: 12,
-  },
-  certificationsList: {
-    gap: 12,
-  },
-  certificationCard: {
-    flexDirection: "row",
-    alignItems: "center",
-    padding: 16,
-    borderRadius: 16,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 4,
-  },
-  certificationIcon: {
-    width: 48,
-    height: 48,
     marginRight: 16,
   },
-  certificationInfo: {
+  trophyInfo: {
     flex: 1,
   },
-  certificationTitle: {
+  trophyName: {
     fontSize: 16,
     fontWeight: "600",
     marginBottom: 4,
   },
-  certificationLevel: {
+  trophyDescription: {
     fontSize: 14,
   },
 });
