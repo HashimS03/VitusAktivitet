@@ -20,17 +20,26 @@ const SettingsRow = ({ icon, title, value, onPress, isLastItem }) => {
     <TouchableOpacity
       style={[
         styles.settingsRow,
-        !isLastItem && { borderBottomColor: theme.border, borderBottomWidth: 1 }, // ✅ Only add border if NOT last item
+        !isLastItem && {
+          borderBottomColor: theme.border,
+          borderBottomWidth: 1,
+        }, // ✅ Only add border if NOT last item
       ]}
       onPress={onPress}
     >
       <View style={styles.settingsLeft}>
         <Ionicons name={icon} size={24} color={theme.text} />
-        <Text style={[styles.settingsText, { color: theme.text }]}>{title}</Text>
+        <Text style={[styles.settingsText, { color: theme.text }]}>
+          {title}
+        </Text>
       </View>
       {value && (
         <Text
-          style={[styles.settingsValue, { color: accentColor }, value === "ON" && styles.activeValue]}
+          style={[
+            styles.settingsValue,
+            { color: accentColor },
+            value === "ON" && styles.activeValue,
+          ]}
         >
           {value}
         </Text>
@@ -41,7 +50,11 @@ const SettingsRow = ({ icon, title, value, onPress, isLastItem }) => {
 
 const SettingsSection = ({ children }) => {
   const { theme } = useTheme();
-  return <View style={[styles.settingsSection, { backgroundColor: theme.surface }]}>{children}</View>;
+  return (
+    <View style={[styles.settingsSection, { backgroundColor: theme.surface }]}>
+      {children}
+    </View>
+  );
 };
 
 export default function SettingScreen() {
@@ -55,7 +68,8 @@ export default function SettingScreen() {
       {
         text: "Logg ut",
         style: "destructive",
-        onPress: () => navigation.reset({ index: 0, routes: [{ name: "Start" }] }),
+        onPress: () =>
+          navigation.reset({ index: 0, routes: [{ name: "Start" }] }),
       },
     ]);
   };
@@ -64,7 +78,9 @@ export default function SettingScreen() {
   const themeMode = isDarkMode ? "Mørk Modus" : "Lys Modus"; // 🔥 FIXED
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]}>
+    <SafeAreaView
+      style={[styles.container, { backgroundColor: theme.background }]}
+    >
       <ScrollView>
         {/* 🔹 Header Section */}
         <View style={styles.headerContainer}>
@@ -77,7 +93,9 @@ export default function SettingScreen() {
           </TouchableOpacity>
 
           {/* 🏷 Title Aligned with Back Button */}
-          <Text style={[styles.settingsHeader, { color: theme.text }]}>Innstillinger</Text>
+          <Text style={[styles.settingsHeader, { color: theme.text }]}>
+            Innstillinger
+          </Text>
         </View>
 
         {/* 🔹 Avatar Section */}
@@ -87,11 +105,15 @@ export default function SettingScreen() {
               source={require("../../../assets/figure/aura.jpeg")}
               style={styles.avatar}
             />
-            <TouchableOpacity style={[styles.editButton, { backgroundColor: theme.surface }]}>
+            <TouchableOpacity
+              style={[styles.editButton, { backgroundColor: theme.surface }]}
+            >
               <Ionicons name="pencil" size={20} color={theme.text} />
             </TouchableOpacity>
           </View>
-          <Text style={[styles.name, { color: theme.text }]}>Hashem Sheikh</Text>
+          <Text style={[styles.name, { color: theme.text }]}>
+            Hashem Sheikh
+          </Text>
           <Text style={[styles.contact, { color: theme.textSecondary }]}>
             youremail@domain.com | +47 256 27 189
           </Text>
@@ -100,9 +122,23 @@ export default function SettingScreen() {
         {/* 🔹 Settings Sections */}
         <SettingsSection>
           {[
-            { icon: "document-text", title: "Rediger Profil Informasjon", route: "EditProfile" },
-            { icon: "notifications", title: "Varslinger", value: "ON", route: "notificationeditor" },
-            { icon: "language", title: "Språk", value: "Norsk", route: "Language" },
+            {
+              icon: "document-text",
+              title: "Rediger Profil Informasjon",
+              route: "EditProfile",
+            },
+            {
+              icon: "notifications",
+              title: "Varslinger",
+              value: "ON",
+              route: "notificationeditor",
+            },
+            {
+              icon: "language",
+              title: "Språk",
+              value: "Norsk",
+              route: "Language",
+            },
           ].map((item, index, array) => (
             <SettingsRow
               key={item.title}
@@ -117,8 +153,17 @@ export default function SettingScreen() {
 
         <SettingsSection>
           {[
-            { icon: "shield-checkmark", title: "Sikkerhet og Personvern", route: "securityprivacy" },
-            { icon: "color-palette", title: "Tema", value: themeMode, route: "Theme" }, // ✅ FIXED
+            {
+              icon: "shield-checkmark",
+              title: "Sikkerhet og Personvern",
+              route: "securityprivacy",
+            },
+            {
+              icon: "color-palette",
+              title: "Tema",
+              value: themeMode,
+              route: "Theme",
+            }, // ✅ FIXED
           ].map((item, index, array) => (
             <SettingsRow
               key={item.title}
@@ -133,16 +178,28 @@ export default function SettingScreen() {
 
         <SettingsSection>
           {[
-            { icon: "help-circle", title: "Help & Support", route: "helpsupport" },
+            {
+              icon: "help-circle",
+              title: "Help & Support",
+              route: "helpsupport",
+            },
             { icon: "chatbubbles", title: "Kontakt oss", route: "contactus" },
-            { icon: "lock-closed", title: "Personvern og Retningslinjer", route: "privacypolicy" },
+            {
+              icon: "lock-closed",
+              title: "Personvern og Retningslinjer",
+              route: "privacypolicy",
+            },
             { icon: "log-out", title: "Logg ut", onPress: handleLogout },
           ].map((item, index, array) => (
             <SettingsRow
               key={item.title}
               icon={item.icon}
               title={item.title}
-              onPress={item.onPress ? item.onPress : () => navigation.navigate(item.route)}
+              onPress={
+                item.onPress
+                  ? item.onPress
+                  : () => navigation.navigate(item.route)
+              }
               isLastItem={index === array.length - 1}
             />
           ))}
@@ -154,7 +211,7 @@ export default function SettingScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  
+
   // ✅ Header Fix: Aligns title and back button properly
   headerContainer: {
     flexDirection: "row",
@@ -162,7 +219,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 16, // ✅ Moves title up
   },
-  
+
   backButton: {
     padding: 8,
   },
