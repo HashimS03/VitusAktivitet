@@ -184,11 +184,6 @@ export default function SettingScreen() {
               route: "helpsupport",
             },
             { icon: "chatbubbles", title: "Kontakt oss", route: "contactus" },
-            {
-              icon: "lock-closed",
-              title: "Personvern og Retningslinjer",
-              route: "privacypolicy",
-            },
             { icon: "log-out", title: "Logg ut", onPress: handleLogout },
           ].map((item, index, array) => (
             <SettingsRow

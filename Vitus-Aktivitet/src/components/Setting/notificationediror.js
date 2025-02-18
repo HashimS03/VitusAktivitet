@@ -18,8 +18,6 @@ const NotificationEditor = () => {
 
   // State for toggles
   const [generalNotifications, setGeneralNotifications] = useState(true);
-  const [sound, setSound] = useState(false);
-  const [vibration, setVibration] = useState(true);
   const [appUpdates, setAppUpdates] = useState(false);
   const [completedEvents, setCompletedEvents] = useState(true);
   const [newEvents, setNewEvents] = useState(true);
@@ -47,24 +45,6 @@ const NotificationEditor = () => {
             <Switch
               value={generalNotifications}
               onValueChange={setGeneralNotifications}
-              trackColor={{ false: theme.border, true: accentColor }}
-              thumbColor={"#FFFFFF"}
-            />
-          </View>
-          <View style={styles.row}>
-            <Text style={[styles.label, { color: theme.text }]}>Lyd</Text>
-            <Switch
-              value={sound}
-              onValueChange={setSound}
-              trackColor={{ false: theme.border, true: accentColor }}
-              thumbColor={"#FFFFFF"}
-            />
-          </View>
-          <View style={styles.row}>
-            <Text style={[styles.label, { color: theme.text }]}>Vibrasjon</Text>
-            <Switch
-              value={vibration}
-              onValueChange={setVibration}
               trackColor={{ false: theme.border, true: accentColor }}
               thumbColor={"#FFFFFF"}
             />
