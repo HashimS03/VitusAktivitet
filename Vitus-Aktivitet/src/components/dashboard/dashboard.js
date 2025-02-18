@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import {
   SafeAreaView,
   View,
@@ -10,19 +10,19 @@ import {
   Dimensions,
   Image,
   ScrollView,
+  Modal,
 } from "react-native";
-import { Users, Bell, Award } from "lucide-react-native";
+import { Users, Bell, Award, ChevronRight } from "lucide-react-native";
 import * as Progress from "react-native-progress";
 import Svg, { Circle, Defs, LinearGradient, Stop } from "react-native-svg";
 import StepCounter from "../stepcounter/stepcounter";
 import { useNavigation } from "@react-navigation/native";
 import ConfettiCannon from "react-native-confetti-cannon";
 import FloatingSymbols from "../../components/BackgroundAnimation/FloatingSymbols";
-import { useTheme } from '../context/ThemeContext';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
-import Color from 'color';
-import { ChevronRight } from "lucide-react-native";
-
+import { useTheme } from "../context/ThemeContext";
+import { MaterialCommunityIcons } from "@expo/vector-icons";
+import Color from "color";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 const SCREEN_WIDTH = Dimensions.get("window").width;
 const DAILY_STEP_GOAL = 1000;
@@ -35,7 +35,6 @@ const CustomProgressCircle = ({ progress, accentColor }) => {
   const circumference = radius * 2 * Math.PI;
   const strokeDashoffset = circumference - progress * circumference;
 
-  // Create a semi-transparent version of the accent color for the background ring
   const transparentAccentColor = Color(accentColor).alpha(0.2).toString();
 
   return (
@@ -46,13 +45,12 @@ const CustomProgressCircle = ({ progress, accentColor }) => {
           <Stop offset="1" stopColor={accentColor} stopOpacity="0.8" />
         </LinearGradient>
       </Defs>
-      
-      {/* Background Ring (Semi-Transparent) */}
+
       <Circle
         cx={PROGRESS_RING_SIZE / 2}
         cy={PROGRESS_RING_SIZE / 2}
         r={radius}
-        stroke={transparentAccentColor}  // ✅ Semi-transparent accent color
+        stroke={transparentAccentColor}
         strokeWidth={PROGRESS_RING_THICKNESS}
         fill="none"
       />
@@ -66,9 +64,26 @@ const CustomProgressCircle = ({ progress, accentColor }) => {
         strokeDashoffset={strokeDashoffset}
         strokeLinecap="round"
         fill="none"
-        transform={`rotate(-90 ${PROGRESS_RING_SIZE / 2} ${PROGRESS_RING_SIZE / 2})`}
+        transform={`rotate(-90 ${PROGRESS_RING_SIZE / 2} ${
+          PROGRESS_RING_SIZE / 2
+        })`}
       />
     </Svg>
+  );
+};
+
+const TutorialTooltip = ({ visible, message, onNext, position }) => {
+  return (
+    <Modal transparent visible={visible} animationType="fade">
+      <View style={styles.tooltipOverlay}>
+        <View style={[styles.tooltip, position]}>
+          <Text style={styles.tooltipText}>{message}</Text>
+          <TouchableOpacity style={styles.nextButton} onPress={onNext}>
+            <Text style={styles.nextButtonText}>Next</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    </Modal>
   );
 };
 
@@ -78,6 +93,13 @@ export default function Dashboard() {
   const navigation = useNavigation();
   const [showCelebration, setShowCelebration] = useState(false);
   const { theme, accentColor } = useTheme();
+  const [showTutorial, setShowTutorial] = useState(false);
+  const [tutorialStep, setTutorialStep] = useState(0);
+  const TEST_MODE = true; // Always show tutorial during testing
+
+  useEffect(() => {
+    checkFirstTimeUser();
+  }, []);
 
   useEffect(() => {
     if (stepCount >= DAILY_STEP_GOAL && !showCelebration) {
@@ -86,12 +108,79 @@ export default function Dashboard() {
     }
   }, [stepCount, showCelebration]);
 
+  const checkFirstTimeUser = async () => {
+    try {
+      const hasSeenTutorial = await AsyncStorage.getItem("hasSeenTutorial");
+      if (TEST_MODE || hasSeenTutorial === null) {
+        setShowTutorial(true);
+      }
+    } catch (error) {
+      console.error("Error checking first time user:", error);
+    }
+  };
+
+  const handleNextTutorialStep = async () => {
+    if (tutorialStep < 6) {
+      setTutorialStep(tutorialStep + 1);
+    } else {
+      setShowTutorial(false);
+      try {
+        await AsyncStorage.setItem("hasSeenTutorial", "true");
+      } catch (error) {
+        console.error("Error saving tutorial status:", error);
+      }
+    }
+  };
+  const getTutorialMessage = useCallback(() => {
+    switch (tutorialStep) {
+      case 0:
+        return "Welcome! This is your profile. Tap here to view your stats.";
+      case 1:
+        return "Here you'll see your notifications.";
+      case 2:
+        return "This section shows your active events.";
+      case 3:
+        return "Track your daily steps and progress here!";
+      case 4:
+        return "Here you can convert activities into steps!";
+      case 5:
+        return "Check your step count history and highest streak!";
+      case 6:
+        return "Check out your achievements and progress toward your next goal!";
+      default:
+        return "";
+    }
+  }, [tutorialStep]);
+
+  const getTutorialPosition = useCallback(() => {
+    switch (tutorialStep) {
+      case 0:
+        return { top: 110, left: 40 }; // Adjusted for profile
+      case 1:
+        return { top: 110, right: 40 }; // Adjusted for notifications
+      case 2:
+        return { top: 400, left: 135 }; // Adjusted for active events
+      case 3:
+        return { top: 240, left: 25 }; // Adjusted for step tracking
+      case 4:
+        return { top: 310, left: 205 }; // Adjusted for the plus icon
+      case 5:
+        return { top: 540, left: 30 }; // Adjusted for History (Streak section)
+      case 6:
+        return { top: 515, left: 130 }; // Adjusted for Achievements (Level 2 section)
+      default:
+        return {};
+    }
+  }, [tutorialStep]);
+
   const handleHistoryPress = () => {
     navigation.navigate("History");
   };
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]}>
+    <SafeAreaView
+      style={[styles.container, { backgroundColor: theme.background }]}
+    >
       <FloatingSymbols />
       <ScrollView contentContainerStyle={styles.scrollContent}>
         {showCelebration && (
@@ -128,33 +217,60 @@ export default function Dashboard() {
                 source={require("../../../assets/løper.png")}
                 style={styles.runnerIcon}
               />
-              <Text style={[styles.stepsText, { color: accentColor }]}>{stepCount.toLocaleString()}</Text>
-              <Text style={[styles.dailyStepsLabel, { color: theme.textSecondary }]}>DAILY STEPS</Text>
+              <Text style={[styles.stepsText, { color: accentColor }]}>
+                {stepCount.toLocaleString()}
+              </Text>
+              <Text
+                style={[styles.dailyStepsLabel, { color: theme.textSecondary }]}
+              >
+                DAILY STEPS
+              </Text>
             </View>
             <TouchableOpacity
-              style={[styles.addButton, { backgroundColor: theme.surface, borderColor: theme.border }]}
+              style={[
+                styles.addButton,
+                { backgroundColor: theme.surface, borderColor: theme.border },
+              ]}
               onPress={() => navigation.navigate("ActivitySelect")}
             >
-              <Text style={[styles.addButtonText, { color: accentColor }]}>+</Text>
+              <Text style={[styles.addButtonText, { color: accentColor }]}>
+                +
+              </Text>
             </TouchableOpacity>
           </View>
         </View>
 
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
-            <Text style={[styles.sectionTitle, { color: theme.text }]}>Active Events</Text>
+            <Text style={[styles.sectionTitle, { color: theme.text }]}>
+              Active Events
+            </Text>
             <TouchableOpacity onPress={() => navigation.navigate("Events")}>
-              <Text style={[styles.seeAllText, { color: accentColor }]}>See All</Text>
+              <Text style={[styles.seeAllText, { color: accentColor }]}>
+                See All
+              </Text>
             </TouchableOpacity>
           </View>
           <TouchableOpacity
             onPress={() => navigation.navigate("EventDetail")}
             style={[styles.eventCard, { backgroundColor: theme.surface }]}
           >
-            <Image source={require("../../../assets/event-illustration.png")} style={styles.eventImage} />
+            <Image
+              source={require("../../../assets/event-illustration.png")}
+              style={styles.eventImage}
+            />
             <View style={styles.eventContent}>
-              <Text style={[styles.eventTitle, { color: theme.text }]}>Summer Run Challenge</Text>
-              <Text style={[styles.eventDescription, { color: theme.textSecondary }]}>Complete 100km this month</Text>
+              <Text style={[styles.eventTitle, { color: theme.text }]}>
+                Summer Run Challenge
+              </Text>
+              <Text
+                style={[
+                  styles.eventDescription,
+                  { color: theme.textSecondary },
+                ]}
+              >
+                Complete 100km this month
+              </Text>
               <Progress.Bar
                 progress={0.65}
                 width={null}
@@ -164,43 +280,84 @@ export default function Dashboard() {
                 height={6}
                 borderRadius={3}
               />
-              <Text style={[styles.progressText, { color: theme.textSecondary }]}>65 km / 100 km</Text>
+              <Text
+                style={[styles.progressText, { color: theme.textSecondary }]}
+              >
+                65 km / 100 km
+              </Text>
             </View>
           </TouchableOpacity>
         </View>
 
         <View style={styles.statsContainer}>
-          <TouchableOpacity style={[styles.statCard, { backgroundColor: theme.surface }]} onPress={handleHistoryPress}>
+          <TouchableOpacity
+            style={[styles.statCard, { backgroundColor: theme.surface }]}
+            onPress={handleHistoryPress}
+          >
             <View style={styles.statHeader}>
-              <Text style={[styles.statTitle, { color: theme.text }]}>Streak</Text>
+              <Text style={[styles.statTitle, { color: theme.text }]}>
+                Streak
+              </Text>
               <ChevronRight size={20} color={theme.textSecondary} />
             </View>
             <View style={styles.streakContent}>
-              <MaterialCommunityIcons name="fire" size={40} color={accentColor} />
-              <Text style={[styles.streakValue, { color: accentColor }]}>{streak}</Text>
-              <Text style={[styles.streakLabel, { color: theme.textSecondary }]}>days</Text>
+              <MaterialCommunityIcons
+                name="fire"
+                size={40}
+                color={accentColor}
+              />
+              <Text style={[styles.streakValue, { color: accentColor }]}>
+                {streak}
+              </Text>
+              <Text
+                style={[styles.streakLabel, { color: theme.textSecondary }]}
+              >
+                days
+              </Text>
             </View>
           </TouchableOpacity>
 
           <View style={[styles.statCard, { backgroundColor: theme.surface }]}>
             <View style={styles.statHeader}>
-              <Text style={[styles.statTitle, { color: theme.text }]}>Rewards</Text>
+              <Text style={[styles.statTitle, { color: theme.text }]}>
+                Rewards
+              </Text>
               <Award size={20} color={theme.textSecondary} />
             </View>
             <View style={styles.rewardContent}>
-              <Text style={[styles.levelText, { color: theme.text }]}>Level 2</Text>
-              <Text style={[styles.pointsText, { color: theme.textSecondary }]}>5500/6000 XP</Text>
+              <Text style={[styles.levelText, { color: theme.text }]}>
+                Level 2
+              </Text>
+              <Text style={[styles.pointsText, { color: theme.textSecondary }]}>
+                5500/6000 XP
+              </Text>
               <View style={styles.levelProgress}>
-                <View style={[styles.progressBarContainer, { backgroundColor: theme.border }]}>
-                  <View style={[styles.progressBar, { backgroundColor: accentColor, width: "75%" }]} />
+                <View
+                  style={[
+                    styles.progressBarContainer,
+                    { backgroundColor: theme.border },
+                  ]}
+                >
+                  <View
+                    style={[
+                      styles.progressBar,
+                      { backgroundColor: accentColor, width: "75%" },
+                    ]}
+                  />
                 </View>
               </View>
             </View>
           </View>
         </View>
-        
 
         <StepCounter setStepCount={setStepCount} />
+
+        <TutorialTooltip
+          visible={showTutorial}
+          message={getTutorialMessage()}
+          onNext={handleNextTutorialStep}
+          position={getTutorialPosition()}
+        />
       </ScrollView>
     </SafeAreaView>
   );
@@ -386,5 +543,30 @@ const styles = StyleSheet.create({
   },
   addButtonText: {
     fontSize: 24,
+  },
+  tooltipOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  tooltip: {
+    backgroundColor: "white",
+    padding: 16,
+    borderRadius: 8,
+    maxWidth: 250,
+    position: "absolute",
+  },
+  tooltipText: {
+    fontSize: 16,
+    marginBottom: 12,
+  },
+  nextButton: {
+    alignSelf: "flex-end",
+    padding: 8,
+  },
+  nextButtonText: {
+    color: "#50C3AA",
+    fontWeight: "bold",
   },
 });
