@@ -252,7 +252,7 @@ export default function Dashboard() {
             </TouchableOpacity>
           </View>
           <TouchableOpacity
-            onPress={() => navigation.navigate("EventDetail")}
+            onPress={() => navigation.navigate("Events")}
             style={[styles.eventCard, { backgroundColor: theme.surface }]}
           >
             <Image
