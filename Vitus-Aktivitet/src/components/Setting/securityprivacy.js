@@ -97,7 +97,10 @@ const SecurityPrivacy = () => {
         </View>
 
         {/* Privacy Policy Button */}
-        <TouchableOpacity style={[styles.privacyButton, { backgroundColor: accentColor }]} onPress={() => alert("Vis personvernregler")}>
+        <TouchableOpacity
+          style={[styles.privacyButton, { backgroundColor: accentColor }]}
+          onPress={() => navigation.navigate("PrivacyPolicy")}  // 👈 Navigate to PrivacyPolicy
+        >
           <Text style={styles.privacyButtonText}>Vis Personvernregler</Text>
         </TouchableOpacity>
       </ScrollView>

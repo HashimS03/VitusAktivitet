@@ -44,21 +44,11 @@ const EditProfile = () => {
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         {/* Full Name */}
         <View style={styles.inputContainer}>
-          <Text style={[styles.label, { color: theme.textSecondary }]}>Full Navn</Text>
+          <Text style={[styles.label, { color: theme.textSecondary }]}>Navn</Text>
           <TextInput
             style={[styles.input, { backgroundColor: theme.surface, color: theme.text }]}
             value={fullName}
             onChangeText={setFullName}
-          />
-        </View>
-
-        {/* Nickname */}
-        <View style={styles.inputContainer}>
-          <Text style={[styles.label, { color: theme.textSecondary }]}>Kalle Navn</Text>
-          <TextInput
-            style={[styles.input, { backgroundColor: theme.surface, color: theme.text }]}
-            value={nickname}
-            onChangeText={setNickname}
           />
         </View>
 

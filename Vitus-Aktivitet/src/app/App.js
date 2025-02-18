@@ -196,7 +196,7 @@ const App = () => {
           <Stack.Screen name="contactus" component={ContactUs} />
           <Stack.Screen name="helpsupport" component={HelpSupport} />
           <Stack.Screen name="securityprivacy" component={SecurityPrivacy} />
-          <Stack.Screen name="privacypolicy" component={PrivacyPolicy} />
+          <Stack.Screen name="PrivacyPolicy" component={PrivacyPolicy} />
           <Stack.Screen name="EventLeaderboard" component={EventLeaderboard} />
           <Stack.Screen
             name="LogRecordingScreen"
