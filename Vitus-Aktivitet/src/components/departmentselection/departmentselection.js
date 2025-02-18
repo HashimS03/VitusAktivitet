@@ -192,7 +192,7 @@ const styles = StyleSheet.create({
   },
   selectedDepartment: {
     backgroundColor: "#E5F7F6",
-    marginHorizontal: -24,
+    marginHorizontal: -2,
     paddingHorizontal: 24,
   },
   departmentText: {
