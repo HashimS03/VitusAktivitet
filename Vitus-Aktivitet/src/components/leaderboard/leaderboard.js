@@ -41,10 +41,13 @@ const Leaderboard = () => {
   const [showFilterModal, setShowFilterModal] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const { theme, isDarkMode, toggleTheme } = useTheme();
+  const [leaderboardType, setLeaderboardType] = useState("General");
+  const [showLeaderboardTypeDropdown, setShowLeaderboardTypeDropdown] =
+    useState(false);
 
   const searchAnimation = useRef(new Animated.Value(0)).current;
 
-  const leaderboardData = [
+  const generalLeaderboardData = [
     {
       id: "1",
       name: "Ho Daniel",
@@ -85,50 +88,42 @@ const Leaderboard = () => {
       avatar: require("../../../assets/figure/avatar2.jpg"),
       change: -2,
     },
+  ];
+
+  const eventLeaderboardData = [
     {
-      id: "6",
+      id: "1",
       name: "Emma",
-      points: 880,
+      points: 1800,
       department: "IT",
       avatar: require("../../../assets/figure/avatar3.jpg"),
-      change: 1,
-    },
-    {
-      id: "7",
-      name: "Lars",
-      points: 850,
-      department: "Finance",
-      avatar: require("../../../assets/figure/avatar4.jpeg"),
-      change: 0,
-    },
-    {
-      id: "8",
-      name: "Sofia",
-      points: 820,
-      department: "HR",
-      avatar: require("../../../assets/figure/avatar5.jpeg"),
-      change: -1,
-    },
-    {
-      id: "9",
-      name: "Magnus",
-      points: 780,
-      department: "IT",
-      avatar: require("../../../assets/figure/avatar6.jpg"),
       change: 2,
     },
     {
-      id: "10",
-      name: "Isabella",
-      points: 750,
+      id: "2",
+      name: "Lars",
+      points: 1600,
       department: "Finance",
-      avatar: require("../../../assets/figure/avatar7.jpeg"),
-      change: -3,
+      avatar: require("../../../assets/figure/avatar4.jpeg"),
+      change: 1,
+    },
+    {
+      id: "3",
+      name: "Sofia",
+      points: 1400,
+      department: "HR",
+      avatar: require("../../../assets/figure/avatar5.jpeg"),
+      change: 3,
     },
   ];
 
   const filteredData = useMemo(() => {
-    return leaderboardData
+    const typeFilteredData =
+      leaderboardType === "General"
+        ? generalLeaderboardData
+        : eventLeaderboardData;
+
+    return typeFilteredData
       .filter(
         (item) =>
           (filterOption === "All" || item.department === filterOption) &&
@@ -136,7 +131,7 @@ const Leaderboard = () => {
             item.name.toLowerCase().includes(searchQuery.toLowerCase()))
       )
       .sort((a, b) => b.points - a.points);
-  }, [filterOption, searchQuery]); // Removed leaderboardData dependency
+  }, [filterOption, searchQuery, leaderboardType]);
 
   const toggleSearch = useCallback(() => {
     setShowSearch(!showSearch);
@@ -159,7 +154,7 @@ const Leaderboard = () => {
               {
                 translateX: searchAnimation.interpolate({
                   inputRange: [0, 1],
-                  outputRange: [0, 0], 
+                  outputRange: [0, 0],
                 }),
               },
             ],
@@ -187,20 +182,20 @@ const Leaderboard = () => {
           </Text>
         </View>
         <View style={styles.pointsContainer}>
-          <Text style={[styles.pointsText, { color: theme.primary }]}>
+          <Text style={[styles.pointsText, { color: "#50C3AA" }]}>
             {item.points}
           </Text>
           {item.change !== 0 && (
             <View style={styles.changeContainer}>
               {item.change > 0 ? (
-                <TrendingUp size={12} color={theme.success} />
+                <TrendingUp size={12} color="#50C3AA" />
               ) : (
                 <TrendingDown size={12} color={theme.error} />
               )}
               <Text
                 style={[
                   styles.changeText,
-                  { color: item.change > 0 ? theme.success : theme.error },
+                  { color: item.change > 0 ? "#50C3AA" : theme.error },
                 ]}
               >
                 {Math.abs(item.change)}
@@ -222,7 +217,76 @@ const Leaderboard = () => {
           tint={isDarkMode ? "dark" : "light"}
         />
         <View style={styles.headerContent}>
-          <Text style={[styles.title, { color: theme.text }]}>Leaderboard</Text>
+          <View style={styles.titleWrapper}>
+            <TouchableOpacity
+              style={styles.titleContainer}
+              onPress={() => setShowLeaderboardTypeDropdown(true)}
+            >
+              <Text
+                style={[
+                  styles.title,
+                  {
+                    color: leaderboardType === "General" ? "" : theme.text,
+                  },
+                ]}
+              >
+                {leaderboardType === "General" ? "General " : "Event "}
+              </Text>
+              <ChevronDown
+                size={16}
+                color={theme.text}
+                style={styles.titleIcon}
+              />
+            </TouchableOpacity>
+            <Modal
+              visible={showLeaderboardTypeDropdown}
+              transparent
+              animationType="fade"
+              onRequestClose={() => setShowLeaderboardTypeDropdown(false)}
+            >
+              <TouchableOpacity
+                style={styles.dropdownOverlay}
+                activeOpacity={1}
+                onPress={() => setShowLeaderboardTypeDropdown(false)}
+              >
+                <BlurView
+                  intensity={20}
+                  style={[styles.dropdownContent]}
+                  tint="light"
+                >
+                  {["General", "Event"].map((option) => (
+                    <TouchableOpacity
+                      key={option}
+                      style={[
+                        styles.dropdownItem,
+                        leaderboardType === option && {
+                          backgroundColor: "rgba(80, 195, 170, 0.1)",
+                        },
+                      ]}
+                      onPress={() => {
+                        setLeaderboardType(option);
+                        setShowLeaderboardTypeDropdown(false);
+                      }}
+                    >
+                      <Text
+                        style={[
+                          styles.dropdownItemText,
+                          {
+                            color:
+                              leaderboardType === option
+                                ? "#50C3AA"
+                                : theme.text,
+                          },
+                        ]}
+                      >
+                        {option} Leaderboard
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </BlurView>
+              </TouchableOpacity>
+            </Modal>
+          </View>
           <View style={styles.headerButtons}>
             <TouchableOpacity
               style={[
@@ -292,7 +356,7 @@ const Leaderboard = () => {
               style={[
                 styles.segmentOption,
                 selectedSegment === option && {
-                  backgroundColor: theme.primary,
+                  backgroundColor: "#50C3AA",
                 },
               ]}
               onPress={() => setSelectedSegment(option)}
@@ -301,10 +365,7 @@ const Leaderboard = () => {
                 style={[
                   styles.segmentOptionText,
                   {
-                    color:
-                      selectedSegment === option
-                        ? theme.background
-                        : theme.text,
+                    color: selectedSegment === option ? "#FFFFFF" : theme.text,
                   },
                 ]}
               >
@@ -323,6 +384,8 @@ const Leaderboard = () => {
       selectedSegment,
       searchQuery,
       toggleSearch,
+      leaderboardType,
+      showLeaderboardTypeDropdown,
     ]
   );
 
@@ -349,7 +412,7 @@ const Leaderboard = () => {
               style={[
                 styles.filterOption,
                 filterOption === option && {
-                  backgroundColor: theme.primaryContainer,
+                  backgroundColor: "rgba(80, 195, 170, 0.1)",
                 },
               ]}
               onPress={() => {
@@ -361,7 +424,7 @@ const Leaderboard = () => {
                 style={[
                   styles.filterOptionText,
                   {
-                    color: filterOption === option ? theme.primary : theme.text,
+                    color: filterOption === option ? "#50C3AA" : theme.text,
                   },
                 ]}
               >
@@ -376,7 +439,7 @@ const Leaderboard = () => {
             <Switch
               value={isDarkMode}
               onValueChange={toggleTheme}
-              trackColor={{ false: theme.surfaceVariant, true: theme.primary }}
+              trackColor={{ false: theme.surfaceVariant, true: "#50C3AA" }}
               thumbColor={isDarkMode ? theme.background : theme.text}
             />
           </View>
@@ -421,9 +484,51 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingHorizontal: 20,
   },
+  titleWrapper: {
+    position: "relative",
+    zIndex: 1,
+  },
+  titleContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
   title: {
-    fontSize: 28,
-    fontWeight: "bold",
+    fontSize: 24,
+    fontWeight: "600",
+    marginRight: 8,
+  },
+  titleIcon: {
+    marginTop: 2,
+  },
+  dropdownOverlay: {
+    flex: 1,
+    backgroundColor: "transparent",
+  },
+  dropdownContent: {
+    position: "absolute",
+    top: 85,
+    left: 20,
+    right: 20,
+    maxWidth: 250,
+    borderRadius: 12,
+    overflow: "hidden",
+    backgroundColor: "rgba(255, 255, 255, 0.95)",
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 5,
+  },
+  dropdownItem: {
+    padding: 16,
+    borderRadius: 0,
+  },
+  dropdownItemText: {
+    fontSize: 16,
+    fontWeight: "500",
   },
   headerButtons: {
     flexDirection: "row",
@@ -490,6 +595,7 @@ const styles = StyleSheet.create({
     padding: 12,
     borderRadius: 12,
     overflow: "hidden",
+    width: "100%",
   },
   rankContainer: {
     width: 30,
