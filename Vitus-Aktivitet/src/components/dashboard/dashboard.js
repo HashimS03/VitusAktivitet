@@ -21,6 +21,8 @@ import FloatingSymbols from "../../components/BackgroundAnimation/FloatingSymbol
 import { useTheme } from '../context/ThemeContext';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import Color from 'color';
+import { ChevronRight } from "lucide-react-native";
+
 
 const SCREEN_WIDTH = Dimensions.get("window").width;
 const DAILY_STEP_GOAL = 1000;
@@ -139,75 +141,64 @@ export default function Dashboard() {
         </View>
 
         <View style={styles.section}>
-          <Text style={[styles.sectionTitle, { color: theme.text }]}>Aktive Hendelser</Text>
+          <View style={styles.sectionHeader}>
+            <Text style={[styles.sectionTitle, { color: theme.text }]}>Active Events</Text>
+            <TouchableOpacity onPress={() => navigation.navigate("Events")}>
+              <Text style={[styles.seeAllText, { color: accentColor }]}>See All</Text>
+            </TouchableOpacity>
+          </View>
           <TouchableOpacity
-            onPress={() => navigation.navigate("Events", { screen: "EventsNavigation" })}
+            onPress={() => navigation.navigate("EventDetail")}
+            style={[styles.eventCard, { backgroundColor: theme.surface }]}
           >
-            <View style={[styles.eventCard, { backgroundColor: theme.surface }]}>
-              <Image
-                source={require("../../../assets/event-illustration.png")}
-                style={styles.eventImage}
+            <Image source={require("../../../assets/event-illustration.png")} style={styles.eventImage} />
+            <View style={styles.eventContent}>
+              <Text style={[styles.eventTitle, { color: theme.text }]}>Summer Run Challenge</Text>
+              <Text style={[styles.eventDescription, { color: theme.textSecondary }]}>Complete 100km this month</Text>
+              <Progress.Bar
+                progress={0.65}
+                width={null}
+                color={accentColor}
+                unfilledColor={theme.border}
+                borderWidth={0}
+                height={6}
+                borderRadius={3}
               />
-              <View style={styles.eventContent}>
-                <Text style={[styles.eventTitle, { color: theme.text }]}>LØP LØP LØP!</Text>
-                <Text style={[styles.eventDescription, { color: theme.textSecondary }]}>
-                  Beskrivelse som forklarer hva hendelsen gjelder
-                </Text>
-                <Progress.Bar
-                  progress={Math.min(stepCount / DAILY_STEP_GOAL, 1)}
-                  width={null}
-                  color={accentColor}
-                  unfilledColor="#E5F7F6"
-                  borderWidth={0}
-                  height={6}
-                  borderRadius={3}
-                />
-                <Text style={[styles.progressText, { color: theme.textSecondary }]}>
-                  {stepCount} / {DAILY_STEP_GOAL}
-                </Text>
-              </View>
+              <Text style={[styles.progressText, { color: theme.textSecondary }]}>65 km / 100 km</Text>
             </View>
           </TouchableOpacity>
         </View>
 
         <View style={styles.statsContainer}>
-          <TouchableOpacity
-            style={styles.statSection}
-            onPress={handleHistoryPress}
-          >
-            <Text style={[styles.statTitle, { color: theme.text }]}>Historikk</Text>
-            <View style={[styles.streakBox, { backgroundColor: theme.surface }]}>
+          <TouchableOpacity style={[styles.statCard, { backgroundColor: theme.surface }]} onPress={handleHistoryPress}>
+            <View style={styles.statHeader}>
+              <Text style={[styles.statTitle, { color: theme.text }]}>Streak</Text>
+              <ChevronRight size={20} color={theme.textSecondary} />
+            </View>
+            <View style={styles.streakContent}>
               <MaterialCommunityIcons name="fire" size={40} color={accentColor} />
-              <Text style={[styles.streakValue, { color: accentColor }]}>21</Text>
+              <Text style={[styles.streakValue, { color: accentColor }]}>{streak}</Text>
+              <Text style={[styles.streakLabel, { color: theme.textSecondary }]}>days</Text>
             </View>
           </TouchableOpacity>
 
-          <View style={styles.statSection}>
-            <Text style={[styles.statTitle, { color: theme.text }]}>Belønninger</Text>
-            <View style={[styles.rewardBox, { backgroundColor: theme.surface }]}>
-              <View style={styles.rewardHeader}>
-                <Text style={[styles.levelText, { color: theme.text }]}>Level 2</Text>
-                <View style={[styles.badgeContainer, { backgroundColor: theme.border }]}>
-                  <Award size={16} color={theme.textSecondary} />
-                </View>
-              </View>
-              <Text style={[styles.pointsText, { color: theme.textSecondary }]}>5500/6000</Text>
+          <View style={[styles.statCard, { backgroundColor: theme.surface }]}>
+            <View style={styles.statHeader}>
+              <Text style={[styles.statTitle, { color: theme.text }]}>Rewards</Text>
+              <Award size={20} color={theme.textSecondary} />
+            </View>
+            <View style={styles.rewardContent}>
+              <Text style={[styles.levelText, { color: theme.text }]}>Level 2</Text>
+              <Text style={[styles.pointsText, { color: theme.textSecondary }]}>5500/6000 XP</Text>
               <View style={styles.levelProgress}>
-                <View style={styles.numberContainer}>
-                  <View style={styles.currentLevel}>
-                    <Text style={styles.currentLevelText}>2</Text>
-                  </View>
-                  <View style={[styles.nextLevel, { backgroundColor: theme.border }]}>
-                    <Text style={[styles.nextLevelText, { color: theme.textSecondary }]}>3</Text>
-                  </View>
-                </View>
                 <View style={[styles.progressBarContainer, { backgroundColor: theme.border }]}>
-                  <View style={[styles.progressBar, { backgroundColor: accentColor }]} />
+                  <View style={[styles.progressBar, { backgroundColor: accentColor, width: "75%" }]} />
                 </View>
               </View>
             </View>
           </View>
         </View>
+        
 
         <StepCounter setStepCount={setStepCount} />
       </ScrollView>
@@ -221,15 +212,21 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     flexGrow: 1,
+    paddingBottom: 20,
   },
   header: {
     flexDirection: "row",
     justifyContent: "space-between",
+    alignItems: "center",
     padding: 16,
+  },
+  headerIcons: {
+    flexDirection: "row",
   },
   iconButton: {
     padding: 12,
     borderRadius: 24,
+    marginLeft: 8,
   },
   progressWrapper: {
     paddingVertical: 0,
@@ -240,6 +237,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     height: PROGRESS_RING_SIZE + 20,
     position: "relative",
+    margin: 16,
   },
   progressContent: {
     position: "absolute",
@@ -250,6 +248,7 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     resizeMode: "contain",
+    marginBottom: 8,
   },
   stepsText: {
     fontSize: 36,
@@ -257,30 +256,24 @@ const styles = StyleSheet.create({
   },
   dailyStepsLabel: {
     fontSize: 14,
-  },
-  addButton: {
-    position: "absolute",
-    bottom: 0,
-    alignSelf: "center",
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    justifyContent: "center",
-    alignItems: "center",
-    elevation: 5,
-    borderWidth: 2,
-  },
-  addButtonText: {
-    fontSize: 24,
+    marginTop: 4,
   },
   section: {
-    marginTop: 8,
+    marginBottom: 20,
     paddingHorizontal: 16,
+  },
+  sectionHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 12,
   },
   sectionTitle: {
     fontSize: 18,
     fontWeight: "600",
-    marginBottom: 12,
+  },
+  seeAllText: {
+    fontSize: 14,
   },
   eventCard: {
     flexDirection: "row",
@@ -288,15 +281,16 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     padding: 12,
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
+    shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
-    elevation: 5,
+    elevation: 3,
   },
   eventImage: {
-    width: 150,
-    height: 100,
-    resizeMode: "contain",
+    width: 80,
+    height: 80,
+    resizeMode: "cover",
+    borderRadius: 8,
     marginRight: 12,
   },
   eventContent: {
@@ -313,112 +307,84 @@ const styles = StyleSheet.create({
   },
   progressText: {
     fontSize: 12,
+    marginTop: 4,
   },
   statsContainer: {
     flexDirection: "row",
     justifyContent: "space-between",
     paddingHorizontal: 16,
-    marginTop: 8,
-    gap: 8,
+    marginBottom: 20,
   },
-  statSection: {
-    flex: 1,
-  },
-  statTitle: {
-    fontSize: 18,
-    fontWeight: "600",
-    marginBottom: 8,
-  },
-  streakBox: {
+  statCard: {
+    width: "48%",
     borderRadius: 16,
-    padding: 12,
-    height: 100,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 12,
+    padding: 16,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 3,
   },
-  flameIcon: {
-    width: 32,
-    height: 32,
-    resizeMode: "contain",
+  statHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 12,
+  },
+  statTitle: {
+    fontSize: 16,
+    fontWeight: "600",
+  },
+  streakContent: {
+    flexDirection: "row",
+    alignItems: "center",
   },
   streakValue: {
     fontSize: 32,
     fontWeight: "bold",
+    marginLeft: 8,
   },
-  rewardBox: {
-    borderRadius: 16,
-    padding: 12,
-    height: 100,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+  streakLabel: {
+    fontSize: 14,
+    marginLeft: 4,
   },
-  rewardHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 4,
+  rewardContent: {
+    alignItems: "flex-start",
   },
   levelText: {
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: "600",
-  },
-  badgeContainer: {
-    borderRadius: 16,
-    padding: 6,
-    opacity: 0.8,
+    marginBottom: 4,
   },
   pointsText: {
-    fontSize: 11,
-    marginBottom: 4,
-    opacity: 0.8,
+    fontSize: 14,
+    marginBottom: 8,
   },
   levelProgress: {
-    marginTop: 4,
-  },
-  numberContainer: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    marginBottom: -8,
-    zIndex: 1,
-  },
-  currentLevel: {
-    backgroundColor: "#FFD700",
-    borderRadius: 10,
-    paddingHorizontal: 10,
-    paddingVertical: 2,
-  },
-  currentLevelText: {
-    fontSize: 14,
-    fontWeight: "bold",
-    color: "#000",
-  },
-  nextLevel: {
-    borderRadius: 10,
-    paddingHorizontal: 10,
-    paddingVertical: 2,
-  },
-  nextLevelText: {
-    fontSize: 14,
-    fontWeight: "bold",
+    width: "100%",
   },
   progressBarContainer: {
-    height: 16,
-    borderRadius: 8,
+    height: 8,
+    borderRadius: 4,
     overflow: "hidden",
   },
   progressBar: {
-    width: "75%",
     height: "100%",
-    borderRadius: 8,
+    borderRadius: 4,
+  },
+  addButton: {
+    position: "absolute",
+    bottom: 0,
+    alignSelf: "center",
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    justifyContent: "center",
+    alignItems: "center",
+    elevation: 5,
+    borderWidth: 2,
+  },
+  addButtonText: {
+    fontSize: 24,
   },
 });
