@@ -217,6 +217,7 @@ const styles = StyleSheet.create({
 
   backButton: {
     padding: 8,
+    zIndex: 999, // ✅ Midlertidig løsning 
   },
 
   settingsHeader: {

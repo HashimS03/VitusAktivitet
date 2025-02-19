@@ -15,20 +15,23 @@ import LoginScreen from "../components/login/login"
 import CreateAccountScreen from "../components/opprett/opprett"
 
 // User Profile and Settings
-import Stats from "../components/profile/stats"
-import Setting from "../components/Setting/setting"
-import TrophyDetails from "../components/profile/TrophyDetails"
 
-import Notifications from "../components/notifications/notifications"
-import LanguageSelection from "../components/Setting/language"
-import EditProfile from "../components/Setting/editprofile"
-import NotificationEditor from "../components/Setting/notificationediror"
-import Theme from "../components/Setting/theme"
-import ContactUs from "../components/Setting/contactus"
-import HelpSupport from "../components/Setting/helpsupport"
-import SecurityPrivacy from "../components/Setting/securityprivacy"
-import PrivacyPolicy from "../components/Setting/privacypolicy"
-import { ThemeProvider } from "../components/context/ThemeContext"
+import Stats from "../components/profile/stats";
+import Setting from "../components/Setting/setting";
+import TrophyDetails from "../components/profile/TrophyDetails";
+import Achievements from "../components/profile/achievements";
+
+import Notifications from "../components/notifications/notifications";  // ✅ Import Notifications
+import LanguageSelection from "../components/Setting/language"; // ✅ Import the new screen
+import EditProfile from "../components/Setting/editprofile"; // ✅ Import the new screen
+import NotificationEditor from "../components/Setting/notificationediror"; // ✅ Import the new screen
+import Theme from "../components/Setting/theme"; // ✅ Import the new screen
+import ContactUs from "../components/Setting/contactus"; // ✅ Import the new screen
+import HelpSupport from "../components/Setting/helpsupport"; // ✅ Import the new screen
+import SecurityPrivacy from "../components/Setting/securityprivacy"; // ✅ Import the new screen
+import PrivacyPolicy from "../components/Setting/privacypolicy"; // ✅ Import the new screen
+import { ThemeProvider } from "../components/context/ThemeContext";
+
 
 // Events and Event Management
 import JoinEvent from "../components/events/JoinEvent"
@@ -166,7 +169,13 @@ const App = () => {
           <Stack.Screen name="Notifications" component={Notifications} />
           <Stack.Screen name="Language" component={LanguageSelection} />
           <Stack.Screen name="EditProfile" component={EditProfile} />
-          <Stack.Screen name="notificationeditor" component={NotificationEditor} />
+
+          <Stack.Screen name="Achievements" component={Achievements} />
+          <Stack.Screen
+            name="notificationeditor"
+            component={NotificationEditor}
+          />
+
           <Stack.Screen name="Theme" component={Theme} />
           <Stack.Screen name="contactus" component={ContactUs} />
           <Stack.Screen name="helpsupport" component={HelpSupport} />
