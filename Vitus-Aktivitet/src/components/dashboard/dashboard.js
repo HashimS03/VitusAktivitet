@@ -99,6 +99,7 @@ export default function Dashboard() {
 
   useEffect(() => {
     checkFirstTimeUser();
+    console.log("🚀 Appen kjører!");
   }, []);
 
   useEffect(() => {
@@ -121,12 +122,17 @@ export default function Dashboard() {
 
   const checkFirstTimeUser = async () => {
     try {
+      console.log("🔍 Sjekker hasSeenTutorial i AsyncStorage...");
       const hasSeenTutorial = await AsyncStorage.getItem("hasSeenTutorial");
+      console.log("💾 Lest fra AsyncStorage:", hasSeenTutorial);
       if (hasSeenTutorial === null) {
         setShowTutorial(true);
+        console.log("🎉 Førstegangsbruker! Viser tutorial...");
+      } else {
+        console.log("✅ Tutorial allerede sett.");
       }
     } catch (error) {
-      console.error("Error checking first time user:", error);
+      console.error("❌ Feil ved sjekking av første gangs bruker:", error);
     }
   };
 
@@ -137,11 +143,13 @@ export default function Dashboard() {
       setShowTutorial(false);
       try {
         await AsyncStorage.setItem("hasSeenTutorial", "true");
+        console.log("Tutorial fullført! hasSeenTutorial er nå satt til 'true'");
       } catch (error) {
-        console.error("Error saving tutorial status:", error);
+        console.error("Feil ved lagring av tutorial status:", error);
       }
     }
   };
+
   const getTutorialMessage = useCallback(() => {
     switch (tutorialStep) {
       case 0:
