@@ -22,6 +22,7 @@ import { useNavigation, useRoute } from "@react-navigation/native";
 import { useTheme } from "../context/ThemeContext";
 import Achievements from "./achievements";
 import Activity from "./activity";
+import { FlatList } from "react-native"; // Import FlatList
 
 const TABS = ["STATS", "ACHIEVEMENTS", "ACTIVITY"];
 
@@ -85,58 +86,33 @@ const Stats = () => {
       image: require("../../../assets/event-illustration.png"),
     },
   ];
-
   const renderStatsContent = () => (
-    <ScrollView>
-      <View style={styles.statsContainer}>
-        {statsData.map((stat, index) => (
+    <ScrollView
+      contentContainerStyle={{ paddingBottom: 40, paddingHorizontal: 16 }}
+    >
+      {statsData.map((stat, index) => (
+        <View
+          key={index}
+          style={[styles.statCard, { backgroundColor: theme.surface }]}
+        >
           <View
-            key={index}
-            style={[styles.statCard, { backgroundColor: theme.surface }]}
+            style={[
+              styles.iconContainer,
+              { backgroundColor: stat.iconBgColor },
+            ]}
           >
-            <View
-              style={[
-                styles.iconContainer,
-                { backgroundColor: stat.iconBgColor },
-              ]}
-            >
-              <stat.icon size={20} color={stat.iconColor} />
-            </View>
-            <View style={styles.statTextContainer}>
-              <Text style={[styles.statValue, { color: theme.text }]}>
-                {stat.value}
-              </Text>
-              <Text style={[styles.statLabel, { color: theme.textSecondary }]}>
-                {stat.label}
-              </Text>
-            </View>
+            <stat.icon size={28} color={stat.iconColor} />
           </View>
-        ))}
-      </View>
-
-      <View style={[styles.racesContainer, { backgroundColor: theme.surface }]}>
-        <Text style={[styles.sectionTitle, { color: theme.text }]}>
-          Latest Races
-        </Text>
-        {races.map((race, index) => (
-          <View key={index} style={styles.raceItem}>
-            <Image source={race.image} style={styles.raceImage} />
-            <View style={styles.raceContent}>
-              <Text style={[styles.raceTitle, { color: theme.text }]}>
-                {race.title}
-              </Text>
-              <View style={styles.progressBar}>
-                <View
-                  style={[styles.progressFill, { width: `${race.progress}%` }]}
-                />
-              </View>
-            </View>
-            <Text style={[styles.progressText, { color: theme.textSecondary }]}>
-              {race.progress}% Complete
+          <View style={styles.statTextContainer}>
+            <Text style={[styles.statValue, { color: theme.text }]}>
+              {stat.value}
+            </Text>
+            <Text style={[styles.statLabel, { color: theme.textSecondary }]}>
+              {stat.label}
             </Text>
           </View>
-        ))}
-      </View>
+        </View>
+      ))}
     </ScrollView>
   );
 
@@ -256,90 +232,41 @@ const styles = StyleSheet.create({
     alignSelf: "center",
   },
   statsContainer: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    justifyContent: "space-between",
     paddingHorizontal: 16,
-    gap: 12,
+    marginTop: 16,
   },
   statCard: {
-    width: "48%",
-    borderRadius: 25,
-    padding: 12,
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 2,
-    marginBottom: 12,
     flexDirection: "row",
     alignItems: "center",
+    padding: 15, // Mer luft
+    borderRadius: 16,
+    marginBottom: 16, // Litt mer spacing mellom kortene
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 6,
+    elevation: 2,
+    borderWidth: 1, // Gir mer definisjon
+    borderColor: "#E5E5E5", // Lett kantlinje
   },
   iconContainer: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+    width: 55, // Større ikonholder
+    height: 55,
+    borderRadius: 28,
     alignItems: "center",
     justifyContent: "center",
-    marginRight: 12,
+    marginRight: 16,
   },
   statTextContainer: {
     flex: 1,
   },
   statValue: {
-    fontSize: 20,
+    fontSize: 24, // Gjør tallene mer markante
     fontWeight: "bold",
-    marginBottom: 2,
   },
   statLabel: {
-    fontSize: 12,
-  },
-  racesContainer: {
-    borderRadius: 20,
-    padding: 16,
-    margin: 16,
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: "600",
-    marginBottom: 16,
-  },
-  raceItem: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 16,
-  },
-  raceImage: {
-    width: 40,
-    height: 40,
-    borderRadius: 8,
-    marginRight: 12,
-  },
-  raceContent: {
-    flex: 1,
-    marginRight: 12,
-  },
-  raceTitle: {
     fontSize: 16,
-    fontWeight: "500",
-    marginBottom: 8,
-  },
-  progressBar: {
-    height: 4,
-    backgroundColor: "#E5E5EA",
-    borderRadius: 2,
-  },
-  progressFill: {
-    height: "100%",
-    backgroundColor: "#34C759",
-    borderRadius: 2,
-  },
-  progressText: {
-    fontSize: 14,
-    width: 80,
+    color: "#666",
   },
 });
 
