@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useCallback, useMemo } from "react";
+import { useState, useRef, useCallback, useMemo, useEffect } from "react";
 import {
   SafeAreaView,
   View,
@@ -26,6 +26,7 @@ import {
 import { useTheme } from "../context/ThemeContext";
 import { BlurView } from "expo-blur";
 import { LinearGradient } from "expo-linear-gradient";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 const AnimatedFlatList = Animated.createAnimatedComponent(FlatList);
 
@@ -40,12 +41,52 @@ const Leaderboard = () => {
   const [showSearch, setShowSearch] = useState(false);
   const [showFilterModal, setShowFilterModal] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
-  const { theme, isDarkMode, toggleTheme } = useTheme();
+  const { theme, isDarkMode, toggleTheme, accentColor } = useTheme();
   const [leaderboardType, setLeaderboardType] = useState("General");
   const [showLeaderboardTypeDropdown, setShowLeaderboardTypeDropdown] =
     useState(false);
+  const [isFirstTime, setIsFirstTime] = useState(true);
+  const [hasJoinedLeaderboard, setHasJoinedLeaderboard] = useState(false);
+  const [showJoinAlert, setShowJoinAlert] = useState(false);
+  const [testMode, setTestMode] = useState(true); // Activate test mode temporarily
 
   const searchAnimation = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    checkFirstTimeUser();
+  }, []);
+
+  const checkFirstTimeUser = async () => {
+    if (testMode) {
+      setIsFirstTime(true); // Always show for testing
+    } else {
+      try {
+        const hasSeenLeaderboard = await AsyncStorage.getItem(
+          "hasSeenLeaderboard"
+        );
+        if (hasSeenLeaderboard === "true") {
+          setIsFirstTime(false);
+        }
+      } catch (error) {
+        console.error("Error checking first time user:", error);
+      }
+    }
+  };
+
+  const handleJoinLeaderboard = () => {
+    setShowJoinAlert(true);
+  };
+
+  const handleConfirmJoin = async () => {
+    try {
+      await AsyncStorage.setItem("hasSeenLeaderboard", "true");
+      setIsFirstTime(false);
+      setHasJoinedLeaderboard(true);
+      setShowJoinAlert(false);
+    } catch (error) {
+      console.error("Error saving leaderboard status:", error);
+    }
+  };
 
   const generalLeaderboardData = [
     {
@@ -182,20 +223,20 @@ const Leaderboard = () => {
           </Text>
         </View>
         <View style={styles.pointsContainer}>
-          <Text style={[styles.pointsText, { color: "#50C3AA" }]}>
+          <Text style={[styles.pointsText, { color: accentColor }]}>
             {item.points}
           </Text>
           {item.change !== 0 && (
             <View style={styles.changeContainer}>
               {item.change > 0 ? (
-                <TrendingUp size={12} color="#50C3AA" />
+                <TrendingUp size={12} color={accentColor} />
               ) : (
                 <TrendingDown size={12} color={theme.error} />
               )}
               <Text
                 style={[
                   styles.changeText,
-                  { color: item.change > 0 ? "#50C3AA" : theme.error },
+                  { color: item.change > 0 ? accentColor : theme.error },
                 ]}
               >
                 {Math.abs(item.change)}
@@ -205,7 +246,7 @@ const Leaderboard = () => {
         </View>
       </Animated.View>
     ),
-    [theme, searchAnimation]
+    [theme, searchAnimation, accentColor]
   );
 
   const renderHeader = useCallback(
@@ -226,7 +267,8 @@ const Leaderboard = () => {
                 style={[
                   styles.title,
                   {
-                    color: leaderboardType === "General" ? "" : theme.text,
+                    color:
+                      leaderboardType === "General" ? accentColor : theme.text,
                   },
                 ]}
               >
@@ -252,7 +294,7 @@ const Leaderboard = () => {
                 <BlurView
                   intensity={20}
                   style={[styles.dropdownContent]}
-                  tint="light"
+                  tint={isDarkMode ? "dark" : "light"}
                 >
                   {["General", "Event"].map((option) => (
                     <TouchableOpacity
@@ -260,7 +302,7 @@ const Leaderboard = () => {
                       style={[
                         styles.dropdownItem,
                         leaderboardType === option && {
-                          backgroundColor: "rgba(80, 195, 170, 0.1)",
+                          backgroundColor: `${accentColor}20`,
                         },
                       ]}
                       onPress={() => {
@@ -274,7 +316,7 @@ const Leaderboard = () => {
                           {
                             color:
                               leaderboardType === option
-                                ? "#50C3AA"
+                                ? accentColor
                                 : theme.text,
                           },
                         ]}
@@ -356,7 +398,7 @@ const Leaderboard = () => {
               style={[
                 styles.segmentOption,
                 selectedSegment === option && {
-                  backgroundColor: "#50C3AA",
+                  backgroundColor: accentColor,
                 },
               ]}
               onPress={() => setSelectedSegment(option)}
@@ -386,6 +428,7 @@ const Leaderboard = () => {
       toggleSearch,
       leaderboardType,
       showLeaderboardTypeDropdown,
+      accentColor,
     ]
   );
 
@@ -412,7 +455,7 @@ const Leaderboard = () => {
               style={[
                 styles.filterOption,
                 filterOption === option && {
-                  backgroundColor: "rgba(80, 195, 170, 0.1)",
+                  backgroundColor: `${accentColor}20`,
                 },
               ]}
               onPress={() => {
@@ -424,7 +467,7 @@ const Leaderboard = () => {
                 style={[
                   styles.filterOptionText,
                   {
-                    color: filterOption === option ? "#50C3AA" : theme.text,
+                    color: filterOption === option ? accentColor : theme.text,
                   },
                 ]}
               >
@@ -439,13 +482,52 @@ const Leaderboard = () => {
             <Switch
               value={isDarkMode}
               onValueChange={toggleTheme}
-              trackColor={{ false: theme.surfaceVariant, true: "#50C3AA" }}
+              trackColor={{
+                false: theme.surfaceVariant,
+                true: accentColor,
+              }}
               thumbColor={isDarkMode ? theme.background : theme.text}
             />
           </View>
         </View>
       </View>
     </Modal>
+  );
+
+  const renderFirstTimeOverlay = () => (
+    <BlurView
+      intensity={80}
+      style={StyleSheet.absoluteFillObject}
+      tint={isDarkMode ? "dark" : "light"}
+    >
+      <View style={styles.overlayContent}>
+        <Text style={[styles.overlayTitle, { color: theme.text }]}>
+          Join the Leaderboard
+        </Text>
+        <Text
+          style={[styles.overlayDescription, { color: theme.textSecondary }]}
+        >
+          Participate in the leaderboard to compare your progress with others!
+        </Text>
+        <TouchableOpacity
+          style={[styles.overlayButton, { backgroundColor: accentColor }]}
+          onPress={handleJoinLeaderboard}
+        >
+          <Text style={styles.overlayButtonText}>Join Leaderboard</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[
+            styles.overlayButton,
+            { backgroundColor: theme.surfaceVariant },
+          ]}
+          onPress={() => setIsFirstTime(false)}
+        >
+          <Text style={[styles.overlayButtonText, { color: theme.text }]}>
+            Not Now
+          </Text>
+        </TouchableOpacity>
+      </View>
+    </BlurView>
   );
 
   return (
@@ -466,6 +548,67 @@ const Leaderboard = () => {
         scrollEventThrottle={16}
       />
       {renderFilterModal()}
+      {isFirstTime && renderFirstTimeOverlay()}
+      {!hasJoinedLeaderboard && (
+        <BlurView
+          intensity={80}
+          style={StyleSheet.absoluteFill}
+          tint={isDarkMode ? "dark" : "light"}
+        >
+          <View style={styles.blurredContent}>
+            <Text style={[styles.blurredText, { color: theme.text }]}>
+              Join the leaderboard to view rankings
+            </Text>
+            <TouchableOpacity
+              style={[styles.joinButton, { backgroundColor: accentColor }]}
+              onPress={handleJoinLeaderboard}
+            >
+              <Text style={styles.joinButtonText}>Join Leaderboard</Text>
+            </TouchableOpacity>
+          </View>
+        </BlurView>
+      )}
+      {showJoinAlert && (
+        <View style={styles.alertOverlay}>
+          <BlurView
+            intensity={80}
+            style={StyleSheet.absoluteFill}
+            tint={isDarkMode ? "dark" : "light"}
+          />
+          <View style={styles.alertContainer}>
+            <View style={styles.alertContent}>
+              <Text style={styles.alertTitle}>Join Leaderboard</Text>
+              <Text style={styles.alertMessage}>
+                Would you like to join the leaderboard and compare your progress
+                with others?
+              </Text>
+              <View style={styles.alertButtons}>
+                <TouchableOpacity
+                  style={[styles.alertButton, styles.alertButtonLeft]}
+                  onPress={() => setShowJoinAlert(false)}
+                >
+                  <Text
+                    style={[styles.alertButtonText, { color: accentColor }]}
+                  >
+                    Close
+                  </Text>
+                </TouchableOpacity>
+                <View style={styles.alertButtonSeparator} />
+                <TouchableOpacity
+                  style={[styles.alertButton, styles.alertButtonRight]}
+                  onPress={handleConfirmJoin}
+                >
+                  <Text
+                    style={[styles.alertButtonText, { color: accentColor }]}
+                  >
+                    Join
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        </View>
+      )}
     </SafeAreaView>
   );
 };
@@ -670,6 +813,111 @@ const styles = StyleSheet.create({
   },
   themeToggleText: {
     fontSize: 16,
+  },
+  overlayContent: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 20,
+  },
+  overlayTitle: {
+    fontSize: 24,
+    fontWeight: "bold",
+    marginBottom: 16,
+  },
+  overlayDescription: {
+    fontSize: 16,
+    textAlign: "center",
+    marginBottom: 24,
+  },
+  overlayButton: {
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 8,
+    marginBottom: 12,
+  },
+  overlayButtonText: {
+    fontSize: 16,
+    fontWeight: "bold",
+    color: "#FFFFFF",
+  },
+  blurredContent: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 20,
+  },
+  blurredText: {
+    fontSize: 18,
+    marginBottom: 16,
+  },
+  joinButton: {
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 8,
+  },
+  joinButtonText: {
+    fontSize: 16,
+    fontWeight: "bold",
+    color: "#fff",
+  },
+  alertOverlay: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "rgba(0, 0, 0, 0.4)",
+  },
+  alertContainer: {
+    width: "70%",
+    backgroundColor: "#F9F9F9",
+    borderRadius: 14,
+    overflow: "hidden",
+  },
+  alertContent: {
+    width: "100%",
+  },
+  alertTitle: {
+    textAlign: "center",
+    fontSize: 17,
+    fontWeight: "600",
+    color: "#000",
+    paddingTop: 20,
+    paddingBottom: 10,
+  },
+  alertMessage: {
+    textAlign: "center",
+    fontSize: 13,
+    color: "#666666",
+    paddingHorizontal: 20,
+    paddingBottom: 20,
+  },
+  alertButtons: {
+    flexDirection: "row",
+    borderTopWidth: 0.5,
+    borderTopColor: "#CCCCCC",
+  },
+  alertButton: {
+    flex: 1,
+    paddingVertical: 12,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  alertButtonLeft: {
+    borderRightWidth: 0.5,
+    borderRightColor: "#CCCCCC",
+  },
+  alertButtonRight: {},
+  alertButtonText: {
+    fontSize: 17,
+    fontWeight: "500",
+  },
+  alertButtonSeparator: {
+    width: 0.5,
+    backgroundColor: "#CCCCCC",
   },
 });
 
