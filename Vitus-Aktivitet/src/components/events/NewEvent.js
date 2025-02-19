@@ -11,6 +11,7 @@ import {
   TouchableOpacity,
   Image,
   Modal,
+  Alert,
 } from "react-native"
 import { MaterialCommunityIcons } from "@expo/vector-icons"
 import Slider from "@react-native-community/slider"
@@ -63,22 +64,18 @@ const NewEvent = ({ navigation }) => {
   const [showEndDate, setShowEndDate] = useState(false)
   const [showStartTime, setShowStartTime] = useState(false)
   const [showEndTime, setShowEndTime] = useState(false)
-  const [showWarning, setShowWarning] = useState(false)
   const [location, setLocation] = useState("")
-  const [time, setTime] = useState(null)
-  const [showTimePicker, setShowTimePicker] = useState(false)
   const [eventType, setEventType] = useState(null)
   const [participantCount, setParticipantCount] = useState("")
-  const [showStartPicker, setShowStartPicker] = useState(false) // Added
-  const [showEndPicker, setShowEndPicker] = useState(false) // Added
+  const [teamCount, setTeamCount] = useState("")
+  const [membersPerTeam, setMembersPerTeam] = useState("")
 
-  // Funksjon for å håndtere dato-valg
   const handleDateChange = (event, selectedDate, type) => {
     if (type === "start") {
-      setShowStartPicker(false)
+      setShowStartDate(false)
       if (selectedDate) setStartDate(selectedDate)
     } else {
-      setShowEndPicker(false)
+      setShowEndDate(false)
       if (selectedDate) setEndDate(selectedDate)
     }
   }
@@ -117,34 +114,37 @@ const NewEvent = ({ navigation }) => {
     setDescription(activity.description)
     setGoalValue(activity.defaultGoal)
     setShowActivityModal(false)
-    setShowWarning(false) // Fjerner advarselen når en aktivitet velges
   }
 
   const handleConfirm = () => {
+    if (!selectedActivity) {
+      Alert.alert("Velg aktivitet", "Du må velge en aktivitet før du kan opprette hendelsen.")
+      return
+    }
+
     const eventData = {
       type: eventType,
       title,
       description,
-      startDate,
-      startTime,
-      endDate,
-      endTime,
+      startDate: startDate.toISOString(),
+      startTime: startTime.toISOString(),
+      endDate: endDate.toISOString(),
+      endTime: endTime.toISOString(),
       goalValue,
-      activityType: selectedActivity?.type,
-      activityUnit: selectedActivity?.unit,
+      activityType: selectedActivity.type,
+      activityUnit: selectedActivity.unit,
       location,
-      participantCount: eventType === "team" ? Number.parseInt(participantCount, 10) : 1,
+      // Convert participantCount to number and ensure it's at least 1
+      participantCount: Math.max(1, Number.parseInt(participantCount, 10) || 1),
+      teamCount: eventType === "team" ? Number.parseInt(teamCount, 10) || 1 : 1,
+      membersPerTeam: eventType === "team" ? Number.parseInt(membersPerTeam, 10) || 1 : 1,
       status: "active",
       participants: [],
       results: {},
     }
 
     console.log("Creating event:", eventData)
-    if (eventType === "individual") {
-      navigation.navigate("ActiveSoloEvent", { eventData })
-    } else {
-      navigation.navigate("ActiveEvent", { eventData })
-    }
+    navigation.navigate("ActiveEvent", { eventDetails: eventData })
   }
 
   return (
@@ -355,6 +355,61 @@ const NewEvent = ({ navigation }) => {
                       keyboardType="numeric"
                     />
                   </View>
+
+                  <Text style={[styles.label, { color: theme.text }]}>Antall lag</Text>
+                  <View
+                    style={[
+                      styles.inputContainer,
+                      { backgroundColor: isDarkMode ? "#2A2A2A" : theme.surface, borderColor: theme.border },
+                    ]}
+                  >
+                    <TextInput
+                      style={[styles.input, { color: theme.text }]}
+                      value={teamCount}
+                      onChangeText={setTeamCount}
+                      placeholder="Skriv inn antall lag"
+                      placeholderTextColor={theme.textSecondary}
+                      keyboardType="numeric"
+                    />
+                  </View>
+
+                  <Text style={[styles.label, { color: theme.text }]}>Medlemmer per lag</Text>
+                  <View
+                    style={[
+                      styles.inputContainer,
+                      { backgroundColor: isDarkMode ? "#2A2A2A" : theme.surface, borderColor: theme.border },
+                    ]}
+                  >
+                    <TextInput
+                      style={[styles.input, { color: theme.text }]}
+                      value={membersPerTeam}
+                      onChangeText={setMembersPerTeam}
+                      placeholder="Skriv inn antall medlemmer per lag"
+                      placeholderTextColor={theme.textSecondary}
+                      keyboardType="numeric"
+                    />
+                  </View>
+                </>
+              )}
+
+              {eventType === "individual" && (
+                <>
+                  <Text style={[styles.label, { color: theme.text }]}>Antall deltakere</Text>
+                  <View
+                    style={[
+                      styles.inputContainer,
+                      { backgroundColor: isDarkMode ? "#2A2A2A" : theme.surface, borderColor: theme.border },
+                    ]}
+                  >
+                    <TextInput
+                      style={[styles.input, { color: theme.text }]}
+                      value={participantCount}
+                      onChangeText={setParticipantCount}
+                      placeholder="Skriv inn antall deltakere"
+                      placeholderTextColor={theme.textSecondary}
+                      keyboardType="numeric"
+                    />
+                  </View>
                 </>
               )}
 
@@ -375,7 +430,7 @@ const NewEvent = ({ navigation }) => {
             </>
           )}
 
-          {/* Activity Selection Modal - NEW */}
+          {/* Activity Selection Modal */}
           <Modal visible={showActivityModal} animationType="slide" transparent={true}>
             <View style={[styles.modalContainer, { backgroundColor: "rgba(0,0,0,0.5)" }]}>
               <View style={[styles.modalContent, { backgroundColor: theme.background }]}>
