@@ -1,6 +1,6 @@
-"use client";
+"use client"
 
-import { useState, useRef, useCallback, useMemo } from "react";
+import { useState, useRef, useCallback, useMemo } from "react"
 import {
   SafeAreaView,
   View,
@@ -14,38 +14,30 @@ import {
   Easing,
   TextInput,
   Modal,
-  Switch,
-} from "react-native";
-import {
-  TrendingUp,
-  TrendingDown,
-  ChevronDown,
-  Search,
-  X,
-} from "lucide-react-native";
-import { useTheme } from "../context/ThemeContext";
-import { BlurView } from "expo-blur";
-import { LinearGradient } from "expo-linear-gradient";
+} from "react-native"
+import { TrendingUp, TrendingDown, ChevronDown, Search, X } from "lucide-react-native"
+import { useTheme } from "../context/ThemeContext"
+import { BlurView } from "expo-blur"
+import { LinearGradient } from "expo-linear-gradient"
 
-const AnimatedFlatList = Animated.createAnimatedComponent(FlatList);
+const AnimatedFlatList = Animated.createAnimatedComponent(FlatList)
 
-const { width: SCREEN_WIDTH } = Dimensions.get("window");
+const { width: SCREEN_WIDTH } = Dimensions.get("window")
 
-const SEGMENT_OPTIONS = ["Daily", "Weekly", "Monthly", "All Time"];
+const SEGMENT_OPTIONS = ["Daily", "Weekly", "Monthly", "All Time"]
 
 const Leaderboard = () => {
-  const scrollY = useRef(new Animated.Value(0)).current;
-  const [selectedSegment, setSelectedSegment] = useState("Daily");
-  const [filterOption, setFilterOption] = useState("All");
-  const [showSearch, setShowSearch] = useState(false);
-  const [showFilterModal, setShowFilterModal] = useState(false);
-  const [searchQuery, setSearchQuery] = useState("");
-  const { theme, isDarkMode, toggleTheme } = useTheme();
-  const [leaderboardType, setLeaderboardType] = useState("General");
-  const [showLeaderboardTypeDropdown, setShowLeaderboardTypeDropdown] =
-    useState(false);
+  const scrollY = useRef(new Animated.Value(0)).current
+  const [selectedSegment, setSelectedSegment] = useState("Daily")
+  const [filterOption, setFilterOption] = useState("All")
+  const [showSearch, setShowSearch] = useState(false)
+  const [showFilterModal, setShowFilterModal] = useState(false)
+  const [searchQuery, setSearchQuery] = useState("")
+  const { theme, isDarkMode, accentColor } = useTheme()
+  const [leaderboardType, setLeaderboardType] = useState("General")
+  const [showLeaderboardTypeDropdown, setShowLeaderboardTypeDropdown] = useState(false)
 
-  const searchAnimation = useRef(new Animated.Value(0)).current;
+  const searchAnimation = useRef(new Animated.Value(0)).current
 
   const generalLeaderboardData = [
     {
@@ -88,7 +80,7 @@ const Leaderboard = () => {
       avatar: require("../../../assets/figure/avatar2.jpg"),
       change: -2,
     },
-  ];
+  ]
 
   const eventLeaderboardData = [
     {
@@ -115,33 +107,29 @@ const Leaderboard = () => {
       avatar: require("../../../assets/figure/avatar5.jpeg"),
       change: 3,
     },
-  ];
+  ]
 
   const filteredData = useMemo(() => {
-    const typeFilteredData =
-      leaderboardType === "General"
-        ? generalLeaderboardData
-        : eventLeaderboardData;
+    const typeFilteredData = leaderboardType === "General" ? generalLeaderboardData : eventLeaderboardData
 
     return typeFilteredData
       .filter(
         (item) =>
           (filterOption === "All" || item.department === filterOption) &&
-          (searchQuery === "" ||
-            item.name.toLowerCase().includes(searchQuery.toLowerCase()))
+          (searchQuery === "" || item.name.toLowerCase().includes(searchQuery.toLowerCase())),
       )
-      .sort((a, b) => b.points - a.points);
-  }, [filterOption, searchQuery, leaderboardType]);
+      .sort((a, b) => b.points - a.points)
+  }, [filterOption, searchQuery, leaderboardType])
 
   const toggleSearch = useCallback(() => {
-    setShowSearch(!showSearch);
+    setShowSearch(!showSearch)
     Animated.timing(searchAnimation, {
       toValue: showSearch ? 0 : 1,
       duration: 300,
       easing: Easing.inOut(Easing.ease),
       useNativeDriver: false,
-    }).start();
-  }, [showSearch, searchAnimation]);
+    }).start()
+  }, [showSearch, searchAnimation])
 
   const renderLeaderboardItem = useCallback(
     ({ item, index }) => (
@@ -168,36 +156,23 @@ const Leaderboard = () => {
           style={StyleSheet.absoluteFill}
         />
         <View style={styles.rankContainer}>
-          <Text style={[styles.rankText, { color: theme.text }]}>
-            {index + 1}
-          </Text>
+          <Text style={[styles.rankText, { color: theme.text }]}>{index + 1}</Text>
         </View>
         <Image source={item.avatar} style={styles.avatar} />
         <View style={styles.infoContainer}>
-          <Text style={[styles.nameText, { color: theme.text }]}>
-            {item.name}
-          </Text>
-          <Text style={[styles.departmentText, { color: theme.textSecondary }]}>
-            {item.department}
-          </Text>
+          <Text style={[styles.nameText, { color: theme.text }]}>{item.name}</Text>
+          <Text style={[styles.departmentText, { color: theme.textSecondary }]}>{item.department}</Text>
         </View>
         <View style={styles.pointsContainer}>
-          <Text style={[styles.pointsText, { color: "#50C3AA" }]}>
-            {item.points}
-          </Text>
+          <Text style={[styles.pointsText, { color: accentColor }]}>{item.points}</Text>
           {item.change !== 0 && (
             <View style={styles.changeContainer}>
               {item.change > 0 ? (
-                <TrendingUp size={12} color="#50C3AA" />
+                <TrendingUp size={12} color={accentColor} />
               ) : (
                 <TrendingDown size={12} color={theme.error} />
               )}
-              <Text
-                style={[
-                  styles.changeText,
-                  { color: item.change > 0 ? "#50C3AA" : theme.error },
-                ]}
-              >
+              <Text style={[styles.changeText, { color: item.change > 0 ? accentColor : theme.error }]}>
                 {Math.abs(item.change)}
               </Text>
             </View>
@@ -205,38 +180,27 @@ const Leaderboard = () => {
         </View>
       </Animated.View>
     ),
-    [theme, searchAnimation]
-  );
+    [theme, searchAnimation, accentColor],
+  )
 
   const renderHeader = useCallback(
     () => (
       <View style={styles.header}>
-        <BlurView
-          intensity={100}
-          style={StyleSheet.absoluteFill}
-          tint={isDarkMode ? "dark" : "light"}
-        />
+        <BlurView intensity={100} style={StyleSheet.absoluteFill} tint={isDarkMode ? "dark" : "light"} />
         <View style={styles.headerContent}>
           <View style={styles.titleWrapper}>
-            <TouchableOpacity
-              style={styles.titleContainer}
-              onPress={() => setShowLeaderboardTypeDropdown(true)}
-            >
+            <TouchableOpacity style={styles.titleContainer} onPress={() => setShowLeaderboardTypeDropdown(true)}>
               <Text
                 style={[
                   styles.title,
                   {
-                    color: leaderboardType === "General" ? "" : theme.text,
+                    color: leaderboardType === "General" ? accentColor : theme.text,
                   },
                 ]}
               >
                 {leaderboardType === "General" ? "General " : "Event "}
               </Text>
-              <ChevronDown
-                size={16}
-                color={theme.text}
-                style={styles.titleIcon}
-              />
+              <ChevronDown size={16} color={theme.text} style={styles.titleIcon} />
             </TouchableOpacity>
             <Modal
               visible={showLeaderboardTypeDropdown}
@@ -249,33 +213,26 @@ const Leaderboard = () => {
                 activeOpacity={1}
                 onPress={() => setShowLeaderboardTypeDropdown(false)}
               >
-                <BlurView
-                  intensity={20}
-                  style={[styles.dropdownContent]}
-                  tint="light"
-                >
+                <BlurView intensity={20} style={[styles.dropdownContent]} tint={isDarkMode ? "dark" : "light"}>
                   {["General", "Event"].map((option) => (
                     <TouchableOpacity
                       key={option}
                       style={[
                         styles.dropdownItem,
                         leaderboardType === option && {
-                          backgroundColor: "rgba(80, 195, 170, 0.1)",
+                          backgroundColor: `${accentColor}20`,
                         },
                       ]}
                       onPress={() => {
-                        setLeaderboardType(option);
-                        setShowLeaderboardTypeDropdown(false);
+                        setLeaderboardType(option)
+                        setShowLeaderboardTypeDropdown(false)
                       }}
                     >
                       <Text
                         style={[
                           styles.dropdownItemText,
                           {
-                            color:
-                              leaderboardType === option
-                                ? "#50C3AA"
-                                : theme.text,
+                            color: leaderboardType === option ? accentColor : theme.text,
                           },
                         ]}
                       >
@@ -289,24 +246,16 @@ const Leaderboard = () => {
           </View>
           <View style={styles.headerButtons}>
             <TouchableOpacity
-              style={[
-                styles.iconButton,
-                { backgroundColor: theme.surfaceVariant },
-              ]}
+              style={[styles.iconButton, { backgroundColor: theme.surfaceVariant }]}
               onPress={toggleSearch}
             >
               <Search size={20} color={theme.text} />
             </TouchableOpacity>
             <TouchableOpacity
-              style={[
-                styles.filterButton,
-                { backgroundColor: theme.surfaceVariant },
-              ]}
+              style={[styles.filterButton, { backgroundColor: theme.surfaceVariant }]}
               onPress={() => setShowFilterModal(true)}
             >
-              <Text style={[styles.filterButtonText, { color: theme.text }]}>
-                {filterOption}
-              </Text>
+              <Text style={[styles.filterButtonText, { color: theme.text }]}>{filterOption}</Text>
               <ChevronDown size={20} color={theme.text} />
             </TouchableOpacity>
           </View>
@@ -323,17 +272,8 @@ const Leaderboard = () => {
             },
           ]}
         >
-          <BlurView
-            intensity={100}
-            style={StyleSheet.absoluteFill}
-            tint={isDarkMode ? "dark" : "light"}
-          />
-          <View
-            style={[
-              styles.searchInputContainer,
-              { backgroundColor: theme.surfaceVariant },
-            ]}
-          >
+          <BlurView intensity={100} style={StyleSheet.absoluteFill} tint={isDarkMode ? "dark" : "light"} />
+          <View style={[styles.searchInputContainer, { backgroundColor: theme.surfaceVariant }]}>
             <Search size={20} color={theme.textSecondary} />
             <TextInput
               style={[styles.searchInput, { color: theme.text }]}
@@ -356,7 +296,7 @@ const Leaderboard = () => {
               style={[
                 styles.segmentOption,
                 selectedSegment === option && {
-                  backgroundColor: "#50C3AA",
+                  backgroundColor: accentColor,
                 },
               ]}
               onPress={() => setSelectedSegment(option)}
@@ -386,45 +326,35 @@ const Leaderboard = () => {
       toggleSearch,
       leaderboardType,
       showLeaderboardTypeDropdown,
-    ]
-  );
+      accentColor,
+    ],
+  )
 
   const renderFilterModal = () => (
-    <Modal
-      visible={showFilterModal}
-      transparent
-      animationType="fade"
-      onRequestClose={() => setShowFilterModal(false)}
-    >
+    <Modal visible={showFilterModal} transparent animationType="fade" onRequestClose={() => setShowFilterModal(false)}>
       <View style={styles.modalOverlay}>
-        <BlurView
-          intensity={100}
-          style={StyleSheet.absoluteFill}
-          tint={isDarkMode ? "dark" : "light"}
-        />
+        <BlurView intensity={100} style={StyleSheet.absoluteFill} tint={isDarkMode ? "dark" : "light"} />
         <View style={[styles.modalContent, { backgroundColor: theme.surface }]}>
-          <Text style={[styles.modalTitle, { color: theme.text }]}>
-            Filter Options
-          </Text>
+          <Text style={[styles.modalTitle, { color: theme.text }]}>Filter Options</Text>
           {["All", "IT", "HR", "Finance"].map((option) => (
             <TouchableOpacity
               key={option}
               style={[
                 styles.filterOption,
                 filterOption === option && {
-                  backgroundColor: "rgba(80, 195, 170, 0.1)",
+                  backgroundColor: `${accentColor}20`,
                 },
               ]}
               onPress={() => {
-                setFilterOption(option);
-                setShowFilterModal(false);
+                setFilterOption(option)
+                setShowFilterModal(false)
               }}
             >
               <Text
                 style={[
                   styles.filterOptionText,
                   {
-                    color: filterOption === option ? "#50C3AA" : theme.text,
+                    color: filterOption === option ? accentColor : theme.text,
                   },
                 ]}
               >
@@ -432,26 +362,13 @@ const Leaderboard = () => {
               </Text>
             </TouchableOpacity>
           ))}
-          <View style={styles.themeToggleContainer}>
-            <Text style={[styles.themeToggleText, { color: theme.text }]}>
-              Dark Mode
-            </Text>
-            <Switch
-              value={isDarkMode}
-              onValueChange={toggleTheme}
-              trackColor={{ false: theme.surfaceVariant, true: "#50C3AA" }}
-              thumbColor={isDarkMode ? theme.background : theme.text}
-            />
-          </View>
         </View>
       </View>
     </Modal>
-  );
+  )
 
   return (
-    <SafeAreaView
-      style={[styles.container, { backgroundColor: theme.background }]}
-    >
+    <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]}>
       {renderHeader()}
       <AnimatedFlatList
         data={filteredData}
@@ -459,16 +376,13 @@ const Leaderboard = () => {
         keyExtractor={(item) => item.id}
         contentContainerStyle={styles.listContent}
         showsVerticalScrollIndicator={false}
-        onScroll={Animated.event(
-          [{ nativeEvent: { contentOffset: { y: scrollY } } }],
-          { useNativeDriver: true }
-        )}
+        onScroll={Animated.event([{ nativeEvent: { contentOffset: { y: scrollY } } }], { useNativeDriver: true })}
         scrollEventThrottle={16}
       />
       {renderFilterModal()}
     </SafeAreaView>
-  );
-};
+  )
+}
 
 const styles = StyleSheet.create({
   container: {
@@ -662,15 +576,7 @@ const styles = StyleSheet.create({
   filterOptionText: {
     fontSize: 16,
   },
-  themeToggleContainer: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginTop: 16,
-  },
-  themeToggleText: {
-    fontSize: 16,
-  },
-});
+})
 
-export default Leaderboard;
+export default Leaderboard
+
