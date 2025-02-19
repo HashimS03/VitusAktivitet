@@ -11,12 +11,11 @@ import {
   TouchableOpacity,
   Image,
   Modal,
-  Platform,
 } from "react-native"
 import { MaterialCommunityIcons } from "@expo/vector-icons"
 import Slider from "@react-native-community/slider"
-import DateTimePicker from "@react-native-community/datetimepicker"
 import { useTheme } from "../context/ThemeContext"
+import DateTimePicker from "@react-native-community/datetimepicker"
 
 // Predefinerte aktiviteter
 const PREDEFINED_ACTIVITIES = [
@@ -56,14 +55,22 @@ const NewEvent = ({ navigation }) => {
   const [goalValue, setGoalValue] = useState(50)
   const [selectedActivity, setSelectedActivity] = useState(null)
   const [showActivityModal, setShowActivityModal] = useState(false)
-  const [startDate, setStartDate] = useState(null)
-  const [endDate, setEndDate] = useState(null)
-  const [showStartPicker, setShowStartPicker] = useState(false)
-  const [showEndPicker, setShowEndPicker] = useState(false)
+  const [startDate, setStartDate] = useState(new Date())
+  const [endDate, setEndDate] = useState(new Date())
+  const [startTime, setStartTime] = useState(new Date())
+  const [endTime, setEndTime] = useState(new Date())
+  const [showStartDate, setShowStartDate] = useState(false)
+  const [showEndDate, setShowEndDate] = useState(false)
+  const [showStartTime, setShowStartTime] = useState(false)
+  const [showEndTime, setShowEndTime] = useState(false)
   const [showWarning, setShowWarning] = useState(false)
   const [location, setLocation] = useState("")
   const [time, setTime] = useState(null)
   const [showTimePicker, setShowTimePicker] = useState(false)
+  const [eventType, setEventType] = useState(null)
+  const [participantCount, setParticipantCount] = useState("")
+  const [showStartPicker, setShowStartPicker] = useState(false) // Added
+  const [showEndPicker, setShowEndPicker] = useState(false) // Added
 
   // Funksjon for å håndtere dato-valg
   const handleDateChange = (event, selectedDate, type) => {
@@ -73,6 +80,34 @@ const NewEvent = ({ navigation }) => {
     } else {
       setShowEndPicker(false)
       if (selectedDate) setEndDate(selectedDate)
+    }
+  }
+
+  const onStartDateChange = (event, selectedDate) => {
+    setShowStartDate(false)
+    if (selectedDate) {
+      setStartDate(selectedDate)
+    }
+  }
+
+  const onEndDateChange = (event, selectedDate) => {
+    setShowEndDate(false)
+    if (selectedDate) {
+      setEndDate(selectedDate)
+    }
+  }
+
+  const onStartTimeChange = (event, selectedTime) => {
+    setShowStartTime(false)
+    if (selectedTime) {
+      setStartTime(selectedTime)
+    }
+  }
+
+  const onEndTimeChange = (event, selectedTime) => {
+    setShowEndTime(false)
+    if (selectedTime) {
+      setEndTime(selectedTime)
     }
   }
 
@@ -86,30 +121,41 @@ const NewEvent = ({ navigation }) => {
   }
 
   const handleConfirm = () => {
-    // Create event object with all necessary data
     const eventData = {
+      type: eventType,
       title,
       description,
       startDate,
+      startTime,
       endDate,
+      endTime,
       goalValue,
       activityType: selectedActivity?.type,
       activityUnit: selectedActivity?.unit,
+      location,
+      participantCount: eventType === "team" ? Number.parseInt(participantCount, 10) : 1,
       status: "active",
-      participants: [], // Will be populated when users join
-      results: {}, // Will store user results
+      participants: [],
+      results: {},
     }
 
     console.log("Creating event:", eventData)
-    navigation.navigate("ActiveEvent")
+    if (eventType === "individual") {
+      navigation.navigate("ActiveSoloEvent", { eventData })
+    } else {
+      navigation.navigate("ActiveEvent", { eventData })
+    }
   }
 
   return (
     <SafeAreaView style={[styles.safeArea, { backgroundColor: theme.background }]}>
       <ScrollView style={styles.scrollContainer} contentContainerStyle={styles.contentContainer}>
-        <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
-          <MaterialCommunityIcons name="chevron-left" size={28} color={theme.text} />
-        </TouchableOpacity>
+        <View style={[styles.headerContainer, { backgroundColor: theme.surface }]}>
+          <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
+            <MaterialCommunityIcons name="chevron-left" size={28} color={theme.text} />
+          </TouchableOpacity>
+          <Text style={[styles.headerTitle, { color: theme.text }]}>Ny hendelse</Text>
+        </View>
 
         <Image
           source={require("../../../assets/vitusaktivitet_v2_sq.png")}
@@ -118,225 +164,216 @@ const NewEvent = ({ navigation }) => {
         />
 
         <View style={styles.formContainer}>
-          <Text style={[styles.label, { color: theme.text }]}>Velg Aktivitet</Text>
-          <TouchableOpacity
-            style={[
-              styles.activitySelector,
-              { backgroundColor: isDarkMode ? "#2A2A2A" : theme.surface, borderColor: theme.border },
-            ]}
-            onPress={() => setShowActivityModal(true)}
-          >
-            <Text style={[styles.activitySelectorText, { color: theme.text }]}>
-              {selectedActivity ? selectedActivity.name : "Velg en aktivitet"}
-            </Text>
-            <MaterialCommunityIcons name="chevron-down" size={24} color={theme.text} />
-          </TouchableOpacity>
-
-          <Text style={[styles.label, { color: theme.text }]}>Legg til Tittel på Aktivitet</Text>
-          <View
-            style={[
-              styles.inputContainer,
-              { backgroundColor: isDarkMode ? "#2A2A2A" : theme.surface, borderColor: theme.border },
-            ]}
-          >
-            <TextInput
-              style={[styles.input, { color: theme.text }]}
-              value={title}
-              onChangeText={setTitle}
-              placeholder="Tittle"
-              placeholderTextColor={theme.textSecondary}
-            />
-            {title !== "" && (
-              <TouchableOpacity style={styles.clearButton} onPress={() => setTitle("")}>
-                <MaterialCommunityIcons name="close" size={20} color={theme.textSecondary} />
-              </TouchableOpacity>
-            )}
+          <Text style={[styles.label, { color: theme.text }]}>Velg hendelsestype</Text>
+          <View style={styles.eventTypeButtons}>
+            <TouchableOpacity
+              style={[
+                styles.eventTypeButton,
+                { borderColor: theme.border },
+                eventType === "team" && { backgroundColor: theme.primary },
+              ]}
+              onPress={() => setEventType("team")}
+            >
+              <MaterialCommunityIcons
+                name="account-group"
+                size={24}
+                color={eventType === "team" ? theme.background : theme.text}
+              />
+              <Text
+                style={[styles.eventTypeButtonText, { color: eventType === "team" ? theme.background : theme.text }]}
+              >
+                Team hendelse
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[
+                styles.eventTypeButton,
+                { borderColor: theme.border },
+                eventType === "individual" && { backgroundColor: theme.primary },
+              ]}
+              onPress={() => setEventType("individual")}
+            >
+              <MaterialCommunityIcons
+                name="account"
+                size={24}
+                color={eventType === "individual" ? theme.background : theme.text}
+              />
+              <Text
+                style={[
+                  styles.eventTypeButtonText,
+                  { color: eventType === "individual" ? theme.background : theme.text },
+                ]}
+              >
+                Individuell hendelse
+              </Text>
+            </TouchableOpacity>
           </View>
 
-          <Text style={[styles.label, { color: theme.text }]}>Legg til Beskrivelse på Aktivitet</Text>
-          <View
-            style={[
-              styles.inputContainer,
-              { backgroundColor: isDarkMode ? "#2A2A2A" : theme.surface, borderColor: theme.border },
-            ]}
-          >
-            <TextInput
-              style={[styles.input, { color: theme.text }]}
-              value={description}
-              onChangeText={setDescription}
-              placeholder="Description"
-              placeholderTextColor={theme.textSecondary}
-              multiline
-            />
-            {description !== "" && (
-              <TouchableOpacity style={styles.clearButton} onPress={() => setDescription("")}>
-                <MaterialCommunityIcons name="close" size={20} color={theme.textSecondary} />
-              </TouchableOpacity>
-            )}
-          </View>
-
-          <Text style={[styles.label, { color: theme.text }]}>
-            Velg et Mål {selectedActivity ? `(${selectedActivity.unit})` : ""}
-          </Text>
-
-          <View style={styles.sliderContainer}>
-            <Slider
-              style={styles.slider}
-              value={goalValue}
-              onTouchStart={() => {
-                if (!selectedActivity) {
-                  setShowWarning(true) // Aktiver advarsel
-                }
-              }}
-              onValueChange={(value) => {
-                if (!selectedActivity) {
-                  setShowWarning(true) // Aktiver advarsel
-                } else {
-                  setGoalValue(value)
-                  setShowWarning(false) // Fjern advarsel hvis aktivitet er valgt
-                }
-              }}
-              disabled={!selectedActivity}
-              minimumValue={0}
-              maximumValue={selectedActivity?.type === "duration" ? 300 : 100}
-              minimumTrackTintColor={selectedActivity ? theme.primary : theme.border}
-              maximumTrackTintColor={theme.border}
-              thumbTintColor={selectedActivity ? theme.primary : theme.border}
-            />
-
-            {/* Dynamisk tekst som skifter farge */}
-            <Text style={[styles.goalValueText, { color: theme.text }, showWarning && styles.warningText]}>
-              {!selectedActivity
-                ? showWarning
-                  ? "Velg aktivitet *"
-                  : "Velg aktivitet"
-                : selectedActivity?.type === "duration"
-                  ? `${Math.floor(goalValue / 60)} min ${Math.floor(goalValue % 60)} sek`
-                  : `${Math.round(goalValue)} ${selectedActivity?.unit || "enheter"}`}
-            </Text>
-          </View>
-
-          <Text style={[styles.label, { color: theme.text }]}>Velg Lokasjon/Sted</Text>
-          <View
-            style={[
-              styles.inputContainer,
-              { backgroundColor: isDarkMode ? "#2A2A2A" : theme.surface, borderColor: theme.border },
-            ]}
-          >
-            <TextInput
-              style={[styles.input, { color: theme.text }]}
-              value={location}
-              onChangeText={setLocation}
-              placeholder="Skriv inn lokasjon"
-              placeholderTextColor={theme.textSecondary}
-            />
-            {location !== "" && (
-              <TouchableOpacity style={styles.clearButton} onPress={() => setLocation("")}>
-                <MaterialCommunityIcons name="close" size={20} color={theme.textSecondary} />
-              </TouchableOpacity>
-            )}
-          </View>
-
-          <View style={styles.formContainer}>
-            <Text style={[styles.label, { color: theme.text }]}>Velg en Dato</Text>
-            <View style={styles.dateContainer}>
-              {/* Start Date Picker */}
+          {eventType && (
+            <>
+              <Text style={[styles.label, { color: theme.text, marginTop: 24 }]}>Velg Aktivitet</Text>
               <TouchableOpacity
                 style={[
-                  styles.dateInput,
+                  styles.activitySelector,
                   { backgroundColor: isDarkMode ? "#2A2A2A" : theme.surface, borderColor: theme.border },
                 ]}
-                onPress={() => setShowStartPicker(true)}
+                onPress={() => setShowActivityModal(true)}
               >
-                <Text style={[styles.dateText, { color: theme.text }]}>
-                  {startDate ? startDate.toLocaleDateString() : "Start Date"}
+                <Text style={[styles.activitySelectorText, { color: theme.text }]}>
+                  {selectedActivity ? selectedActivity.name : "Velg en aktivitet"}
                 </Text>
+                <MaterialCommunityIcons name="chevron-down" size={24} color={theme.text} />
               </TouchableOpacity>
 
-              {/* End Date Picker */}
-              <TouchableOpacity
+              <Text style={[styles.label, { color: theme.text }]}>Hendelsesnavn</Text>
+              <View
                 style={[
-                  styles.dateInput,
+                  styles.inputContainer,
                   { backgroundColor: isDarkMode ? "#2A2A2A" : theme.surface, borderColor: theme.border },
                 ]}
-                onPress={() => setShowEndPicker(true)}
               >
-                <Text style={[styles.dateText, { color: theme.text }]}>
-                  {endDate ? endDate.toLocaleDateString() : "End Date"}
-                </Text>
-              </TouchableOpacity>
-            </View>
+                <TextInput
+                  style={[styles.input, { color: theme.text }]}
+                  value={title}
+                  onChangeText={setTitle}
+                  placeholder="Skriv inn hendelsesnavn"
+                  placeholderTextColor={theme.textSecondary}
+                />
+              </View>
 
-            {/* Faktiske DateTimePicker-modaler */}
-            {showStartPicker && (
-              <DateTimePicker
-                value={startDate || new Date()}
-                mode="date"
-                display={Platform.OS === "ios" ? "inline" : "default"}
-                onChange={(event, date) => handleDateChange(event, date, "start")}
-                textColor={theme.text}
-              />
-            )}
-
-            {showEndPicker && (
-              <DateTimePicker
-                value={endDate || new Date()}
-                mode="date"
-                display={Platform.OS === "ios" ? "inline" : "default"}
-                onChange={(event, date) => handleDateChange(event, date, "end")}
-                textColor={theme.text}
-              />
-            )}
-
-            <View style={styles.timeContainer}>
-              <Text style={[styles.label, { color: theme.text }]}>Velg Klokkeslett</Text>
-              <TouchableOpacity
+              <Text style={[styles.label, { color: theme.text }]}>Beskrivelse</Text>
+              <View
                 style={[
-                  styles.dateInput,
+                  styles.inputContainer,
                   { backgroundColor: isDarkMode ? "#2A2A2A" : theme.surface, borderColor: theme.border },
                 ]}
-                onPress={() => setShowTimePicker(true)}
               >
-                <Text style={[styles.dateText, { color: theme.text }]}>
-                  {time
-                    ? time.toLocaleTimeString([], {
-                        hour: "2-digit",
-                        minute: "2-digit",
-                      })
-                    : "Velg klokkeslett"}
+                <TextInput
+                  style={[styles.input, { color: theme.text }]}
+                  value={description}
+                  onChangeText={setDescription}
+                  placeholder="Skriv inn beskrivelse"
+                  placeholderTextColor={theme.textSecondary}
+                  multiline
+                />
+              </View>
+
+              <Text style={[styles.label, { color: theme.text }]}>
+                Mål {selectedActivity ? `(${selectedActivity.unit})` : ""}
+              </Text>
+              <View style={styles.sliderContainer}>
+                <Slider
+                  style={styles.slider}
+                  value={goalValue}
+                  onValueChange={(value) => setGoalValue(value)}
+                  minimumValue={0}
+                  maximumValue={selectedActivity?.type === "duration" ? 300 : 100}
+                  minimumTrackTintColor={theme.primary}
+                  maximumTrackTintColor={theme.border}
+                  thumbTintColor={theme.primary}
+                />
+                <Text style={[styles.goalValueText, { color: theme.text }]}>
+                  {selectedActivity?.type === "duration"
+                    ? `${Math.floor(goalValue / 60)} min ${Math.floor(goalValue % 60)} sek`
+                    : `${Math.round(goalValue)} ${selectedActivity?.unit || "enheter"}`}
                 </Text>
-              </TouchableOpacity>
-            </View>
+              </View>
 
-            {showTimePicker && (
-              <DateTimePicker
-                value={time || new Date()}
-                mode="time"
-                display={Platform.OS === "ios" ? "spinner" : "default"}
-                onChange={(event, selectedTime) => {
-                  setShowTimePicker(false)
-                  if (selectedTime) setTime(selectedTime)
-                }}
-                textColor={theme.text}
-              />
-            )}
+              <Text style={[styles.label, { color: theme.text }]}>Lokasjon</Text>
+              <View
+                style={[
+                  styles.inputContainer,
+                  { backgroundColor: isDarkMode ? "#2A2A2A" : theme.surface, borderColor: theme.border },
+                ]}
+              >
+                <TextInput
+                  style={[styles.input, { color: theme.text }]}
+                  value={location}
+                  onChangeText={setLocation}
+                  placeholder="Skriv inn lokasjon"
+                  placeholderTextColor={theme.textSecondary}
+                />
+              </View>
 
-            <View style={styles.buttonContainer}>
-              <TouchableOpacity
-                style={[styles.cancelButton, { backgroundColor: isDarkMode ? "#2A2A2A" : "#FFF2F2" }]}
-                onPress={() => navigation.goBack()}
-              >
-                <Text style={[styles.buttonText, { color: "#FF0000" }]}>Avbryt</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.confirmButton, { backgroundColor: selectedActivity ? theme.accentColor : "#2A2A2A" }]}
-                onPress={handleConfirm}
-                disabled={!selectedActivity}
-              >
-                <Text style={[styles.buttonText, { color: "#FFFFFF" }]}>Godta</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
+              <View style={styles.dateTimeSection}>
+                <Text style={[styles.label, { color: theme.text }]}>Start dato og tid</Text>
+                <View style={styles.dateTimeContainer}>
+                  <TouchableOpacity
+                    style={[styles.dateTimeInput, { backgroundColor: theme.surface, borderColor: theme.border }]}
+                    onPress={() => setShowStartDate(true)}
+                  >
+                    <MaterialCommunityIcons name="calendar" size={20} color={theme.textSecondary} />
+                    <Text style={[styles.dateTimeText, { color: theme.text }]}>{startDate.toLocaleDateString()}</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.dateTimeInput, { backgroundColor: theme.surface, borderColor: theme.border }]}
+                    onPress={() => setShowStartTime(true)}
+                  >
+                    <MaterialCommunityIcons name="clock-outline" size={20} color={theme.textSecondary} />
+                    <Text style={[styles.dateTimeText, { color: theme.text }]}>
+                      {startTime.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+
+                <Text style={[styles.label, { color: theme.text }]}>Slutt dato og tid</Text>
+                <View style={styles.dateTimeContainer}>
+                  <TouchableOpacity
+                    style={[styles.dateTimeInput, { backgroundColor: theme.surface, borderColor: theme.border }]}
+                    onPress={() => setShowEndDate(true)}
+                  >
+                    <MaterialCommunityIcons name="calendar" size={20} color={theme.textSecondary} />
+                    <Text style={[styles.dateTimeText, { color: theme.text }]}>{endDate.toLocaleDateString()}</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.dateTimeInput, { backgroundColor: theme.surface, borderColor: theme.border }]}
+                    onPress={() => setShowEndTime(true)}
+                  >
+                    <MaterialCommunityIcons name="clock-outline" size={20} color={theme.textSecondary} />
+                    <Text style={[styles.dateTimeText, { color: theme.text }]}>
+                      {endTime.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+
+              {eventType === "team" && (
+                <>
+                  <Text style={[styles.label, { color: theme.text }]}>Antall deltakere</Text>
+                  <View
+                    style={[
+                      styles.inputContainer,
+                      { backgroundColor: isDarkMode ? "#2A2A2A" : theme.surface, borderColor: theme.border },
+                    ]}
+                  >
+                    <TextInput
+                      style={[styles.input, { color: theme.text }]}
+                      value={participantCount}
+                      onChangeText={setParticipantCount}
+                      placeholder="Skriv inn antall deltakere"
+                      placeholderTextColor={theme.textSecondary}
+                      keyboardType="numeric"
+                    />
+                  </View>
+                </>
+              )}
+
+              <View style={styles.buttonContainer}>
+                <TouchableOpacity
+                  style={[styles.cancelButton, { backgroundColor: isDarkMode ? "#2A2A2A" : "#FFF2F2" }]}
+                  onPress={() => navigation.goBack()}
+                >
+                  <Text style={[styles.buttonText, { color: "#FF0000" }]}>Avbryt</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.confirmButton, { backgroundColor: theme.primary }]}
+                  onPress={handleConfirm}
+                >
+                  <Text style={[styles.buttonText, { color: "#FFFFFF" }]}>Opprett hendelse</Text>
+                </TouchableOpacity>
+              </View>
+            </>
+          )}
 
           {/* Activity Selection Modal - NEW */}
           <Modal visible={showActivityModal} animationType="slide" transparent={true}>
@@ -370,6 +407,48 @@ const NewEvent = ({ navigation }) => {
           </Modal>
         </View>
       </ScrollView>
+      <Modal visible={showStartDate || showStartTime || showEndDate || showEndTime} transparent animationType="fade">
+        <View style={styles.dateTimePickerModal}>
+          <View style={[styles.dateTimePickerContainer, { backgroundColor: theme.surface }]}>
+            {showStartDate && (
+              <DateTimePicker
+                value={startDate}
+                mode="date"
+                display="inline"
+                onChange={onStartDateChange}
+                textColor={theme.text}
+              />
+            )}
+            {showStartTime && (
+              <DateTimePicker
+                value={startTime}
+                mode="time"
+                display="spinner"
+                onChange={onStartTimeChange}
+                textColor={theme.text}
+              />
+            )}
+            {showEndDate && (
+              <DateTimePicker
+                value={endDate}
+                mode="date"
+                display="inline"
+                onChange={onEndDateChange}
+                textColor={theme.text}
+              />
+            )}
+            {showEndTime && (
+              <DateTimePicker
+                value={endTime}
+                mode="time"
+                display="spinner"
+                onChange={onEndTimeChange}
+                textColor={theme.text}
+              />
+            )}
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   )
 }
@@ -564,6 +643,74 @@ const styles = StyleSheet.create({
   warningText: {
     color: "red",
     fontWeight: "bold",
+  },
+  eventTypeContainer: {
+    marginBottom: 32,
+  },
+  eventTypeButtons: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    gap: 12,
+    marginBottom: 24,
+  },
+  eventTypeButton: {
+    flex: 1,
+    flexDirection: "column",
+    alignItems: "center",
+    justifyContent: "center",
+    padding: 16,
+    borderRadius: 12,
+    borderWidth: 1,
+    gap: 8,
+  },
+  eventTypeButtonText: {
+    fontSize: 16,
+    fontWeight: "600",
+    textAlign: "center",
+  },
+  dateTimeContainer: {
+    flexDirection: "row",
+    gap: 12,
+    marginBottom: 16,
+  },
+  dateTimeInput: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    padding: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+    gap: 8,
+  },
+  dateTimeText: {
+    fontSize: 16,
+  },
+  headerContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    padding: 16,
+    borderRadius: 12,
+    marginBottom: 20,
+  },
+  headerTitle: {
+    fontSize: 24,
+    fontWeight: "600",
+    marginLeft: 32,
+  },
+  dateTimeSection: {
+    marginBottom: 24,
+  },
+  dateTimePickerModal: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+  },
+  dateTimePickerContainer: {
+    width: "90%",
+    borderRadius: 16,
+    padding: 20,
+    alignItems: "center",
   },
 })
 

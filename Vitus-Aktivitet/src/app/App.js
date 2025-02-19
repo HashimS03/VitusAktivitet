@@ -41,6 +41,7 @@ import InviteMembersScreen from "../components/events/InviteMembersScreen";
 import UpcommingEvents from "../components/events/upcoming-events";
 import LogRecordingScreen from "../components/events/LogRecordingScreen";
 import EventLeaderboard from "../components/events/EventLeaderboard";
+import ActiveSoloEvent from "../components/events/active-solo-event";
 
 // Step Counting and Activity Tracking
 import StepCounter from "../components/stepcounter/stepcounter";
@@ -73,6 +74,7 @@ const EventsStack = () => (
       options={{ tabBarStyle: { display: 'none' } }}
     />
     <Stack.Screen name="ActiveEvent" component={ActiveEventImproved} />
+    <Stack.Screen name="ActiveSoloEvent" component={ActiveSoloEvent} />
     <Stack.Screen 
       name="InviteMembers" 
       component={InviteMembersScreen}
