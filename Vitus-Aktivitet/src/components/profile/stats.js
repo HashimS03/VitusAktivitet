@@ -1,4 +1,6 @@
-import React, { useState } from "react";
+"use client";
+
+import { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -16,8 +18,8 @@ import {
   Check,
   TrendingUp,
 } from "lucide-react-native";
-import { useNavigation } from "@react-navigation/native";
-import { useTheme } from "../context/ThemeContext"; // 🌙 Import Theme Support
+import { useNavigation, useRoute } from "@react-navigation/native";
+import { useTheme } from "../context/ThemeContext";
 import Achievements from "./achievements";
 import Activity from "./activity";
 
@@ -26,7 +28,14 @@ const TABS = ["STATS", "ACHIEVEMENTS", "ACTIVITY"];
 const Stats = () => {
   const [activeTab, setActiveTab] = useState("STATS");
   const navigation = useNavigation();
-  const { theme, accentColor } = useTheme(); // Get theme values & accent color
+  const route = useRoute();
+  const { theme, accentColor } = useTheme();
+
+  useEffect(() => {
+    if (route.params?.initialTab) {
+      setActiveTab(route.params.initialTab);
+    }
+  }, [route.params?.initialTab]);
 
   const statsData = [
     {
@@ -78,10 +87,13 @@ const Stats = () => {
   ];
 
   const renderStatsContent = () => (
-    <>
+    <ScrollView>
       <View style={styles.statsContainer}>
         {statsData.map((stat, index) => (
-          <View key={index} style={[styles.statCard, { backgroundColor: theme.surface }]}>
+          <View
+            key={index}
+            style={[styles.statCard, { backgroundColor: theme.surface }]}
+          >
             <View
               style={[
                 styles.iconContainer,
@@ -91,46 +103,47 @@ const Stats = () => {
               <stat.icon size={20} color={stat.iconColor} />
             </View>
             <View style={styles.statTextContainer}>
-              <Text style={[styles.statValue, { color: theme.text }]}>{stat.value}</Text>
-              <Text style={[styles.statLabel, { color: theme.textSecondary }]}>{stat.label}</Text>
+              <Text style={[styles.statValue, { color: theme.text }]}>
+                {stat.value}
+              </Text>
+              <Text style={[styles.statLabel, { color: theme.textSecondary }]}>
+                {stat.label}
+              </Text>
             </View>
           </View>
         ))}
       </View>
 
       <View style={[styles.racesContainer, { backgroundColor: theme.surface }]}>
-        <Text style={[styles.sectionTitle, { color: theme.text }]}>Latest Races</Text>
+        <Text style={[styles.sectionTitle, { color: theme.text }]}>
+          Latest Races
+        </Text>
         {races.map((race, index) => (
           <View key={index} style={styles.raceItem}>
             <Image source={race.image} style={styles.raceImage} />
             <View style={styles.raceContent}>
-              <Text style={[styles.raceTitle, { color: theme.text }]}>{race.title}</Text>
+              <Text style={[styles.raceTitle, { color: theme.text }]}>
+                {race.title}
+              </Text>
               <View style={styles.progressBar}>
                 <View
                   style={[styles.progressFill, { width: `${race.progress}%` }]}
                 />
               </View>
             </View>
-            <Text style={[styles.progressText, { color: theme.textSecondary }]}>{race.progress}% Complete</Text>
+            <Text style={[styles.progressText, { color: theme.textSecondary }]}>
+              {race.progress}% Complete
+            </Text>
           </View>
         ))}
       </View>
-    </>
+    </ScrollView>
   );
 
-  const renderContent = () => {
-    switch (activeTab) {
-      case "ACHIEVEMENTS":
-        return <Achievements />;
-      case "ACTIVITY":
-        return <Activity />;
-      default:
-        return renderStatsContent();
-    }
-  };
-
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]}>
+    <SafeAreaView
+      style={[styles.container, { backgroundColor: theme.background }]}
+    >
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()}>
           <ChevronLeft size={24} color={theme.text} />
@@ -140,51 +153,52 @@ const Stats = () => {
         </TouchableOpacity>
       </View>
 
-      <ScrollView style={styles.content}>
-        <View style={styles.profileSection}>
-          <Image
-            source={require("../../../assets/figure/aura.jpeg")}
-            style={styles.avatar}
-          />
-          <Text style={[styles.name, { color: theme.text }]}>Hashem Sheikh</Text>
-        </View>
+      <View style={styles.profileSection}>
+        <Image
+          source={require("../../../assets/figure/aura.jpeg")}
+          style={styles.avatar}
+        />
+        <Text style={[styles.name, { color: theme.text }]}>Hashem Sheikh</Text>
+      </View>
 
-        {/* Tabs with theme-based accent color */}
-        <View style={styles.tabsContainer}>
-          {TABS.map((tab) => (
-            <TouchableOpacity
-              key={tab}
-              onPress={() => setActiveTab(tab)}
+      <View style={styles.tabsContainer}>
+        {TABS.map((tab) => (
+          <TouchableOpacity
+            key={tab}
+            onPress={() => setActiveTab(tab)}
+            style={[
+              styles.tab,
+              activeTab === tab && { borderBottomColor: accentColor },
+            ]}
+          >
+            <Text
               style={[
-                styles.tab,
-                activeTab === tab && { borderBottomColor: accentColor },
+                styles.tabText,
+                {
+                  color: activeTab === tab ? accentColor : theme.textSecondary,
+                },
               ]}
             >
-              <Text
-                style={[
-                  styles.tabText,
-                  {
-                    color: activeTab === tab ? accentColor : theme.textSecondary,
-                  },
-                ]}
-              >
-                {tab}
-              </Text>
-              <View
-                style={[
-                  styles.tabUnderline,
-                  {
-                    backgroundColor: activeTab === tab ? accentColor : theme.textSecondary, // FIXED
-                  },
-                ]}
-              />
-              
-            </TouchableOpacity>
-          ))}
-        </View>
+              {tab}
+            </Text>
+            <View
+              style={[
+                styles.tabUnderline,
+                {
+                  backgroundColor:
+                    activeTab === tab ? accentColor : "transparent",
+                },
+              ]}
+            />
+          </TouchableOpacity>
+        ))}
+      </View>
 
-        {renderContent()}
-      </ScrollView>
+      <View style={styles.contentContainer}>
+        {activeTab === "STATS" && renderStatsContent()}
+        {activeTab === "ACHIEVEMENTS" && <Achievements />}
+        {activeTab === "ACTIVITY" && <Activity />}
+      </View>
     </SafeAreaView>
   );
 };
@@ -199,7 +213,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 16,
   },
-  content: {
+  contentContainer: {
     flex: 1,
   },
   profileSection: {
@@ -225,17 +239,21 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   tab: {
-    
     alignItems: "center",
     justifyContent: "center",
     paddingVertical: 8,
     paddingHorizontal: 16,
     marginHorizontal: 8,
   },
-  
-  
   tabText: {
     fontSize: 14,
+  },
+  tabUnderline: {
+    height: 2,
+    width: "80%",
+    marginTop: 8,
+    borderRadius: 1,
+    alignSelf: "center",
   },
   statsContainer: {
     flexDirection: "row",
@@ -311,28 +329,18 @@ const styles = StyleSheet.create({
   },
   progressBar: {
     height: 4,
+    backgroundColor: "#E5E5EA",
     borderRadius: 2,
   },
   progressFill: {
     height: "100%",
+    backgroundColor: "#34C759",
     borderRadius: 2,
   },
   progressText: {
     fontSize: 14,
     width: 80,
   },
-
-  
-  tabUnderline: {
-    height: 2, // Thin line
-    width: "80%", // Ensures all underlines are the same length relative to their tab
-    marginTop: 8, // Adds space between text and underline
-    borderRadius: 1, // Smooth edges
-    alignSelf: "center", // Ensures the line stays centered
-  },
-  
-  
 });
-
 
 export default Stats;

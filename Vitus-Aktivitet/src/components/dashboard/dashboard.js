@@ -95,7 +95,7 @@ export default function Dashboard() {
   const { theme, accentColor } = useTheme();
   const [showTutorial, setShowTutorial] = useState(false);
   const [tutorialStep, setTutorialStep] = useState(0);
-  const TEST_MODE = true; // Always show tutorial during testing
+  //const TEST_MODE = true; // Always show tutorial during testing
 
   useEffect(() => {
     checkFirstTimeUser();
@@ -108,10 +108,21 @@ export default function Dashboard() {
     }
   }, [stepCount, showCelebration]);
 
+  //const checkFirstTimeUser = async () => {
+  //try {
+  //const hasSeenTutorial = await AsyncStorage.getItem("hasSeenTutorial");
+  //if (TEST_MODE || hasSeenTutorial === null) {
+  //setShowTutorial(true);
+  //}
+  //} catch (error) {
+  //console.error("Error checking first time user:", error);
+  //}
+  //};
+
   const checkFirstTimeUser = async () => {
     try {
       const hasSeenTutorial = await AsyncStorage.getItem("hasSeenTutorial");
-      if (TEST_MODE || hasSeenTutorial === null) {
+      if (hasSeenTutorial === null) {
         setShowTutorial(true);
       }
     } catch (error) {
@@ -296,7 +307,7 @@ export default function Dashboard() {
           >
             <View style={styles.statHeader}>
               <Text style={[styles.statTitle, { color: theme.text }]}>
-                Streak
+                History
               </Text>
               <ChevronRight size={20} color={theme.textSecondary} />
             </View>
@@ -316,37 +327,45 @@ export default function Dashboard() {
               </Text>
             </View>
           </TouchableOpacity>
-
           <View style={[styles.statCard, { backgroundColor: theme.surface }]}>
-            <View style={styles.statHeader}>
-              <Text style={[styles.statTitle, { color: theme.text }]}>
-                Rewards
-              </Text>
-              <Award size={20} color={theme.textSecondary} />
-            </View>
-            <View style={styles.rewardContent}>
-              <Text style={[styles.levelText, { color: theme.text }]}>
-                Level 2
-              </Text>
-              <Text style={[styles.pointsText, { color: theme.textSecondary }]}>
-                5500/6000 XP
-              </Text>
-              <View style={styles.levelProgress}>
-                <View
-                  style={[
-                    styles.progressBarContainer,
-                    { backgroundColor: theme.border },
-                  ]}
+            <TouchableOpacity
+              style={styles.cardContent}
+              onPress={() => {
+                navigation.navigate("Stats", { initialTab: "ACHIEVEMENTS" });
+              }}
+            >
+              <View style={styles.statHeader}>
+                <Text style={[styles.statTitle, { color: theme.text }]}>
+                  Rewards
+                </Text>
+                <Award size={20} color={theme.textSecondary} />
+              </View>
+              <View style={styles.rewardContent}>
+                <Text style={[styles.levelText, { color: theme.text }]}>
+                  Level 2
+                </Text>
+                <Text
+                  style={[styles.pointsText, { color: theme.textSecondary }]}
                 >
+                  5500/6000 XP
+                </Text>
+                <View style={styles.levelProgress}>
                   <View
                     style={[
-                      styles.progressBar,
-                      { backgroundColor: accentColor, width: "75%" },
+                      styles.progressBarContainer,
+                      { backgroundColor: theme.border },
                     ]}
-                  />
+                  >
+                    <View
+                      style={[
+                        styles.progressBar,
+                        { backgroundColor: accentColor, width: "75%" },
+                      ]}
+                    />
+                  </View>
                 </View>
               </View>
-            </View>
+            </TouchableOpacity>
           </View>
         </View>
 

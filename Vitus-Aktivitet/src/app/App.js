@@ -21,6 +21,7 @@ import CreateAccountScreen from "../components/opprett/opprett";
 import Stats from "../components/profile/stats";
 import Setting from "../components/Setting/setting";
 import TrophyDetails from "../components/profile/TrophyDetails";
+import Achievements from "../components/profile/achievements";
 
 import Notifications from "../components/notifications/notifications";  // ✅ Import Notifications
 import LanguageSelection from "../components/Setting/language"; // ✅ Import the new screen
@@ -190,6 +191,7 @@ const App = () => {
           <Stack.Screen name="Notifications" component={Notifications} />
           <Stack.Screen name="Language" component={LanguageSelection} />
           <Stack.Screen name="EditProfile" component={EditProfile} />
+          <Stack.Screen name="Achievements" component={Achievements} />
           <Stack.Screen
             name="notificationeditor"
             component={NotificationEditor}
