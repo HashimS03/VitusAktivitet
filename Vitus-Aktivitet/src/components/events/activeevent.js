@@ -12,6 +12,8 @@ import {
   Modal,
   Alert,
   TextInput,
+  KeyboardAvoidingView,
+  Platform,
 } from "react-native"
 import { MaterialCommunityIcons } from "@expo/vector-icons"
 import { useNavigation } from "@react-navigation/native"
@@ -290,33 +292,35 @@ const ActiveEvent = ({ route }) => {
       </Modal>
 
       <Modal
-        animationType="fade"
+        animationType="slide"
         transparent={true}
         visible={showProgressModal}
         onRequestClose={() => setShowProgressModal(false)}
       >
-        <View style={styles.modalContainer}>
-          <View style={[styles.modalContent, { backgroundColor: theme.surface }]}>
-            <Text style={[styles.modalTitle, { color: theme.text }]}>Oppdater fremgang</Text>
-            <TextInput
-              style={[styles.input, { color: theme.text, borderColor: theme.border }]}
-              placeholder={`Skriv inn antall ${eventDetails?.activityUnit || "repetisjoner"}`}
-              placeholderTextColor={theme.textSecondary}
-              keyboardType="numeric"
-              value={newProgress}
-              onChangeText={setNewProgress}
-            />
-            <TouchableOpacity
-              style={[styles.submitButton, { backgroundColor: theme.primary }]}
-              onPress={submitProgress}
-            >
-              <Text style={[styles.submitButtonText, { color: theme.background }]}>Oppdater</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.modalCloseButton} onPress={() => setShowProgressModal(false)}>
-              <Text style={[styles.modalCloseButtonText, { color: theme.primary }]}>Avbryt</Text>
-            </TouchableOpacity>
+        <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={{ flex: 1 }}>
+          <View style={styles.modalContainer}>
+            <View style={[styles.modalContent, { backgroundColor: theme.surface }]}>
+              <Text style={[styles.modalTitle, { color: theme.text }]}>Oppdater fremgang</Text>
+              <TextInput
+                style={[styles.input, { color: theme.text, borderColor: theme.border }]}
+                placeholder={`Skriv inn antall ${eventDetails?.activityUnit || "repetisjoner"}`}
+                placeholderTextColor={theme.textSecondary}
+                keyboardType="numeric"
+                value={newProgress}
+                onChangeText={setNewProgress}
+              />
+              <TouchableOpacity
+                style={[styles.submitButton, { backgroundColor: theme.primary }]}
+                onPress={submitProgress}
+              >
+                <Text style={[styles.submitButtonText, { color: theme.background }]}>Oppdater</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.modalCloseButton} onPress={() => setShowProgressModal(false)}>
+                <Text style={[styles.modalCloseButtonText, { color: theme.primary }]}>Avbryt</Text>
+              </TouchableOpacity>
+            </View>
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
 
       <InviteMembersScreen
@@ -507,9 +511,11 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(0, 0, 0, 0.5)",
   },
   modalContent: {
+    backgroundColor: "white",
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
-    padding: 16,
+    padding: 20,
+    maxHeight: "80%",
   },
   modalOption: {
     flexDirection: "row",
