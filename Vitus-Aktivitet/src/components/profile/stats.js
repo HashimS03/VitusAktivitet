@@ -39,7 +39,7 @@ const Stats = () => {
 
   const statsData = [
     { icon: Zap, value: 7568, label: "Poeng", iconColor: "#FF9500", iconBgColor: "#FFF5E6", max: 10000 },
-    { icon: BarChart2, value: 2, label: "Leaderboard", iconColor: "#007AFF", iconBgColor: "#E5F1FF", max: 100 },
+    { icon: BarChart2, value: 99, label: "Leaderboard", iconColor: "#007AFF", iconBgColor: "#E5F1FF", max: 100 },
     { icon: Check, value: 83, label: "Completed Events", iconColor: "#34C759", iconBgColor: "#E8F7EB", max: 100 },
     { icon: TrendingUp, value: 86, label: "Daily goal", iconColor: "#FF3B30", iconBgColor: "#FFE5E5", max: 100 },
     { icon: Award, value: 12, label: "Achievements", iconColor: "#5856D6", iconBgColor: "#EAEAFF", max: 50 },
@@ -188,31 +188,51 @@ const Stats = () => {
     if (!selectedStat) return null
 
     return (
-      <View style={[styles.statDetailsContainer, { backgroundColor: theme.surface }]}>
-        <TouchableOpacity style={styles.closeButton} onPress={() => setSelectedStat(null)}>
-          <Text style={[styles.closeButtonText, { color: theme.text }]}>Close</Text>
-        </TouchableOpacity>
-        <View style={styles.statDetailsContent}>
-          <AnimatedCircularProgress
-            size={120}
-            width={12}
-            fill={(selectedStat.value / selectedStat.max) * 100}
-            tintColor={selectedStat.iconColor}
-            backgroundColor={selectedStat.iconBgColor}
-            rotation={0}
-            lineCap="round"
-          >
-            {(fill) => (
-              <View style={styles.statDetailsTextContainer}>
-                <selectedStat.icon size={32} color={selectedStat.iconColor} />
-                <Text style={[styles.statDetailsValue, { color: theme.text }]}>{selectedStat.value}</Text>
-                <Text style={[styles.statDetailsLabel, { color: theme.textSecondary }]}>{selectedStat.label}</Text>
-              </View>
-            )}
-          </AnimatedCircularProgress>
-          <Text style={[styles.statDetailsDescription, { color: theme.text }]}>
-            You've achieved {((selectedStat.value / selectedStat.max) * 100).toFixed(1)}% of your goal!
-          </Text>
+      <View style={[styles.statDetailsOverlay, { backgroundColor: "rgba(0,0,0,0.5)" }]}>
+        <View style={[styles.statDetailsContainer, { backgroundColor: theme.surface }]}>
+          <View style={styles.statDetailsHeader}>
+            <Text style={[styles.statDetailsTitle, { color: theme.text }]}>{selectedStat.label}</Text>
+            <TouchableOpacity
+              style={[styles.closeButton, { backgroundColor: theme.border }]}
+              onPress={() => setSelectedStat(null)}
+            >
+              <Text style={[styles.closeButtonText, { color: theme.text }]}>Close</Text>
+            </TouchableOpacity>
+          </View>
+
+          <View style={styles.statDetailsContent}>
+            <AnimatedCircularProgress
+              size={200}
+              width={12}
+              fill={(selectedStat.value / selectedStat.max) * 100}
+              tintColor={selectedStat.iconColor}
+              backgroundColor={`${selectedStat.iconColor}20`}
+              rotation={0}
+              lineCap="round"
+            >
+              {() => (
+                <View style={styles.progressContent}>
+                  <selectedStat.icon size={32} color={selectedStat.iconColor} style={styles.statIcon} />
+                  <Text style={[styles.statDetailsValue, { color: theme.text }]}>{selectedStat.value}</Text>
+                  <Text style={[styles.statDetailsLabel, { color: theme.textSecondary }]}>{selectedStat.label}</Text>
+                </View>
+              )}
+            </AnimatedCircularProgress>
+
+            <Text style={styles.achievementText}>
+              You've achieved{" "}
+              <Text style={[styles.achievementPercent, { color: selectedStat.iconColor }]}>
+                {((selectedStat.value / selectedStat.max) * 100).toFixed(1)}%
+              </Text>{" "}
+              of your goal!
+            </Text>
+
+            <View style={[styles.goalPill, { backgroundColor: theme.border }]}>
+              <Text style={[styles.goalText, { color: theme.textSecondary }]}>
+                Goal: {selectedStat.max} {selectedStat.label}
+              </Text>
+            </View>
+          </View>
         </View>
       </View>
     )
@@ -371,47 +391,89 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "600",
   },
-  statDetailsContainer: {
+  statDetailsOverlay: {
     position: "absolute",
-    bottom: 0,
+    top: 0,
     left: 0,
     right: 0,
-    padding: 24,
+    bottom: 0,
+    justifyContent: "flex-end",
+  },
+
+  statDetailsContainer: {
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: -2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 5,
+    padding: 24,
   },
-  closeButton: {
-    alignSelf: "flex-end",
-    marginBottom: 16,
+
+  statDetailsHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 32,
   },
-  closeButtonText: {
-    fontSize: 16,
+
+  statDetailsTitle: {
+    fontSize: 24,
     fontWeight: "600",
   },
+
+  closeButton: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+  },
+
+  closeButtonText: {
+    fontSize: 16,
+    fontWeight: "500",
+  },
+
   statDetailsContent: {
     alignItems: "center",
+    paddingBottom: 24,
   },
-  statDetailsTextContainer: {
+
+  progressContent: {
     alignItems: "center",
+    justifyContent: "center",
   },
+
+  statIcon: {
+    marginBottom: 8,
+  },
+
   statDetailsValue: {
-    fontSize: 32,
+    fontSize: 48,
     fontWeight: "bold",
-    marginTop: 8,
+    marginVertical: 4,
   },
+
   statDetailsLabel: {
     fontSize: 16,
-    marginTop: 4,
+    opacity: 0.7,
   },
-  statDetailsDescription: {
-    fontSize: 18,
+
+  achievementText: {
+    fontSize: 20,
     textAlign: "center",
-    marginTop: 24,
+    marginTop: 32,
+    marginBottom: 24,
+  },
+
+  achievementPercent: {
+    fontWeight: "600",
+  },
+
+  goalPill: {
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 20,
+  },
+
+  goalText: {
+    fontSize: 16,
+    fontWeight: "500",
   },
   scrollContent: {
     paddingBottom: 32,
