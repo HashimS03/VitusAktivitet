@@ -1,4 +1,6 @@
-import React, { useState } from "react";
+"use client"
+
+import { useState, useEffect } from "react"
 import {
   View,
   Text,
@@ -7,17 +9,63 @@ import {
   ScrollView,
   SafeAreaView,
   StatusBar,
-} from "react-native";
-import { useTheme } from "../context/ThemeContext";
-import { ChevronLeft, Trophy } from "lucide-react-native";
-import { trophyData } from "./achievements";
+  Dimensions,
+  Animated,
+} from "react-native"
+import { useNavigation, useRoute } from "@react-navigation/native"
+import { useTheme } from "../context/ThemeContext"
+import { ChevronLeft, Trophy } from "lucide-react-native"
+import { trophyData } from "./achievements"
+import { LinearGradient } from "expo-linear-gradient"
+import { MaterialCommunityIcons } from "@expo/vector-icons"
 
-const TrophyDetails = ({ route, navigation }) => {
-  const { trophy } = route.params;
-  const { theme } = useTheme();
-  const [unlockedLevel, setUnlockedLevel] = useState(0);
+const { width } = Dimensions.get("window")
 
-  const trophyInfo = trophyData[trophy.name];
+const MEDAL_COLORS = {
+  bronze: ["#CD7F32", "#8B4513"],
+  silver: ["#C0C0C0", "#808080"],
+  gold: ["#FFD700", "#DAA520"],
+}
+
+const TrophyDetails = () => {
+  const navigation = useNavigation()
+  const route = useRoute()
+  const { trophy } = route.params
+  const { theme } = useTheme()
+  const [unlockedLevel, setUnlockedLevel] = useState(1)
+  const [animation] = useState(new Animated.Value(0))
+
+  const trophyInfo = trophyData[trophy.name]
+
+  useEffect(() => {
+    Animated.timing(animation, {
+      toValue: 1,
+      duration: 1000,
+      useNativeDriver: true,
+    }).start()
+  }, [animation])
+
+  const headerTranslate = animation.interpolate({
+    inputRange: [0, 1],
+    outputRange: [-100, 0],
+  })
+
+  const contentOpacity = animation.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0, 1],
+  })
+
+  const getMedalColors = (level) => {
+    if (level === 1) return MEDAL_COLORS.bronze
+    if (level === 2) return MEDAL_COLORS.silver
+    return MEDAL_COLORS.gold
+  }
+
+  const getMedalIcon = (level) => {
+    if (level === 1) return "medal-outline"
+    if (level === 2) return "medal"
+    return "medal"
+  }
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]}>
@@ -31,57 +79,80 @@ const TrophyDetails = ({ route, navigation }) => {
       </TouchableOpacity>
 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-        <View style={styles.headerContainer}>
-          <View style={[styles.trophyIconContainer, { backgroundColor: theme.surface }]}>
-            <Trophy size={32} color={theme.text} />
-          </View>
+        <Animated.View
+          style={[
+            styles.headerContainer,
+            {
+              transform: [{ translateY: headerTranslate }],
+            },
+          ]}
+        >
+          <LinearGradient colors={[theme.primary, theme.accent]} style={styles.trophyIconContainer}>
+            <Trophy size={48} color={theme.text} />
+          </LinearGradient>
           <Text style={[styles.trophyName, { color: theme.text }]}>{trophy.name}</Text>
-          <Text style={[styles.trophyDescription, { color: theme.textSecondary }]}>
-            {trophy.description}
-          </Text>
-        </View>
+          <Text style={[styles.trophyDescription, { color: theme.textSecondary }]}>{trophy.description}</Text>
+        </Animated.View>
 
-        <View style={styles.levelsContainer}>
+        <Animated.View style={[styles.levelsContainer, { opacity: contentOpacity }]}>
           {trophyInfo.levels.map((level, index) => (
             <TouchableOpacity
               key={index}
-              style={[styles.levelCard, { backgroundColor: theme.surface }]}
-              onPress={() => setUnlockedLevel(index)}
-              disabled={index > unlockedLevel}
+              style={[
+                styles.levelCard,
+                { backgroundColor: theme.surface },
+                index < unlockedLevel && styles.unlockedCard,
+              ]}
+              onPress={() => setUnlockedLevel(Math.max(unlockedLevel, index + 1))}
+              disabled={index >= unlockedLevel}
             >
               <View style={styles.levelHeader}>
-                <Text style={styles.levelIcon}>{level.icon}</Text>
-                <Text style={[styles.levelTitle, { color: theme.text }]}>
-                  Level {level.level}
-                </Text>
+                <LinearGradient colors={getMedalColors(level.level)} style={styles.medalIconContainer}>
+                  <MaterialCommunityIcons name={getMedalIcon(level.level)} size={24} color={theme.background} />
+                </LinearGradient>
+                <View style={styles.levelTitleContainer}>
+                  <Text style={[styles.levelTitle, { color: theme.text }]}>Level {level.level}</Text>
+                  <Text style={[styles.medalType, { color: theme.textSecondary }]}>
+                    {level.level === 1 ? "Bronze" : level.level === 2 ? "Silver" : "Gold"}
+                  </Text>
+                </View>
               </View>
               <Text
                 style={[
                   styles.requirement,
-                  { color: index <= unlockedLevel ? theme.textSecondary : theme.textTertiary },
+                  { color: index < unlockedLevel ? theme.textSecondary : theme.textTertiary },
                 ]}
               >
-                {index <= unlockedLevel ? level.requirement : "Unlock previous level to reveal"}
+                {index < unlockedLevel ? level.requirement : "Unlock previous level to reveal"}
               </Text>
-              {index <= unlockedLevel && (
-                <Text
+              {index < unlockedLevel && (
+                <View
                   style={[
-                    styles.status,
+                    styles.statusContainer,
                     {
-                      color: index === unlockedLevel ? theme.accent : theme.success,
+                      backgroundColor: index === unlockedLevel - 1 ? theme.accent + "40" : theme.success + "40",
                     },
                   ]}
                 >
-                  {index === unlockedLevel ? "In Progress" : "Completed"}
-                </Text>
+                  <Text
+                    style={[
+                      styles.status,
+                      {
+                        color: index === unlockedLevel - 1 ? theme.accent : theme.success,
+                      },
+                    ]}
+                  >
+                    {index === unlockedLevel - 1 ? "In Progress" : "Completed"}
+                  </Text>
+                </View>
               )}
             </TouchableOpacity>
           ))}
-        </View>
+        </Animated.View>
       </ScrollView>
     </SafeAreaView>
-  );
-};
+  )
+}
 
 const styles = StyleSheet.create({
   container: {
@@ -103,19 +174,20 @@ const styles = StyleSheet.create({
     paddingBottom: 40,
   },
   trophyIconContainer: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
+    width: 96,
+    height: 96,
+    borderRadius: 48,
     alignItems: "center",
     justifyContent: "center",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
+    marginBottom: 24,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
     shadowRadius: 8,
-    elevation: 4,
-    marginBottom: 16,
+    elevation: 8,
   },
   trophyName: {
-    fontSize: 24,
+    fontSize: 28,
     fontWeight: "bold",
     marginBottom: 8,
   },
@@ -123,40 +195,68 @@ const styles = StyleSheet.create({
     fontSize: 16,
     textAlign: "center",
     paddingHorizontal: 32,
+    lineHeight: 24,
   },
   levelsContainer: {
     padding: 16,
   },
   levelCard: {
     borderRadius: 16,
-    padding: 16,
+    padding: 20,
     marginBottom: 16,
+    shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 8,
     elevation: 4,
   },
+  unlockedCard: {
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 12,
+    elevation: 8,
+  },
   levelHeader: {
     flexDirection: "row",
     alignItems: "center",
-    marginBottom: 8,
+    marginBottom: 12,
   },
-  levelIcon: {
-    fontSize: 24,
-    marginRight: 8,
+  medalIconContainer: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 16,
+  },
+  levelTitleContainer: {
+    flex: 1,
   },
   levelTitle: {
-    fontSize: 18,
+    fontSize: 20,
     fontWeight: "600",
   },
-  requirement: {
+  medalType: {
     fontSize: 14,
-    marginBottom: 8,
+    marginTop: 4,
+  },
+  requirement: {
+    fontSize: 16,
+    marginBottom: 12,
+    lineHeight: 24,
+  },
+  statusContainer: {
+    alignSelf: "flex-start",
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 12,
   },
   status: {
     fontSize: 14,
     fontWeight: "600",
   },
-});
+})
 
-export default TrophyDetails;
+export default TrophyDetails
+

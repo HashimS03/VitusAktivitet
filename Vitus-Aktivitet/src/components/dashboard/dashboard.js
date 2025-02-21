@@ -350,12 +350,12 @@ export default function Dashboard() {
               </View>
               <View style={styles.rewardContent}>
                 <Text style={[styles.levelText, { color: theme.text }]}>
-                  Level 2
+                  Step Streaker
                 </Text>
                 <Text
                   style={[styles.pointsText, { color: theme.textSecondary }]}
                 >
-                  5500/6000 XP
+                  1000/5000 Steps
                 </Text>
                 <View style={styles.levelProgress}>
                   <View
@@ -367,7 +367,7 @@ export default function Dashboard() {
                     <View
                       style={[
                         styles.progressBar,
-                        { backgroundColor: accentColor, width: "75%" },
+                        { backgroundColor: accentColor, width: "20%" },
                       ]}
                     />
                   </View>
