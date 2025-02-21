@@ -102,7 +102,7 @@ export default function SettingScreen() {
         <View style={styles.avatarSection}>
           <View style={styles.avatarContainer}>
             <Image
-              source={require("../../../assets/figure/aura.jpeg")}
+              source={require("../../../assets/avatars/memo_35.png")}
               style={styles.avatar}
             />
             <TouchableOpacity
@@ -111,9 +111,7 @@ export default function SettingScreen() {
               <Ionicons name="pencil" size={20} color={theme.text} />
             </TouchableOpacity>
           </View>
-          <Text style={[styles.name, { color: theme.text }]}>
-            Hashem Sheikh
-          </Text>
+          <Text style={[styles.name, { color: theme.text }]}>Navn</Text>
           <Text style={[styles.contact, { color: theme.textSecondary }]}>
             youremail@domain.com | +47 256 27 189
           </Text>
@@ -217,7 +215,7 @@ const styles = StyleSheet.create({
 
   backButton: {
     padding: 8,
-    zIndex: 999, // ✅ Midlertidig løsning 
+    zIndex: 999, // ✅ Midlertidig løsning
   },
 
   settingsHeader: {

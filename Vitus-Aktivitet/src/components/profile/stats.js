@@ -70,8 +70,8 @@ const Stats = () => {
 
   const renderProfileSection = () => (
     <View style={styles.profileSection}>
-      <Image source={require("../../../assets/figure/aura.jpeg")} style={styles.avatar} />
-      <Text style={[styles.name, { color: theme.text }]}>Hashem Sheikh</Text>
+      <Image source={require("../../../assets/avatars/memo_35.png")} style={styles.avatar} />
+      <Text style={[styles.name, { color: theme.text }]}>Navn</Text>
     </View>
   )
 
