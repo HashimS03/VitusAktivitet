@@ -1,4 +1,4 @@
-"use client"
+"use client";
 
 import { useState, useRef, useCallback, useMemo, useEffect } from "react";
 import {
@@ -14,7 +14,6 @@ import {
   Easing,
   TextInput,
   Modal,
-
   Switch,
 } from "react-native";
 import {
@@ -29,11 +28,11 @@ import { BlurView } from "expo-blur";
 import { LinearGradient } from "expo-linear-gradient";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
-const AnimatedFlatList = Animated.createAnimatedComponent(FlatList)
+const AnimatedFlatList = Animated.createAnimatedComponent(FlatList);
 
-const { width: SCREEN_WIDTH } = Dimensions.get("window")
+const { width: SCREEN_WIDTH } = Dimensions.get("window");
 
-const SEGMENT_OPTIONS = ["Daily", "Weekly", "Monthly", "All Time"]
+const SEGMENT_OPTIONS = ["Daily", "Weekly", "Monthly", "All Time"];
 
 const Leaderboard = () => {
   const scrollY = useRef(new Animated.Value(0)).current;
@@ -51,8 +50,7 @@ const Leaderboard = () => {
   const [showJoinAlert, setShowJoinAlert] = useState(false);
   const [testMode, setTestMode] = useState(true); // Activate test mode temporarily
 
-
-  const searchAnimation = useRef(new Animated.Value(0)).current
+  const searchAnimation = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     checkFirstTimeUser();
@@ -90,97 +88,113 @@ const Leaderboard = () => {
     }
   };
 
-  const generalLeaderboardData = [
-    {
-      id: "1",
-      name: "Ho Daniel",
-      points: 2000,
-      department: "IT",
-      avatar: require("../../../assets/figure/daniel.png"),
-      change: 0,
-    },
-    {
-      id: "2",
-      name: "Hashem",
-      points: 1500,
-      department: "HR",
-      avatar: require("../../../assets/figure/hashem.png"),
-      change: 2,
-    },
-    {
-      id: "3",
-      name: "Sarim",
-      points: 1200,
-      department: "Finance",
-      avatar: require("../../../assets/figure/sarim.png"),
-      change: -1,
-    },
-    {
-      id: "4",
-      name: "Sjartan",
-      points: 950,
-      department: "IT",
-      avatar: require("../../../assets/figure/avatar1.jpg"),
-      change: 3,
-    },
-    {
-      id: "5",
-      name: "Ahmed",
-      points: 920,
-      department: "HR",
-      avatar: require("../../../assets/figure/avatar2.jpg"),
-      change: -2,
-    },
-  ]
+  const generalLeaderboardData = useMemo(
+    () => [
+      {
+        id: "1",
+        name: "Ho Daniel",
+        points: 2000,
+        department: "IT",
+        avatar: require("../../../assets/figure/daniel.png"),
+        change: 0,
+      },
+      {
+        id: "2",
+        name: "Hashem",
+        points: 1500,
+        department: "HR",
+        avatar: require("../../../assets/figure/hashem.png"),
+        change: 2,
+      },
+      {
+        id: "3",
+        name: "Sarim",
+        points: 1200,
+        department: "Finance",
+        avatar: require("../../../assets/figure/sarim.png"),
+        change: -1,
+      },
+      {
+        id: "4",
+        name: "Sjartan",
+        points: 950,
+        department: "IT",
+        avatar: require("../../../assets/figure/avatar1.jpg"),
+        change: 3,
+      },
+      {
+        id: "5",
+        name: "Ahmed",
+        points: 920,
+        department: "HR",
+        avatar: require("../../../assets/figure/avatar2.jpg"),
+        change: -2,
+      },
+    ],
+    []
+  );
 
-  const eventLeaderboardData = [
-    {
-      id: "1",
-      name: "Emma",
-      points: 1800,
-      department: "IT",
-      avatar: require("../../../assets/figure/avatar3.jpg"),
-      change: 2,
-    },
-    {
-      id: "2",
-      name: "Lars",
-      points: 1600,
-      department: "Finance",
-      avatar: require("../../../assets/figure/avatar4.jpeg"),
-      change: 1,
-    },
-    {
-      id: "3",
-      name: "Sofia",
-      points: 1400,
-      department: "HR",
-      avatar: require("../../../assets/figure/avatar5.jpeg"),
-      change: 3,
-    },
-  ]
+  const eventLeaderboardData = useMemo(
+    () => [
+      {
+        id: "1",
+        name: "Emma",
+        points: 1800,
+        department: "IT",
+        avatar: require("../../../assets/figure/avatar3.jpg"),
+        change: 2,
+      },
+      {
+        id: "2",
+        name: "Lars",
+        points: 1600,
+        department: "Finance",
+        avatar: require("../../../assets/figure/avatar4.jpeg"),
+        change: 1,
+      },
+      {
+        id: "3",
+        name: "Sofia",
+        points: 1400,
+        department: "HR",
+        avatar: require("../../../assets/figure/avatar5.jpeg"),
+        change: 3,
+      },
+    ],
+    []
+  );
 
   const filteredData = useMemo(() => {
-    const typeFilteredData = leaderboardType === "General" ? generalLeaderboardData : eventLeaderboardData
+    const typeFilteredData =
+      leaderboardType === "General"
+        ? generalLeaderboardData
+        : eventLeaderboardData;
 
     return typeFilteredData
       .filter(
         (item) =>
           (filterOption === "All" || item.department === filterOption) &&
-          (searchQuery === "" || item.name.toLowerCase().includes(searchQuery.toLowerCase())),
+          (searchQuery === "" ||
+            item.name.toLowerCase().includes(searchQuery.toLowerCase()))
       )
-      .sort((a, b) => b.points - a.points)
-  }, [filterOption, searchQuery, leaderboardType])
+      .sort((a, b) => b.points - a.points);
+  }, [
+    filterOption,
+    searchQuery,
+    leaderboardType,
+    generalLeaderboardData,
+    eventLeaderboardData,
+  ]);
 
   const toggleSearch = useCallback(() => {
-    setShowSearch(!showSearch)
+    setShowSearch(!showSearch);
     Animated.timing(searchAnimation, {
       toValue: showSearch ? 0 : 1,
       duration: 300,
       easing: Easing.inOut(Easing.ease),
       useNativeDriver: false,
-    }).start()
-  }, [showSearch, searchAnimation])
+    }).start();
+  }, [showSearch, searchAnimation]);
 
   const renderLeaderboardItem = useCallback(
     ({ item, index }) => (
@@ -207,12 +221,18 @@ const Leaderboard = () => {
           style={StyleSheet.absoluteFill}
         />
         <View style={styles.rankContainer}>
-          <Text style={[styles.rankText, { color: theme.text }]}>{index + 1}</Text>
+          <Text style={[styles.rankText, { color: theme.text }]}>
+            {index + 1}
+          </Text>
         </View>
         <Image source={item.avatar} style={styles.avatar} />
         <View style={styles.infoContainer}>
-          <Text style={[styles.nameText, { color: theme.text }]}>{item.name}</Text>
-          <Text style={[styles.departmentText, { color: theme.textSecondary }]}>{item.department}</Text>
+          <Text style={[styles.nameText, { color: theme.text }]}>
+            {item.name}
+          </Text>
+          <Text style={[styles.departmentText, { color: theme.textSecondary }]}>
+            {item.department}
+          </Text>
         </View>
         <View style={styles.pointsContainer}>
           <Text style={[styles.pointsText, { color: accentColor }]}>
@@ -242,151 +262,137 @@ const Leaderboard = () => {
     [theme, searchAnimation, accentColor]
   );
 
-
   const renderHeader = useCallback(
     () => (
       <View style={styles.header}>
-        <BlurView intensity={100} style={StyleSheet.absoluteFill} tint={isDarkMode ? "dark" : "light"} />
-        <View style={styles.headerContent}>
-          <View style={styles.titleWrapper}>
-            <TouchableOpacity style={styles.titleContainer} onPress={() => setShowLeaderboardTypeDropdown(true)}>
-              <Text
-                style={[
-                  styles.title,
-                  {
-                    color:
-                      leaderboardType === "General" ? accentColor : theme.text,
-
-                  },
-                ]}
-              >
-                {leaderboardType === "General" ? "General " : "Event "}
-              </Text>
-              <ChevronDown size={16} color={theme.text} style={styles.titleIcon} />
-            </TouchableOpacity>
-            <Modal
-              visible={showLeaderboardTypeDropdown}
-              transparent
-              animationType="fade"
-              onRequestClose={() => setShowLeaderboardTypeDropdown(false)}
-            >
-              <TouchableOpacity
-                style={styles.dropdownOverlay}
-                activeOpacity={1}
-                onPress={() => setShowLeaderboardTypeDropdown(false)}
-              >
-
-                <BlurView
-                  intensity={20}
-                  style={[styles.dropdownContent]}
-                  tint={isDarkMode ? "dark" : "light"}
-                >
-
-                  {["General", "Event"].map((option) => (
-                    <TouchableOpacity
-                      key={option}
-                      style={[
-                        styles.dropdownItem,
-                        leaderboardType === option && {
-                          backgroundColor: `${accentColor}20`,
-                        },
-                      ]}
-                      onPress={() => {
-                        setLeaderboardType(option)
-                        setShowLeaderboardTypeDropdown(false)
-                      }}
-                    >
-                      <Text
-                        style={[
-                          styles.dropdownItemText,
-                          {
-
-                            color:
-                              leaderboardType === option
-                                ? accentColor
-                                : theme.text,
-
-                          },
-                        ]}
-                      >
-                        {option} Leaderboard
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
-                </BlurView>
-              </TouchableOpacity>
-            </Modal>
-          </View>
-          <View style={styles.headerButtons}>
-            <TouchableOpacity
-              style={[styles.iconButton, { backgroundColor: theme.surfaceVariant }]}
-              onPress={toggleSearch}
-            >
-              <Search size={20} color={theme.text} />
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.filterButton, { backgroundColor: theme.surfaceVariant }]}
-              onPress={() => setShowFilterModal(true)}
-            >
-              <Text style={[styles.filterButtonText, { color: theme.text }]}>{filterOption}</Text>
-              <ChevronDown size={20} color={theme.text} />
-            </TouchableOpacity>
-          </View>
-        </View>
-        <Animated.View
-          style={[
-            styles.searchContainer,
-            {
-              height: searchAnimation.interpolate({
-                inputRange: [0, 1],
-                outputRange: [0, 50],
-              }),
-              opacity: searchAnimation,
-            },
-          ]}
-        >
-          <BlurView intensity={100} style={StyleSheet.absoluteFill} tint={isDarkMode ? "dark" : "light"} />
-          <View style={[styles.searchInputContainer, { backgroundColor: theme.surfaceVariant }]}>
-            <Search size={20} color={theme.textSecondary} />
-            <TextInput
-              style={[styles.searchInput, { color: theme.text }]}
-              placeholder="Search users..."
-              placeholderTextColor={theme.textSecondary}
-              value={searchQuery}
-              onChangeText={setSearchQuery}
+        {hasJoinedLeaderboard ? (
+          <>
+            <BlurView
+              intensity={100}
+              style={StyleSheet.absoluteFill}
+              tint={isDarkMode ? "dark" : "light"}
             />
-            {searchQuery !== "" && (
-              <TouchableOpacity onPress={() => setSearchQuery("")}>
-                <X size={20} color={theme.textSecondary} />
-              </TouchableOpacity>
-            )}
-          </View>
-        </Animated.View>
-        <View style={styles.segmentedControl}>
-          {SEGMENT_OPTIONS.map((option) => (
-            <TouchableOpacity
-              key={option}
+
+            <View style={styles.headerContent}>
+              <View style={styles.titleWrapper}>
+                <TouchableOpacity
+                  style={styles.titleContainer}
+                  onPress={() => setShowLeaderboardTypeDropdown(true)}
+                >
+                  <Text
+                    style={[
+                      styles.title,
+                      {
+                        color:
+                          leaderboardType === "General"
+                            ? accentColor
+                            : theme.text,
+                      },
+                    ]}
+                  >
+                    {leaderboardType === "General" ? "General " : "Event "}
+                  </Text>
+                  <ChevronDown
+                    size={16}
+                    color={theme.text}
+                    style={styles.titleIcon}
+                  />
+                </TouchableOpacity>
+              </View>
+              <View style={styles.headerButtons}>
+                <TouchableOpacity
+                  style={[
+                    styles.iconButton,
+                    { backgroundColor: theme.surfaceVariant },
+                  ]}
+                  onPress={toggleSearch}
+                >
+                  <Search size={20} color={theme.text} />
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[
+                    styles.filterButton,
+                    { backgroundColor: theme.surfaceVariant },
+                  ]}
+                  onPress={() => setShowFilterModal(true)}
+                >
+                  <Text
+                    style={[styles.filterButtonText, { color: theme.text }]}
+                  >
+                    {filterOption}
+                  </Text>
+                  <ChevronDown size={20} color={theme.text} />
+                </TouchableOpacity>
+              </View>
+            </View>
+            <Animated.View
               style={[
-                styles.segmentOption,
-                selectedSegment === option && {
-                  backgroundColor: accentColor,
+                styles.searchContainer,
+                {
+                  height: searchAnimation.interpolate({
+                    inputRange: [0, 1],
+                    outputRange: [0, 50],
+                  }),
+                  opacity: searchAnimation,
                 },
               ]}
-              onPress={() => setSelectedSegment(option)}
             >
-              <Text
+              <BlurView
+                intensity={100}
+                style={StyleSheet.absoluteFill}
+                tint={isDarkMode ? "dark" : "light"}
+              />
+              <View
                 style={[
-                  styles.segmentOptionText,
-                  {
-                    color: selectedSegment === option ? "#FFFFFF" : theme.text,
-                  },
+                  styles.searchInputContainer,
+                  { backgroundColor: theme.surfaceVariant },
                 ]}
               >
-                {option}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </View>
+                <Search size={20} color={theme.textSecondary} />
+                <TextInput
+                  style={[styles.searchInput, { color: theme.text }]}
+                  placeholder="Search users..."
+                  placeholderTextColor={theme.textSecondary}
+                  value={searchQuery}
+                  onChangeText={setSearchQuery}
+                />
+                {searchQuery !== "" && (
+                  <TouchableOpacity onPress={() => setSearchQuery("")}>
+                    <X size={20} color={theme.textSecondary} />
+                  </TouchableOpacity>
+                )}
+              </View>
+            </Animated.View>
+            <View style={styles.segmentedControl}>
+              {SEGMENT_OPTIONS.map((option) => (
+                <TouchableOpacity
+                  key={option}
+                  style={[
+                    styles.segmentOption,
+                    selectedSegment === option && {
+                      backgroundColor: accentColor,
+                    },
+                  ]}
+                  onPress={() => setSelectedSegment(option)}
+                >
+                  <Text
+                    style={[
+                      styles.segmentOptionText,
+                      {
+                        color:
+                          selectedSegment === option ? "#FFFFFF" : theme.text,
+                      },
+                    ]}
+                  >
+                    {option}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </>
+        ) : (
+          <View style={styles.titleWrapper}></View>
+        )}
       </View>
     ),
     [
@@ -398,19 +404,28 @@ const Leaderboard = () => {
       searchQuery,
       toggleSearch,
       leaderboardType,
-      showLeaderboardTypeDropdown,
       accentColor,
-
+      hasJoinedLeaderboard,
     ]
   );
 
-
   const renderFilterModal = () => (
-    <Modal visible={showFilterModal} transparent animationType="fade" onRequestClose={() => setShowFilterModal(false)}>
+    <Modal
+      visible={showFilterModal}
+      transparent
+      animationType="fade"
+      onRequestClose={() => setShowFilterModal(false)}
+    >
       <View style={styles.modalOverlay}>
-        <BlurView intensity={100} style={StyleSheet.absoluteFill} tint={isDarkMode ? "dark" : "light"} />
+        <BlurView
+          intensity={100}
+          style={StyleSheet.absoluteFill}
+          tint={isDarkMode ? "dark" : "light"}
+        />
         <View style={[styles.modalContent, { backgroundColor: theme.surface }]}>
-          <Text style={[styles.modalTitle, { color: theme.text }]}>Filter Options</Text>
+          <Text style={[styles.modalTitle, { color: theme.text }]}>
+            Filter Options
+          </Text>
           {["All", "IT", "HR", "Finance"].map((option) => (
             <TouchableOpacity
               key={option}
@@ -421,8 +436,8 @@ const Leaderboard = () => {
                 },
               ]}
               onPress={() => {
-                setFilterOption(option)
-                setShowFilterModal(false)
+                setFilterOption(option);
+                setShowFilterModal(false);
               }}
             >
               <Text
@@ -452,11 +467,10 @@ const Leaderboard = () => {
               thumbColor={isDarkMode ? theme.background : theme.text}
             />
           </View>
-
         </View>
       </View>
     </Modal>
-  )
+  );
 
   const renderFirstTimeOverlay = () => (
     <BlurView
@@ -485,17 +499,15 @@ const Leaderboard = () => {
             { backgroundColor: theme.surfaceVariant },
           ]}
           onPress={() => setIsFirstTime(false)}
-        >
-          <Text style={[styles.overlayButtonText, { color: theme.text }]}>
-            Not Now
-          </Text>
-        </TouchableOpacity>
+        ></TouchableOpacity>
       </View>
     </BlurView>
   );
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]}>
+    <SafeAreaView
+      style={[styles.container, { backgroundColor: theme.background }]}
+    >
       {renderHeader()}
       <AnimatedFlatList
         data={filteredData}
@@ -503,29 +515,68 @@ const Leaderboard = () => {
         keyExtractor={(item) => item.id}
         contentContainerStyle={styles.listContent}
         showsVerticalScrollIndicator={false}
-        onScroll={Animated.event([{ nativeEvent: { contentOffset: { y: scrollY } } }], { useNativeDriver: true })}
+        onScroll={Animated.event(
+          [{ nativeEvent: { contentOffset: { y: scrollY } } }],
+          { useNativeDriver: true }
+        )}
         scrollEventThrottle={16}
       />
+      {hasJoinedLeaderboard && (
+        <Modal
+          visible={showLeaderboardTypeDropdown}
+          transparent
+          animationType="fade"
+          onRequestClose={() => setShowLeaderboardTypeDropdown(false)}
+        >
+          <TouchableOpacity
+            style={styles.dropdownOverlay}
+            activeOpacity={1}
+            onPress={() => setShowLeaderboardTypeDropdown(false)}
+          >
+            <BlurView
+              intensity={20}
+              style={[styles.dropdownContent]}
+              tint={isDarkMode ? "dark" : "light"}
+            >
+              {["General", "Event"].map((option) => (
+                <TouchableOpacity
+                  key={option}
+                  style={[
+                    styles.dropdownItem,
+                    leaderboardType === option && {
+                      backgroundColor: `${accentColor}20`,
+                    },
+                  ]}
+                  onPress={() => {
+                    setLeaderboardType(option);
+                    setShowLeaderboardTypeDropdown(false);
+                  }}
+                >
+                  <Text
+                    style={[
+                      styles.dropdownItemText,
+                      {
+                        color:
+                          leaderboardType === option ? accentColor : theme.text,
+                      },
+                    ]}
+                  >
+                    {option} Leaderboard
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </BlurView>
+          </TouchableOpacity>
+        </Modal>
+      )}
       {renderFilterModal()}
       {isFirstTime && renderFirstTimeOverlay()}
-      {!hasJoinedLeaderboard && (
+      {!isFirstTime && !hasJoinedLeaderboard && (
         <BlurView
           intensity={80}
           style={StyleSheet.absoluteFill}
           tint={isDarkMode ? "dark" : "light"}
-        >
-          <View style={styles.blurredContent}>
-            <Text style={[styles.blurredText, { color: theme.text }]}>
-              Join the leaderboard to view rankings
-            </Text>
-            <TouchableOpacity
-              style={[styles.joinButton, { backgroundColor: accentColor }]}
-              onPress={handleJoinLeaderboard}
-            >
-              <Text style={styles.joinButtonText}>Join Leaderboard</Text>
-            </TouchableOpacity>
-          </View>
-        </BlurView>
+        ></BlurView>
       )}
       {showJoinAlert && (
         <View style={styles.alertOverlay}>
@@ -569,8 +620,8 @@ const Leaderboard = () => {
         </View>
       )}
     </SafeAreaView>
-  )
-}
+  );
+};
 
 const styles = StyleSheet.create({
   container: {
@@ -880,7 +931,4 @@ const styles = StyleSheet.create({
   },
 });
 
-
-export default Leaderboard
-
-
+export default Leaderboard;
