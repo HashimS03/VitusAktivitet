@@ -12,35 +12,35 @@ const YourEvents = () => {
       <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer}>
         <View style={styles.actionButtons}>
           <TouchableOpacity
-            style={[styles.createEventButton, { backgroundColor: "#7C3AED" }]}
+            style={[styles.createEventButton, { backgroundColor: theme.primary }]}
             onPress={() => navigation.navigate("NewEvent")}
           >
-            <MaterialCommunityIcons name="plus" size={24} color="white" />
-            <Text style={styles.createEventText}>Create Event</Text>
+            <MaterialCommunityIcons name="plus" size={24} color={theme.background} />
+            <Text style={[styles.createEventText, { color: theme.background }]}>Create Event</Text>
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={[styles.joinEventButton, { backgroundColor: "#2C2C2E" }]}
+            style={[styles.joinEventButton, { backgroundColor: theme.surface }]}
             onPress={() => navigation.navigate("JoinEvent")}
           >
-            <MaterialCommunityIcons name="account-group" size={24} color="white" />
-            <Text style={styles.joinEventText}>Join Event</Text>
+            <MaterialCommunityIcons name="account-group" size={24} color={theme.text} />
+            <Text style={[styles.joinEventText, { color: theme.text }]}>Join Event</Text>
           </TouchableOpacity>
         </View>
 
         <Text style={[styles.sectionTitle, { color: theme.text }]}>Active Events</Text>
 
-        <View style={[styles.emptyStateContainer, { backgroundColor: "#2C2C2E" }]}>
+        <View style={[styles.emptyStateContainer, { backgroundColor: theme.surface }]}>
           <Image source={require("../../../assets/CalenderClock.png")} style={styles.emptyStateImage} />
           <Text style={[styles.emptyStateTitle, { color: theme.text }]}>No Active Events</Text>
-          <Text style={[styles.emptyStateSubtitle, { color: "#8E8E93" }]}>
+          <Text style={[styles.emptyStateSubtitle, { color: theme.textSecondary }]}>
             You don't have any active events at the moment.
           </Text>
           <TouchableOpacity
-            style={[styles.emptyStateButton, { backgroundColor: "#7C3AED" }]}
+            style={[styles.emptyStateButton, { backgroundColor: theme.primary }]}
             onPress={() => navigation.navigate("NewEvent")}
           >
-            <Text style={styles.emptyStateButtonText}>Create an Event</Text>
+            <Text style={[styles.emptyStateButtonText, { color: theme.background }]}>Create an Event</Text>
           </TouchableOpacity>
         </View>
       </ScrollView>
@@ -56,14 +56,14 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   contentContainer: {
-    paddingTop: 0, // Remove top padding
+    paddingTop: 0,
   },
   actionButtons: {
     flexDirection: "row",
     gap: 8,
     marginBottom: 20,
-    paddingHorizontal: 4, // Reduced from 8 to 4
-    marginTop: 0, // Removed top margin
+    paddingHorizontal: 4,
+    marginTop: 0,
   },
   createEventButton: {
     flex: 1,
@@ -86,12 +86,10 @@ const styles = StyleSheet.create({
     height: 56,
   },
   createEventText: {
-    color: "white",
     fontSize: 16,
     fontWeight: "600",
   },
   joinEventText: {
-    color: "white",
     fontSize: 16,
     fontWeight: "600",
   },
@@ -99,13 +97,13 @@ const styles = StyleSheet.create({
     fontSize: 34,
     fontWeight: "600",
     marginBottom: 16,
-    paddingHorizontal: 4, // Reduced from 8 to 4
+    paddingHorizontal: 4,
   },
   emptyStateContainer: {
     borderRadius: 16,
     padding: 32,
     alignItems: "center",
-    marginHorizontal: 4, // Reduced from 8 to 4
+    marginHorizontal: 4,
   },
   emptyStateImage: {
     width: 80,
@@ -130,7 +128,6 @@ const styles = StyleSheet.create({
     borderRadius: 24,
   },
   emptyStateButtonText: {
-    color: "white",
     fontSize: 16,
     fontWeight: "600",
   },

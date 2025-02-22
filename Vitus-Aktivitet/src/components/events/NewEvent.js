@@ -1,24 +1,33 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect, useRef } from "react"
 import {
   View,
   Text,
   StyleSheet,
   SafeAreaView,
-  ScrollView,
   TextInput,
   TouchableOpacity,
-  Image,
   Modal,
   Alert,
+  Animated,
+  Easing,
+  Dimensions,
+  KeyboardAvoidingView,
+  Platform,
+  Switch,
+  ScrollView,
 } from "react-native"
 import { MaterialCommunityIcons } from "@expo/vector-icons"
 import Slider from "@react-native-community/slider"
 import { useTheme } from "../context/ThemeContext"
 import DateTimePicker from "@react-native-community/datetimepicker"
+import { LinearGradient } from "expo-linear-gradient"
+import * as Haptics from "expo-haptics"
+import { BlurView } from "expo-blur"
 
-// Predefinerte aktiviteter
+const { width } = Dimensions.get("window")
+
 const PREDEFINED_ACTIVITIES = [
   {
     id: 1,
@@ -28,6 +37,7 @@ const PREDEFINED_ACTIVITIES = [
     description: "Hold plankestilling så lenge som mulig",
     defaultGoal: 60,
     unit: "sekunder",
+    color: "#FF6B6B",
   },
   {
     id: 2,
@@ -37,6 +47,7 @@ const PREDEFINED_ACTIVITIES = [
     description: "Gjør så mange push-ups som mulig",
     defaultGoal: 50,
     unit: "repetisjoner",
+    color: "#4ECDC4",
   },
   {
     id: 3,
@@ -46,483 +57,534 @@ const PREDEFINED_ACTIVITIES = [
     description: "Løp den angitte distansen",
     defaultGoal: 5,
     unit: "kilometer",
+    color: "#45B7D1",
+  },
+  {
+    id: 4,
+    name: "Sykling",
+    type: "distance",
+    icon: "bike",
+    description: "Sykle den angitte distansen",
+    defaultGoal: 20,
+    unit: "kilometer",
+    color: "#FF8C42",
+  },
+  {
+    id: 5,
+    name: "Svømming",
+    type: "distance",
+    icon: "swim",
+    description: "Svøm den angitte distansen",
+    defaultGoal: 1,
+    unit: "kilometer",
+    color: "#98DFEA",
+  },
+  {
+    id: 6,
+    name: "Yoga",
+    type: "duration",
+    icon: "yoga",
+    description: "Utfør yoga i angitt tid",
+    defaultGoal: 30,
+    unit: "minutter",
+    color: "#7B506F",
+  },
+  {
+    id: 7,
+    name: "Vektløfting",
+    type: "count",
+    icon: "weight-lifter",
+    description: "Løft vekter med angitt antall repetisjoner",
+    defaultGoal: 100,
+    unit: "repetisjoner",
+    color: "#1B9AAA",
   },
 ]
 
 const NewEvent = ({ navigation }) => {
   const { theme, isDarkMode } = useTheme()
-  const [title, setTitle] = useState("")
-  const [description, setDescription] = useState("")
-  const [goalValue, setGoalValue] = useState(50)
-  const [selectedActivity, setSelectedActivity] = useState(null)
+  const [eventDetails, setEventDetails] = useState({
+    title: "",
+    description: "",
+    goalValue: 50,
+    selectedActivity: null,
+    startDate: new Date(),
+    endDate: new Date(),
+    startTime: new Date(),
+    endTime: new Date(),
+    location: "",
+    eventType: null,
+    participantCount: "",
+    teamCount: "",
+    membersPerTeam: "",
+    isPublic: false,
+    tags: [],
+  })
   const [showActivityModal, setShowActivityModal] = useState(false)
-  const [startDate, setStartDate] = useState(new Date())
-  const [endDate, setEndDate] = useState(new Date())
-  const [startTime, setStartTime] = useState(new Date())
-  const [endTime, setEndTime] = useState(new Date())
-  const [showStartDate, setShowStartDate] = useState(false)
-  const [showEndDate, setShowEndDate] = useState(false)
-  const [showStartTime, setShowStartTime] = useState(false)
-  const [showEndTime, setShowEndTime] = useState(false)
-  const [location, setLocation] = useState("")
-  const [eventType, setEventType] = useState(null)
-  const [participantCount, setParticipantCount] = useState("")
-  const [teamCount, setTeamCount] = useState("")
-  const [membersPerTeam, setMembersPerTeam] = useState("")
+  const [showDatePicker, setShowDatePicker] = useState(false)
+  const [datePickerMode, setDatePickerMode] = useState("date")
+  const [currentDateSetting, setCurrentDateSetting] = useState(null)
+  const [formProgress, setFormProgress] = useState(0)
+  const [showConfirmModal, setShowConfirmModal] = useState(false)
+  const [currentStep, setCurrentStep] = useState(0)
+  const [tagInput, setTagInput] = useState("")
 
-  const handleDateChange = (event, selectedDate, type) => {
-    if (type === "start") {
-      setShowStartDate(false)
-      if (selectedDate) setStartDate(selectedDate)
-    } else {
-      setShowEndDate(false)
-      if (selectedDate) setEndDate(selectedDate)
-    }
-  }
+  const scrollViewRef = useRef(null)
+  const progressAnimation = useRef(new Animated.Value(0)).current
+  const stepAnimation = useRef(new Animated.Value(0)).current
 
-  const onStartDateChange = (event, selectedDate) => {
-    setShowStartDate(false)
-    if (selectedDate) {
-      setStartDate(selectedDate)
-    }
-  }
+  useEffect(() => {
+    Animated.timing(progressAnimation, {
+      toValue: formProgress,
+      duration: 500,
+      easing: Easing.bezier(0.4, 0, 0.2, 1),
+      useNativeDriver: false,
+    }).start()
+  }, [formProgress, progressAnimation])
 
-  const onEndDateChange = (event, selectedDate) => {
-    setShowEndDate(false)
-    if (selectedDate) {
-      setEndDate(selectedDate)
-    }
-  }
+  useEffect(() => {
+    Animated.timing(stepAnimation, {
+      toValue: currentStep,
+      duration: 300,
+      easing: Easing.inOut(Easing.ease),
+      useNativeDriver: true,
+    }).start()
+  }, [currentStep, stepAnimation])
 
-  const onStartTimeChange = (event, selectedTime) => {
-    setShowStartTime(false)
-    if (selectedTime) {
-      setStartTime(selectedTime)
-    }
-  }
-
-  const onEndTimeChange = (event, selectedTime) => {
-    setShowEndTime(false)
-    if (selectedTime) {
-      setEndTime(selectedTime)
-    }
+  const updateEventDetails = (key, value) => {
+    setEventDetails((prev) => {
+      const updated = { ...prev, [key]: value }
+      const filledFields = Object.values(updated).filter((v) => v !== "" && v !== null).length
+      const progress = filledFields / Object.keys(updated).length
+      setFormProgress(progress)
+      return updated
+    })
   }
 
   const handleActivitySelect = (activity) => {
-    setSelectedActivity(activity)
-    setTitle(activity.name)
-    setDescription(activity.description)
-    setGoalValue(activity.defaultGoal)
+    updateEventDetails("selectedActivity", activity)
+    updateEventDetails("title", activity.name)
+    updateEventDetails("goalValue", activity.defaultGoal)
     setShowActivityModal(false)
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success)
+  }
+
+  const handleDateChange = (event, selectedDate) => {
+    setShowDatePicker(false)
+    if (selectedDate) {
+      updateEventDetails(currentDateSetting, selectedDate)
+    }
+  }
+
+  const showDateTimePicker = (mode, setting) => {
+    setShowDatePicker(true)
+    setDatePickerMode(mode)
+    setCurrentDateSetting(setting)
+  }
+
+  const validateForm = () => {
+    const requiredFields = ["title", "selectedActivity", "startDate", "endDate", "location", "eventType"]
+    const missingFields = requiredFields.filter((field) => !eventDetails[field])
+
+    if (missingFields.length > 0) {
+      Alert.alert("Manglende informasjon", `Vennligst fyll ut følgende felt: ${missingFields.join(", ")}`)
+      return false
+    }
+
+    if (eventDetails.startDate > eventDetails.endDate) {
+      Alert.alert("Ugyldig datoer", "Sluttdato må være etter startdato")
+      return false
+    }
+
+    return true
   }
 
   const handleConfirm = () => {
-    if (!selectedActivity) {
-      Alert.alert("Velg aktivitet", "Du må velge en aktivitet før du kan opprette hendelsen.")
-      return
+    if (validateForm()) {
+      setShowConfirmModal(true)
     }
+  }
 
-    const eventData = {
-      type: eventType,
-      title,
-      description,
-      startDate: startDate.toISOString(),
-      startTime: startTime.toISOString(),
-      endDate: endDate.toISOString(),
-      endTime: endTime.toISOString(),
-      goalValue,
-      activityType: selectedActivity.type,
-      activityUnit: selectedActivity.unit,
-      location,
-      // Convert participantCount to number and ensure it's at least 1
-      participantCount: Math.max(1, Number.parseInt(participantCount, 10) || 1),
-      teamCount: eventType === "team" ? Number.parseInt(teamCount, 10) || 1 : 1,
-      membersPerTeam: eventType === "team" ? Number.parseInt(membersPerTeam, 10) || 1 : 1,
-      status: "active",
-      participants: [],
-      results: {},
+  const createEvent = () => {
+    setShowConfirmModal(false) // Add this line to close the modal
+    console.log("Creating event:", eventDetails)
+    navigation.navigate("ActiveEvent", { eventDetails })
+  }
+
+  const renderInput = (label, value, onChangeText, placeholder, multiline = false) => (
+    <View style={styles.inputGroup}>
+      <Text style={[styles.label, { color: theme.text }]}>{label}</Text>
+      <TextInput
+        style={[
+          styles.input,
+          { backgroundColor: theme.surface, color: theme.text },
+          multiline && styles.multilineInput,
+        ]}
+        value={value}
+        onChangeText={onChangeText}
+        placeholder={placeholder}
+        placeholderTextColor={theme.textSecondary}
+        multiline={multiline}
+      />
+    </View>
+  )
+
+  const renderDateTimePicker = (label, date, onPress) => (
+    <TouchableOpacity style={styles.dateTimeButton} onPress={onPress}>
+      <Text style={[styles.dateTimeLabel, { color: theme.text }]}>{label}</Text>
+      <View style={[styles.dateTimeValue, { backgroundColor: theme.surface }]}>
+        <Text style={[styles.dateTimeText, { color: theme.text }]}>{date.toLocaleString()}</Text>
+        <MaterialCommunityIcons name="calendar-clock" size={24} color={theme.primary} />
+      </View>
+    </TouchableOpacity>
+  )
+
+  const renderStep = (stepIndex) => {
+    switch (stepIndex) {
+      case 0:
+        return (
+          <View style={styles.stepContainer}>
+            <Text style={[styles.stepTitle, { color: theme.text }]}>Velg aktivitetstype</Text>
+            <View style={styles.activityGrid}>
+              {PREDEFINED_ACTIVITIES.map((activity) => (
+                <TouchableOpacity
+                  key={activity.id}
+                  style={[
+                    styles.activityItem,
+                    {
+                      backgroundColor:
+                        eventDetails.selectedActivity?.id === activity.id ? activity.color : theme.surface,
+                    },
+                  ]}
+                  onPress={() => handleActivitySelect(activity)}
+                >
+                  <MaterialCommunityIcons
+                    name={activity.icon}
+                    size={32}
+                    color={eventDetails.selectedActivity?.id === activity.id ? "#FFFFFF" : activity.color}
+                  />
+                  <Text
+                    style={[
+                      styles.activityItemText,
+                      { color: eventDetails.selectedActivity?.id === activity.id ? "#FFFFFF" : theme.text },
+                    ]}
+                  >
+                    {activity.name}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+        )
+      case 1:
+        return (
+          <View style={styles.stepContainer}>
+            <Text style={[styles.stepTitle, { color: theme.text }]}>Hendelsesdetaljer</Text>
+            {renderInput(
+              "Hendelsesnavn",
+              eventDetails.title,
+              (text) => updateEventDetails("title", text),
+              "Skriv inn hendelsesnavn",
+            )}
+            {renderInput(
+              "Beskrivelse",
+              eventDetails.description,
+              (text) => updateEventDetails("description", text),
+              "Skriv inn beskrivelse",
+              true,
+            )}
+            <View style={styles.inputGroup}>
+              <Text style={[styles.label, { color: theme.text }]}>
+                Mål {eventDetails.selectedActivity ? `(${eventDetails.selectedActivity.unit})` : ""}
+              </Text>
+              <Slider
+                style={styles.slider}
+                value={eventDetails.goalValue}
+                onValueChange={(value) => updateEventDetails("goalValue", value)}
+                minimumValue={0}
+                maximumValue={eventDetails.selectedActivity?.type === "duration" ? 300 : 100}
+                minimumTrackTintColor={theme.primary}
+                maximumTrackTintColor={theme.border}
+                thumbTintColor={theme.primary}
+              />
+              <Text style={[styles.goalValueText, { color: theme.text }]}>
+                {eventDetails.selectedActivity?.type === "duration"
+                  ? `${Math.floor(eventDetails.goalValue / 60)} min ${Math.floor(eventDetails.goalValue % 60)} sek`
+                  : `${Math.round(eventDetails.goalValue)} ${eventDetails.selectedActivity?.unit || "enheter"}`}
+              </Text>
+            </View>
+          </View>
+        )
+      case 2:
+        return (
+          <View style={styles.stepContainer}>
+            <Text style={[styles.stepTitle, { color: theme.text }]}>Tid og sted</Text>
+            {renderInput(
+              "Lokasjon",
+              eventDetails.location,
+              (text) => updateEventDetails("location", text),
+              "Skriv inn lokasjon",
+            )}
+            {renderDateTimePicker("Startdato", eventDetails.startDate, () => showDateTimePicker("date", "startDate"))}
+            {renderDateTimePicker("Sluttdato", eventDetails.endDate, () => showDateTimePicker("date", "endDate"))}
+          </View>
+        )
+      case 3:
+        return (
+          <View style={styles.stepContainer}>
+            <Text style={[styles.stepTitle, { color: theme.text }]}>Deltakere</Text>
+            <View style={styles.eventTypeButtons}>
+              {["team", "individual"].map((type) => (
+                <TouchableOpacity
+                  key={type}
+                  style={[
+                    styles.eventTypeButton,
+                    { borderColor: theme.border },
+                    eventDetails.eventType === type && { backgroundColor: theme.primary },
+                  ]}
+                  onPress={() => updateEventDetails("eventType", type)}
+                >
+                  <MaterialCommunityIcons
+                    name={type === "team" ? "account-group" : "account"}
+                    size={24}
+                    color={eventDetails.eventType === type ? theme.background : theme.text}
+                  />
+                  <Text
+                    style={[
+                      styles.eventTypeButtonText,
+                      { color: eventDetails.eventType === type ? theme.background : theme.text },
+                    ]}
+                  >
+                    {type === "team" ? "Lagkonkurranse" : "Individuell"}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+            {renderInput(
+              "Antall deltakere",
+              eventDetails.participantCount,
+              (text) => updateEventDetails("participantCount", text),
+              "Skriv inn antall deltakere",
+            )}
+            {eventDetails.eventType === "team" && (
+              <>
+                {renderInput(
+                  "Antall lag",
+                  eventDetails.teamCount,
+                  (text) => updateEventDetails("teamCount", text),
+                  "Skriv inn antall lag",
+                )}
+                {renderInput(
+                  "Medlemmer per lag",
+                  eventDetails.membersPerTeam,
+                  (text) => updateEventDetails("membersPerTeam", text),
+                  "Skriv inn antall medlemmer per lag",
+                )}
+              </>
+            )}
+          </View>
+        )
+      case 4:
+        return (
+          <View style={styles.stepContainer}>
+            <Text style={[styles.stepTitle, { color: theme.text }]}>Tilleggsinnstillinger</Text>
+            <View style={styles.switchContainer}>
+              <Text style={[styles.switchLabel, { color: theme.text }]}>Offentlig hendelse</Text>
+              <Switch
+                value={eventDetails.isPublic}
+                onValueChange={(value) => updateEventDetails("isPublic", value)}
+                trackColor={{ false: theme.border, true: theme.primary }}
+                thumbColor={eventDetails.isPublic ? theme.background : theme.surface}
+              />
+            </View>
+            <View style={styles.tagsContainer}>
+              <Text style={[styles.label, { color: theme.text }]}>Tagger</Text>
+              <View style={styles.tagInputContainer}>
+                <TextInput
+                  style={[styles.tagInput, { backgroundColor: theme.surface, color: theme.text }]}
+                  value={tagInput}
+                  onChangeText={setTagInput}
+                  placeholder="Legg til tagger"
+                  placeholderTextColor={theme.textSecondary}
+                />
+                <TouchableOpacity
+                  style={[styles.addTagButton, { backgroundColor: theme.primary }]}
+                  onPress={() => {
+                    if (tagInput.trim()) {
+                      updateEventDetails("tags", [...eventDetails.tags, tagInput.trim()])
+                      setTagInput("")
+                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
+                    }
+                  }}
+                >
+                  <MaterialCommunityIcons name="plus" size={24} color="#FFFFFF" />
+                </TouchableOpacity>
+              </View>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.tagList}>
+                {eventDetails.tags.map((tag, index) => (
+                  <View key={index} style={[styles.tag, { backgroundColor: theme.primary }]}>
+                    <Text style={[styles.tagText, { color: "#FFFFFF" }]}>{tag}</Text>
+                    <TouchableOpacity
+                      onPress={() => {
+                        updateEventDetails(
+                          "tags",
+                          eventDetails.tags.filter((_, i) => i !== index),
+                        )
+                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
+                      }}
+                    >
+                      <MaterialCommunityIcons name="close" size={16} color="#FFFFFF" />
+                    </TouchableOpacity>
+                  </View>
+                ))}
+              </ScrollView>
+            </View>
+          </View>
+        )
+      default:
+        return null
     }
-
-    console.log("Creating event:", eventData)
-    navigation.navigate("ActiveEvent", { eventDetails: eventData })
   }
 
   return (
     <SafeAreaView style={[styles.safeArea, { backgroundColor: theme.background }]}>
-      <ScrollView style={styles.scrollContainer} contentContainerStyle={styles.contentContainer}>
-        <View style={[styles.headerContainer, { backgroundColor: theme.surface }]}>
-          <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
-            <MaterialCommunityIcons name="chevron-left" size={28} color={theme.text} />
+      <KeyboardAvoidingView
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        style={styles.container}
+        keyboardVerticalOffset={Platform.OS === "ios" ? 64 : 0}
+      >
+        <LinearGradient
+          colors={[theme.primary, theme.background]}
+          style={styles.header}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+        >
+          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+            <MaterialCommunityIcons name="chevron-left" size={30} color="#FFFFFF" />
           </TouchableOpacity>
-          <Text style={[styles.headerTitle, { color: theme.text }]}>Ny hendelse</Text>
+          <Text style={styles.headerTitle}>Ny hendelse</Text>
+          <Animated.View
+            style={[
+              styles.progressBar,
+              {
+                width: progressAnimation.interpolate({
+                  inputRange: [0, 1],
+                  outputRange: ["0%", "100%"],
+                }),
+              },
+            ]}
+          />
+        </LinearGradient>
+
+        <Animated.ScrollView
+          ref={scrollViewRef}
+          style={styles.scrollContainer}
+          contentContainerStyle={styles.scrollContent}
+          horizontal
+          pagingEnabled
+          showsHorizontalScrollIndicator={false}
+          scrollEventThrottle={16}
+          onScroll={Animated.event([{ nativeEvent: { contentOffset: { x: stepAnimation } } }], {
+            useNativeDriver: true,
+          })}
+        >
+          {[0, 1, 2, 3, 4].map((step) => (
+            <View key={step} style={[styles.stepWrapper, { width }]}>
+              <ScrollView contentContainerStyle={styles.stepScrollContent}>{renderStep(step)}</ScrollView>
+            </View>
+          ))}
+        </Animated.ScrollView>
+
+        <View style={styles.footer}>
+          <TouchableOpacity
+            style={[
+              styles.footerButton,
+              { backgroundColor: theme.primary },
+              currentStep === 0 && styles.footerButtonDisabled,
+            ]}
+            onPress={() => {
+              if (currentStep > 0) {
+                setCurrentStep(currentStep - 1)
+                scrollViewRef.current?.scrollTo({ x: (currentStep - 1) * width, animated: true })
+              }
+            }}
+            disabled={currentStep === 0}
+          >
+            <Text style={[styles.footerButtonText, { color: theme.background }]}>Forrige</Text>
+          </TouchableOpacity>
+          {currentStep < 4 ? (
+            <TouchableOpacity
+              style={[styles.footerButton, { backgroundColor: theme.primary }]}
+              onPress={() => {
+                if (currentStep < 4) {
+                  setCurrentStep(currentStep + 1)
+                  scrollViewRef.current?.scrollTo({ x: (currentStep + 1) * width, animated: true })
+                }
+              }}
+            >
+              <Text style={[styles.footerButtonText, { color: theme.background }]}>Neste</Text>
+            </TouchableOpacity>
+          ) : (
+            <TouchableOpacity style={[styles.footerButton, { backgroundColor: theme.primary }]} onPress={handleConfirm}>
+              <Text style={[styles.footerButtonText, { color: theme.background }]}>Opprett hendelse</Text>
+            </TouchableOpacity>
+          )}
         </View>
+      </KeyboardAvoidingView>
 
-        <Image
-          source={require("../../../assets/vitusaktivitet_v2_sq.png")}
-          style={styles.backgroundImage}
-          resizeMode="contain"
-        />
-
-        <View style={styles.formContainer}>
-          <Text style={[styles.label, { color: theme.text }]}>Velg hendelsestype</Text>
-          <View style={styles.eventTypeButtons}>
-            <TouchableOpacity
-              style={[
-                styles.eventTypeButton,
-                { borderColor: theme.border },
-                eventType === "team" && { backgroundColor: theme.primary },
-              ]}
-              onPress={() => setEventType("team")}
-            >
-              <MaterialCommunityIcons
-                name="account-group"
-                size={24}
-                color={eventType === "team" ? theme.background : theme.text}
-              />
-              <Text
-                style={[styles.eventTypeButtonText, { color: eventType === "team" ? theme.background : theme.text }]}
+      <Modal visible={showConfirmModal} animationType="fade" transparent={true}>
+        <BlurView intensity={100} style={styles.modalContainer}>
+          <View style={[styles.confirmModalContent, { backgroundColor: theme.background }]}>
+            <Text style={[styles.confirmModalTitle, { color: theme.text }]}>Bekreft hendelse</Text>
+            <Text style={[styles.confirmModalText, { color: theme.textSecondary }]}>
+              Er du sikker på at du vil opprette denne hendelsen?
+            </Text>
+            <View style={styles.confirmModalButtons}>
+              <TouchableOpacity
+                style={[styles.confirmModalButton, styles.cancelButton, { backgroundColor: theme.surface }]}
+                onPress={() => setShowConfirmModal(false)}
               >
-                Team hendelse
-              </Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[
-                styles.eventTypeButton,
-                { borderColor: theme.border },
-                eventType === "individual" && { backgroundColor: theme.primary },
-              ]}
-              onPress={() => setEventType("individual")}
-            >
-              <MaterialCommunityIcons
-                name="account"
-                size={24}
-                color={eventType === "individual" ? theme.background : theme.text}
-              />
-              <Text
-                style={[
-                  styles.eventTypeButtonText,
-                  { color: eventType === "individual" ? theme.background : theme.text },
-                ]}
-              >
-                Individuell hendelse
-              </Text>
-            </TouchableOpacity>
-          </View>
-
-          {eventType && (
-            <>
-              <Text style={[styles.label, { color: theme.text, marginTop: 24 }]}>Velg Aktivitet</Text>
+                <Text style={[styles.confirmModalButtonText, { color: theme.text }]}>Avbryt</Text>
+              </TouchableOpacity>
               <TouchableOpacity
                 style={[
-                  styles.activitySelector,
-                  { backgroundColor: isDarkMode ? "#2A2A2A" : theme.surface, borderColor: theme.border },
+                  styles.confirmModalButton,
+                  { backgroundColor: theme.primary }, // Changed from styles.confirmButton
                 ]}
-                onPress={() => setShowActivityModal(true)}
+                onPress={createEvent}
               >
-                <Text style={[styles.activitySelectorText, { color: theme.text }]}>
-                  {selectedActivity ? selectedActivity.name : "Velg en aktivitet"}
-                </Text>
-                <MaterialCommunityIcons name="chevron-down" size={24} color={theme.text} />
+                <Text style={[styles.confirmModalButtonText, { color: theme.background }]}>Bekreft</Text>
               </TouchableOpacity>
-
-              <Text style={[styles.label, { color: theme.text }]}>Hendelsesnavn</Text>
-              <View
-                style={[
-                  styles.inputContainer,
-                  { backgroundColor: isDarkMode ? "#2A2A2A" : theme.surface, borderColor: theme.border },
-                ]}
-              >
-                <TextInput
-                  style={[styles.input, { color: theme.text }]}
-                  value={title}
-                  onChangeText={setTitle}
-                  placeholder="Skriv inn hendelsesnavn"
-                  placeholderTextColor={theme.textSecondary}
-                />
-              </View>
-
-              <Text style={[styles.label, { color: theme.text }]}>Beskrivelse</Text>
-              <View
-                style={[
-                  styles.inputContainer,
-                  { backgroundColor: isDarkMode ? "#2A2A2A" : theme.surface, borderColor: theme.border },
-                ]}
-              >
-                <TextInput
-                  style={[styles.input, { color: theme.text }]}
-                  value={description}
-                  onChangeText={setDescription}
-                  placeholder="Skriv inn beskrivelse"
-                  placeholderTextColor={theme.textSecondary}
-                  multiline
-                />
-              </View>
-
-              <Text style={[styles.label, { color: theme.text }]}>
-                Mål {selectedActivity ? `(${selectedActivity.unit})` : ""}
-              </Text>
-              <View style={styles.sliderContainer}>
-                <Slider
-                  style={styles.slider}
-                  value={goalValue}
-                  onValueChange={(value) => setGoalValue(value)}
-                  minimumValue={0}
-                  maximumValue={selectedActivity?.type === "duration" ? 300 : 100}
-                  minimumTrackTintColor={theme.primary}
-                  maximumTrackTintColor={theme.border}
-                  thumbTintColor={theme.primary}
-                />
-                <Text style={[styles.goalValueText, { color: theme.text }]}>
-                  {selectedActivity?.type === "duration"
-                    ? `${Math.floor(goalValue / 60)} min ${Math.floor(goalValue % 60)} sek`
-                    : `${Math.round(goalValue)} ${selectedActivity?.unit || "enheter"}`}
-                </Text>
-              </View>
-
-              <Text style={[styles.label, { color: theme.text }]}>Lokasjon</Text>
-              <View
-                style={[
-                  styles.inputContainer,
-                  { backgroundColor: isDarkMode ? "#2A2A2A" : theme.surface, borderColor: theme.border },
-                ]}
-              >
-                <TextInput
-                  style={[styles.input, { color: theme.text }]}
-                  value={location}
-                  onChangeText={setLocation}
-                  placeholder="Skriv inn lokasjon"
-                  placeholderTextColor={theme.textSecondary}
-                />
-              </View>
-
-              <View style={styles.dateTimeSection}>
-                <Text style={[styles.label, { color: theme.text }]}>Start dato og tid</Text>
-                <View style={styles.dateTimeContainer}>
-                  <TouchableOpacity
-                    style={[styles.dateTimeInput, { backgroundColor: theme.surface, borderColor: theme.border }]}
-                    onPress={() => setShowStartDate(true)}
-                  >
-                    <MaterialCommunityIcons name="calendar" size={20} color={theme.textSecondary} />
-                    <Text style={[styles.dateTimeText, { color: theme.text }]}>{startDate.toLocaleDateString()}</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={[styles.dateTimeInput, { backgroundColor: theme.surface, borderColor: theme.border }]}
-                    onPress={() => setShowStartTime(true)}
-                  >
-                    <MaterialCommunityIcons name="clock-outline" size={20} color={theme.textSecondary} />
-                    <Text style={[styles.dateTimeText, { color: theme.text }]}>
-                      {startTime.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-                    </Text>
-                  </TouchableOpacity>
-                </View>
-
-                <Text style={[styles.label, { color: theme.text }]}>Slutt dato og tid</Text>
-                <View style={styles.dateTimeContainer}>
-                  <TouchableOpacity
-                    style={[styles.dateTimeInput, { backgroundColor: theme.surface, borderColor: theme.border }]}
-                    onPress={() => setShowEndDate(true)}
-                  >
-                    <MaterialCommunityIcons name="calendar" size={20} color={theme.textSecondary} />
-                    <Text style={[styles.dateTimeText, { color: theme.text }]}>{endDate.toLocaleDateString()}</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={[styles.dateTimeInput, { backgroundColor: theme.surface, borderColor: theme.border }]}
-                    onPress={() => setShowEndTime(true)}
-                  >
-                    <MaterialCommunityIcons name="clock-outline" size={20} color={theme.textSecondary} />
-                    <Text style={[styles.dateTimeText, { color: theme.text }]}>
-                      {endTime.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-                    </Text>
-                  </TouchableOpacity>
-                </View>
-              </View>
-
-              {eventType === "team" && (
-                <>
-                  <Text style={[styles.label, { color: theme.text }]}>Antall deltakere</Text>
-                  <View
-                    style={[
-                      styles.inputContainer,
-                      { backgroundColor: isDarkMode ? "#2A2A2A" : theme.surface, borderColor: theme.border },
-                    ]}
-                  >
-                    <TextInput
-                      style={[styles.input, { color: theme.text }]}
-                      value={participantCount}
-                      onChangeText={setParticipantCount}
-                      placeholder="Skriv inn antall deltakere"
-                      placeholderTextColor={theme.textSecondary}
-                      keyboardType="numeric"
-                    />
-                  </View>
-
-                  <Text style={[styles.label, { color: theme.text }]}>Antall lag</Text>
-                  <View
-                    style={[
-                      styles.inputContainer,
-                      { backgroundColor: isDarkMode ? "#2A2A2A" : theme.surface, borderColor: theme.border },
-                    ]}
-                  >
-                    <TextInput
-                      style={[styles.input, { color: theme.text }]}
-                      value={teamCount}
-                      onChangeText={setTeamCount}
-                      placeholder="Skriv inn antall lag"
-                      placeholderTextColor={theme.textSecondary}
-                      keyboardType="numeric"
-                    />
-                  </View>
-
-                  <Text style={[styles.label, { color: theme.text }]}>Medlemmer per lag</Text>
-                  <View
-                    style={[
-                      styles.inputContainer,
-                      { backgroundColor: isDarkMode ? "#2A2A2A" : theme.surface, borderColor: theme.border },
-                    ]}
-                  >
-                    <TextInput
-                      style={[styles.input, { color: theme.text }]}
-                      value={membersPerTeam}
-                      onChangeText={setMembersPerTeam}
-                      placeholder="Skriv inn antall medlemmer per lag"
-                      placeholderTextColor={theme.textSecondary}
-                      keyboardType="numeric"
-                    />
-                  </View>
-                </>
-              )}
-
-              {eventType === "individual" && (
-                <>
-                  <Text style={[styles.label, { color: theme.text }]}>Antall deltakere</Text>
-                  <View
-                    style={[
-                      styles.inputContainer,
-                      { backgroundColor: isDarkMode ? "#2A2A2A" : theme.surface, borderColor: theme.border },
-                    ]}
-                  >
-                    <TextInput
-                      style={[styles.input, { color: theme.text }]}
-                      value={participantCount}
-                      onChangeText={setParticipantCount}
-                      placeholder="Skriv inn antall deltakere"
-                      placeholderTextColor={theme.textSecondary}
-                      keyboardType="numeric"
-                    />
-                  </View>
-                </>
-              )}
-
-              <View style={styles.buttonContainer}>
-                <TouchableOpacity
-                  style={[styles.cancelButton, { backgroundColor: isDarkMode ? "#2A2A2A" : "#FFF2F2" }]}
-                  onPress={() => navigation.goBack()}
-                >
-                  <Text style={[styles.buttonText, { color: "#FF0000" }]}>Avbryt</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[styles.confirmButton, { backgroundColor: theme.primary }]}
-                  onPress={handleConfirm}
-                >
-                  <Text style={[styles.buttonText, { color: "#FFFFFF" }]}>Opprett hendelse</Text>
-                </TouchableOpacity>
-              </View>
-            </>
-          )}
-
-          {/* Activity Selection Modal */}
-          <Modal visible={showActivityModal} animationType="slide" transparent={true}>
-            <View style={[styles.modalContainer, { backgroundColor: "rgba(0,0,0,0.5)" }]}>
-              <View style={[styles.modalContent, { backgroundColor: theme.background }]}>
-                <Text style={[styles.modalTitle, { color: theme.text }]}>Velg Aktivitet</Text>
-                {PREDEFINED_ACTIVITIES.map((activity) => (
-                  <TouchableOpacity
-                    key={activity.id}
-                    style={[styles.activityOption, { borderBottomColor: theme.border }]}
-                    onPress={() => handleActivitySelect(activity)}
-                  >
-                    <MaterialCommunityIcons name={activity.icon} size={24} color={theme.primary} />
-                    <View style={styles.activityOptionText}>
-                      <Text style={[styles.activityName, { color: theme.text }]}>{activity.name}</Text>
-                      <Text style={[styles.activityDescription, { color: theme.textSecondary }]}>
-                        {activity.description}
-                      </Text>
-                    </View>
-                    <MaterialCommunityIcons name="chevron-right" size={24} color={theme.text} />
-                  </TouchableOpacity>
-                ))}
-                <TouchableOpacity
-                  style={[styles.modalCloseButton, { backgroundColor: theme.surface }]}
-                  onPress={() => setShowActivityModal(false)}
-                >
-                  <Text style={[styles.modalCloseText, { color: theme.text }]}>Lukk</Text>
-                </TouchableOpacity>
-              </View>
             </View>
-          </Modal>
-        </View>
-      </ScrollView>
-      <Modal visible={showStartDate || showStartTime || showEndDate || showEndTime} transparent animationType="fade">
-        <View style={styles.dateTimePickerModal}>
-          <View style={[styles.dateTimePickerContainer, { backgroundColor: theme.surface }]}>
-            {showStartDate && (
-              <DateTimePicker
-                value={startDate}
-                mode="date"
-                display="inline"
-                onChange={onStartDateChange}
-                textColor={theme.text}
-              />
-            )}
-            {showStartTime && (
-              <DateTimePicker
-                value={startTime}
-                mode="time"
-                display="spinner"
-                onChange={onStartTimeChange}
-                textColor={theme.text}
-              />
-            )}
-            {showEndDate && (
-              <DateTimePicker
-                value={endDate}
-                mode="date"
-                display="inline"
-                onChange={onEndDateChange}
-                textColor={theme.text}
-              />
-            )}
-            {showEndTime && (
-              <DateTimePicker
-                value={endTime}
-                mode="time"
-                display="spinner"
-                onChange={onEndTimeChange}
-                textColor={theme.text}
-              />
-            )}
           </View>
-        </View>
+        </BlurView>
       </Modal>
+
+      {showDatePicker && (
+        <DateTimePicker
+          value={eventDetails[currentDateSetting]}
+          mode={datePickerMode}
+          is24Hour={true}
+          display="default"
+          onChange={handleDateChange}
+        />
+      )}
     </SafeAreaView>
   )
 }
 
 const styles = StyleSheet.create({
-  timeContainer: {
-    marginBottom: 24,
-  },
   safeArea: {
     flex: 1,
   },
-  scrollContainer: {
-    flex: 1,
-  },
-  contentContainer: {
-    paddingBottom: 50,
-  },
   container: {
     flex: 1,
+  },
+  header: {
+    height: 100,
+    justifyContent: "flex-end",
+    paddingBottom: 16,
+    paddingHorizontal: 16,
   },
   backButton: {
     position: "absolute",
@@ -530,242 +592,220 @@ const styles = StyleSheet.create({
     left: 16,
     zIndex: 1,
   },
-  backgroundImage: {
-    width: "90%",
-    height: 240,
-    marginTop: -20,
-    alignSelf: "center",
+  headerTitle: {
+    fontSize: 24,
+    fontWeight: "bold",
+    color: "#FFFFFF",
+    marginBottom: 8,
   },
-  formContainer: {
+  progressBar: {
+    height: 4,
+    backgroundColor: "#FFFFFF",
+    borderRadius: 2,
+  },
+  scrollContainer: {
     flex: 1,
-    padding: 20,
-    paddingBottom: 100,
   },
-  label: {
+  scrollContent: {
+    flexGrow: 1,
+  },
+  stepWrapper: {
+    flex: 1,
+  },
+  stepScrollContent: {
+    flexGrow: 1,
+    padding: 16,
+  },
+  stepContainer: {
+    flex: 1,
+  },
+  stepTitle: {
     fontSize: 20,
     fontWeight: "600",
-    marginBottom: 12,
+    marginBottom: 16,
   },
-  inputContainer: {
+  activityGrid: {
     flexDirection: "row",
-    alignItems: "center",
-    borderWidth: 1,
+    flexWrap: "wrap",
+    justifyContent: "space-between",
+  },
+  activityItem: {
+    width: "48%",
+    aspectRatio: 1,
     borderRadius: 12,
-    marginBottom: 24,
-    height: 56,
+    justifyContent: "center",
+    alignItems: "center",
+    marginBottom: 16,
+  },
+  activityItemText: {
+    marginTop: 8,
+    fontWeight: "500",
+  },
+  inputGroup: {
+    marginBottom: 16,
+  },
+  label: {
+    fontSize: 16,
+    fontWeight: "600",
+    marginBottom: 8,
   },
   input: {
-    flex: 1,
-    paddingHorizontal: 16,
-    fontSize: 16,
+    height: 40,
+    borderRadius: 8,
+    paddingHorizontal: 12,
   },
-  clearButton: {
-    padding: 8,
-    marginRight: 8,
-  },
-  sliderContainer: {
-    marginBottom: 24,
+  multilineInput: {
+    height: 80,
+    textAlignVertical: "top",
   },
   slider: {
     width: "100%",
     height: 40,
   },
-  dateContainer: {
-    flexDirection: "row",
-    gap: 16,
-    marginBottom: 24,
-  },
-  dateInput: {
-    flex: 1,
-    height: 56,
-    justifyContent: "center",
-    paddingHorizontal: 16,
-    borderWidth: 1,
-    borderRadius: 12,
-  },
-  dateText: {
-    fontSize: 16,
-  },
-  buttonContainer: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    gap: 16,
-    marginTop: "auto",
-    paddingHorizontal: 20,
-    paddingBottom: 34,
-    position: "absolute",
-    bottom: 0,
-    left: 0,
-    right: 0,
-    backgroundColor: "transparent",
-  },
-  cancelButton: {
-    flex: 1,
-    height: 56,
-    justifyContent: "center",
-    alignItems: "center",
-    borderRadius: 12,
-    elevation: 2,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
-  },
-  confirmButton: {
-    flex: 1,
-    height: 56,
-    justifyContent: "center",
-    alignItems: "center",
-    borderRadius: 12,
-    elevation: 2,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
-  },
-  buttonText: {
-    fontSize: 16,
-    fontWeight: "600",
-  },
-  cancelText: {
-    color: "#FF0000",
-  },
-  confirmText: {
-    color: "#FFFFFF",
-  },
-  activitySelector: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    padding: 16,
-    borderRadius: 12,
-    marginBottom: 24,
-    borderWidth: 1,
-    height: 56,
-  },
-  activitySelectorText: {
-    fontSize: 16,
-  },
-  modalContainer: {
-    flex: 1,
-    justifyContent: "flex-end",
-  },
-  modalContent: {
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    padding: 20,
-    maxHeight: "80%",
-  },
-  modalTitle: {
-    fontSize: 20,
-    fontWeight: "600",
-    marginBottom: 20,
-    textAlign: "center",
-  },
-  activityOption: {
-    flexDirection: "row",
-    alignItems: "center",
-    padding: 16,
-    borderBottomWidth: 1,
-  },
-  activityOptionText: {
-    flex: 1,
-    marginLeft: 16,
-  },
-  activityName: {
-    fontSize: 16,
-    fontWeight: "500",
-  },
-  activityDescription: {
-    fontSize: 14,
-    marginTop: 4,
-  },
-  modalCloseButton: {
-    marginTop: 20,
-    padding: 16,
-    borderRadius: 12,
-    alignItems: "center",
-  },
-  modalCloseText: {
-    fontSize: 16,
-    fontWeight: "500",
-  },
   goalValueText: {
     textAlign: "center",
     marginTop: 8,
-    fontSize: 16,
   },
-  warningText: {
-    color: "red",
-    fontWeight: "bold",
-  },
-  eventTypeContainer: {
-    marginBottom: 32,
-  },
-  eventTypeButtons: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    gap: 12,
-    marginBottom: 24,
-  },
-  eventTypeButton: {
-    flex: 1,
-    flexDirection: "column",
-    alignItems: "center",
-    justifyContent: "center",
-    padding: 16,
-    borderRadius: 12,
-    borderWidth: 1,
-    gap: 8,
-  },
-  eventTypeButtonText: {
-    fontSize: 16,
-    fontWeight: "600",
-    textAlign: "center",
-  },
-  dateTimeContainer: {
-    flexDirection: "row",
-    gap: 12,
+  dateTimeButton: {
     marginBottom: 16,
   },
-  dateTimeInput: {
-    flex: 1,
+  dateTimeLabel: {
+    fontSize: 16,
+    fontWeight: "600",
+    marginBottom: 8,
+  },
+  dateTimeValue: {
     flexDirection: "row",
     alignItems: "center",
+    justifyContent: "space-between",
     padding: 12,
-    borderRadius: 12,
-    borderWidth: 1,
-    gap: 8,
+    borderRadius: 8,
   },
   dateTimeText: {
     fontSize: 16,
   },
-  headerContainer: {
+  eventTypeButtons: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginBottom: 16,
+  },
+  eventTypeButton: {
+    flex: 1,
     flexDirection: "row",
     alignItems: "center",
-    padding: 16,
-    borderRadius: 12,
-    marginBottom: 20,
+    justifyContent: "center",
+    padding: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+    marginHorizontal: 4,
   },
-  headerTitle: {
-    fontSize: 24,
+  eventTypeButtonText: {
+    marginLeft: 8,
+    fontSize: 16,
     fontWeight: "600",
-    marginLeft: 32,
   },
-  dateTimeSection: {
-    marginBottom: 24,
+  switchContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 16,
   },
-  dateTimePickerModal: {
+  switchLabel: {
+    fontSize: 16,
+    fontWeight: "600",
+  },
+  tagsContainer: {
+    marginBottom: 16,
+  },
+  tagInputContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 8,
+  },
+  tagInput: {
+    flex: 1,
+    height: 40,
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    marginRight: 8,
+  },
+  addTagButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  tagList: {
+    flexGrow: 0,
+  },
+  tag: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    marginRight: 8,
+  },
+  tagText: {
+    marginRight: 4,
+  },
+  footer: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    padding: 16,
+    borderTopWidth: 1,
+    borderTopColor: "rgba(0, 0, 0, 0.1)",
+  },
+  footerButton: {
+    flex: 1,
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    borderRadius: 8,
+    marginHorizontal: 4,
+  },
+  footerButtonDisabled: {
+    opacity: 0.5,
+  },
+  footerButtonText: {
+    fontSize: 16,
+    fontWeight: "600",
+  },
+  modalContainer: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: "rgba(0, 0, 0, 0.5)",
   },
-  dateTimePickerContainer: {
-    width: "90%",
+  confirmModalContent: {
+    width: "80%",
     borderRadius: 16,
     padding: 20,
+  },
+  confirmModalTitle: {
+    fontSize: 20,
+    fontWeight: "600",
+    marginBottom: 16,
+    textAlign: "center",
+  },
+  confirmModalText: {
+    fontSize: 16,
+    marginBottom: 24,
+    textAlign: "center",
+  },
+  confirmModalButtons: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+  },
+  confirmModalButton: {
+    flex: 1,
+    padding: 12,
+    borderRadius: 8,
     alignItems: "center",
+    marginHorizontal: 4,
+  },
+  confirmModalButtonText: {
+    fontSize: 16,
+    fontWeight: "600",
   },
 })
 
