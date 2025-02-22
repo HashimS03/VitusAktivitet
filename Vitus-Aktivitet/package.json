@@ -25,6 +25,7 @@
     "expo-barcode-scanner": "^13.0.1",
     "expo-blur": "^14.0.3",
     "expo-camera": "~16.0.16",
+    "expo-haptics": "^14.0.1",
     "expo-image-picker": "~16.0.6",
     "expo-linear-gradient": "^14.0.2",
     "expo-sensors": "~14.0.2",
