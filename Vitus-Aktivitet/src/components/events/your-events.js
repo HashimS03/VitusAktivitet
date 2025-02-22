@@ -1,182 +1,140 @@
-import React from "react";
-import {
-  View,
-  Text,
-  StyleSheet,
-  SafeAreaView,
-  TouchableOpacity,
-  Image,
-} from "react-native";
-import { MaterialCommunityIcons } from "@expo/vector-icons";
-import { useNavigation } from "@react-navigation/native";
-import { useTheme } from "../context/ThemeContext"; // 🌙 Import Theme Support
+import { View, Text, StyleSheet, SafeAreaView, TouchableOpacity, Image, ScrollView } from "react-native"
+import { MaterialCommunityIcons } from "@expo/vector-icons"
+import { useNavigation } from "@react-navigation/native"
+import { useTheme } from "../context/ThemeContext"
 
 const YourEvents = () => {
-  const navigation = useNavigation();
-  const { theme, accentColor } = useTheme(); // 🌙 Get Theme & Accent Color
+  const navigation = useNavigation()
+  const { theme } = useTheme()
 
   return (
     <SafeAreaView style={[styles.safeArea, { backgroundColor: theme.background }]}>
-      <View style={[styles.container, { backgroundColor: theme.background }]}>
-        {/* Action Cards */}
-        <TouchableOpacity
-          style={[styles.actionCard, { backgroundColor: theme.surface }]}
-          onPress={() => navigation.navigate("NewEvent")}
-        >
-          <Text style={[styles.actionCardText, { color: theme.text }]}>
-            Opprett hendelse
-          </Text>
-          <MaterialCommunityIcons
-            name="chevron-right"
-            size={24}
-            color={theme.text}
-          />
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={[styles.actionCard, { backgroundColor: theme.surface }]}
-          onPress={() => navigation.navigate("JoinEvent")}
-        >
-          <Text style={[styles.actionCardText, { color: theme.text }]}>
-            Join Hendelse
-          </Text>
-          <MaterialCommunityIcons
-            name="chevron-right"
-            size={24}
-            color={theme.text}
-          />
-        </TouchableOpacity>
-
-        {/* Active Events Section */}
-        <View style={styles.activeEventsSection}>
-          <Text style={[styles.sectionTitle, { color: theme.text }]}>
-            Dine <Text style={[styles.highlightText, { color: accentColor }]}>Aktive</Text> Hendelser
-          </Text>
-
-          {/* Empty State (No Active Events) */}
+      <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer}>
+        <View style={styles.actionButtons}>
           <TouchableOpacity
-            style={[styles.noEventsContainer, { backgroundColor: theme.surface }]}
-            onPress={() =>
-              navigation.navigate("LogRecordingScreen", {
-                isEventActive: false,
-              })
-            }
+            style={[styles.createEventButton, { backgroundColor: "#7C3AED" }]}
+            onPress={() => navigation.navigate("NewEvent")}
           >
-            <View>
-              <Text style={[styles.noEventTitle, { color: theme.text }]}>
-                Ingen Aktive Hendelser
-              </Text>
-              <Text style={[styles.noEventSubtitle, { color: theme.textSecondary }]}>
-                Du har for øyeblikket ingen aktive hendelser.
-              </Text>
-            </View>
-            <MaterialCommunityIcons
-              name="chevron-right"
-              size={24}
-              color={theme.textSecondary}
-            />
+            <MaterialCommunityIcons name="plus" size={24} color="white" />
+            <Text style={styles.createEventText}>Create Event</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.joinEventButton, { backgroundColor: "#2C2C2E" }]}
+            onPress={() => navigation.navigate("JoinEvent")}
+          >
+            <MaterialCommunityIcons name="account-group" size={24} color="white" />
+            <Text style={styles.joinEventText}>Join Event</Text>
           </TouchableOpacity>
         </View>
-      </View>
+
+        <Text style={[styles.sectionTitle, { color: theme.text }]}>Active Events</Text>
+
+        <View style={[styles.emptyStateContainer, { backgroundColor: "#2C2C2E" }]}>
+          <Image source={require("../../../assets/CalenderClock.png")} style={styles.emptyStateImage} />
+          <Text style={[styles.emptyStateTitle, { color: theme.text }]}>No Active Events</Text>
+          <Text style={[styles.emptyStateSubtitle, { color: "#8E8E93" }]}>
+            You don't have any active events at the moment.
+          </Text>
+          <TouchableOpacity
+            style={[styles.emptyStateButton, { backgroundColor: "#7C3AED" }]}
+            onPress={() => navigation.navigate("NewEvent")}
+          >
+            <Text style={styles.emptyStateButtonText}>Create an Event</Text>
+          </TouchableOpacity>
+        </View>
+      </ScrollView>
     </SafeAreaView>
-  );
-};
+  )
+}
 
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    paddingTop: 30, // ✅ Fix Navbar Padding
   },
   container: {
     flex: 1,
-    paddingBottom: 80, // ✅ Ensure space for bottom navigation
   },
-  actionCard: {
+  contentContainer: {
+    paddingTop: 0, // Remove top padding
+  },
+  actionButtons: {
+    flexDirection: "row",
+    gap: 8,
+    marginBottom: 20,
+    paddingHorizontal: 4, // Reduced from 8 to 4
+    marginTop: 0, // Removed top margin
+  },
+  createEventButton: {
+    flex: 1,
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
-    borderRadius: 16,
-    padding: 20,
-    marginBottom: 16,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    justifyContent: "center",
+    padding: 16,
+    borderRadius: 32,
+    gap: 8,
+    height: 56,
   },
-  actionCardText: {
+  joinEventButton: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    padding: 16,
+    borderRadius: 32,
+    gap: 8,
+    height: 56,
+  },
+  createEventText: {
+    color: "white",
     fontSize: 16,
-    fontWeight: "500",
+    fontWeight: "600",
   },
-  activeEventsSection: {
-    marginTop: 8,
+  joinEventText: {
+    color: "white",
+    fontSize: 16,
+    fontWeight: "600",
   },
   sectionTitle: {
-    fontSize: 18,
-    fontWeight: "500",
-    marginBottom: 16,
-  },
-  highlightText: {
+    fontSize: 34,
     fontWeight: "600",
+    marginBottom: 16,
+    paddingHorizontal: 4, // Reduced from 8 to 4
   },
-  eventCard: {
-    backgroundColor: "#fff",
+  emptyStateContainer: {
     borderRadius: 16,
-    overflow: "hidden",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    padding: 32,
+    alignItems: "center",
+    marginHorizontal: 4, // Reduced from 8 to 4
+  },
+  emptyStateImage: {
+    width: 80,
+    height: 80,
     marginBottom: 16,
   },
-  eventImage: {
-    width: "100%",
-    height: 120,
-    backgroundColor: "#E5E5E5",
-  },
-  eventContent: {
-    padding: 16,
-  },
-  eventHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 8,
-  },
-  eventTitle: {
-    fontSize: 18,
-    fontWeight: "600",
-  },
-  eventTime: {
-    fontSize: 14,
-    marginBottom: 4,
-  },
-  eventDate: {
-    fontSize: 14,
-  },
-  noEventsContainer: {
-    borderRadius: 12,
-    padding: 20,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  noEventTitle: {
-    fontSize: 22,
+  emptyStateTitle: {
+    fontSize: 24,
     fontWeight: "600",
     marginBottom: 8,
   },
-  noEventSubtitle: {
+  emptyStateSubtitle: {
+    fontSize: 15,
+    textAlign: "center",
+    marginBottom: 24,
+    lineHeight: 22,
+    maxWidth: 280,
+  },
+  emptyStateButton: {
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    borderRadius: 24,
+  },
+  emptyStateButtonText: {
+    color: "white",
     fontSize: 16,
-    maxWidth: "80%",
-    lineHeight: 24,
+    fontWeight: "600",
   },
-});
+})
 
-export default YourEvents;
+export default YourEvents
+
