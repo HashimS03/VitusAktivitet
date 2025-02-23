@@ -10,6 +10,7 @@ import {
   Dimensions,
   FlatList,
   Animated,
+  Platform,
 } from "react-native";
 import { ChevronLeft } from "lucide-react-native";
 import { useTheme } from "../context/ThemeContext"; // 🌙 Import Theme Support
@@ -29,20 +30,11 @@ const DurationSelect = ({ navigation, route }) => {
   const [selectedIndex, setSelectedIndex] = useState(0);
   const flatListRef = useRef(null);
   const scrollY = useRef(new Animated.Value(0)).current;
+  const scrollTimeout = useRef(null);
+  const isScrolling = useRef(false);
 
   const durations = useMemo(() => generateDurations(), []);
-  const repeatedDurations = useMemo(
-    () => [...durations, ...durations, ...durations],
-    [durations]
-  );
-
-  useEffect(() => {
-    // Scroll to the middle set of items initially
-    flatListRef.current?.scrollToIndex({
-      index: TOTAL_ITEMS + Math.floor(VISIBLE_ITEMS / 2),
-      animated: false,
-    });
-  }, []);
+  const repeatedDurations = useMemo(() => durations, [durations]);
 
   const renderDurationItem = ({ item, index }) => {
     const actualIndex = index % TOTAL_ITEMS;
@@ -114,14 +106,21 @@ const DurationSelect = ({ navigation, route }) => {
   );
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]}>
+    <SafeAreaView
+      style={[styles.container, { backgroundColor: theme.background }]}
+    >
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()}>
           <ChevronLeft size={24} color={theme.text} />
         </TouchableOpacity>
         <View style={[styles.progressBar, { backgroundColor: theme.surface }]}>
-          <View style={[styles.progressFill, { backgroundColor: accentColor, width: "66%" }]} />
+          <View
+            style={[
+              styles.progressFill,
+              { backgroundColor: accentColor, width: "66%" },
+            ]}
+          />
         </View>
         <Text style={[styles.pageIndicator, { color: theme.text }]}>2/3</Text>
       </View>
@@ -129,7 +128,10 @@ const DurationSelect = ({ navigation, route }) => {
       {/* Content */}
       <View style={styles.content}>
         <Text style={[styles.title, { color: theme.text }]}>
-          Velg hvor <Text style={[styles.highlightText, { color: accentColor }]}>Lenge</Text>
+          Velg hvor{" "}
+          <Text style={[styles.highlightText, { color: accentColor }]}>
+            Lenge
+          </Text>
         </Text>
         <Text style={[styles.subtitle, { color: theme.textSecondary }]}>
           Hvor lang tid utførte du din aktivitet?
@@ -145,6 +147,8 @@ const DurationSelect = ({ navigation, route }) => {
             keyExtractor={(item, index) => `${item}-${index}`}
             showsVerticalScrollIndicator={false}
             snapToInterval={ITEM_HEIGHT}
+            bounces={false} // 🛑 Hindrer overscrolling på iOS
+            overScrollMode="never" // 🛑 Hindrer overscrolling på Android
             decelerationRate="fast"
             onScroll={handleScroll}
             getItemLayout={(data, index) => ({
@@ -153,9 +157,14 @@ const DurationSelect = ({ navigation, route }) => {
               index,
             })}
             contentContainerStyle={{
-              paddingVertical:
-                (height - ITEM_HEIGHT) / 2 -
-                ITEM_HEIGHT * (VISIBLE_ITEMS / 2 - 0.4),
+              paddingVertical: (height - ITEM_HEIGHT) / 2.4 - ITEM_HEIGHT * 2,
+              ...(Platform.OS === "android"
+                ? {
+                    paddingTop:
+                      (height - ITEM_HEIGHT) / 2.4 - ITEM_HEIGHT * 1.2,
+                    paddingBottom: ITEM_HEIGHT * 4, // android needs more padding
+                  }
+                : {}),
             }}
           />
         </View>
@@ -167,7 +176,9 @@ const DurationSelect = ({ navigation, route }) => {
           style={[styles.cancelButton, { backgroundColor: theme.surface }]}
           onPress={() => navigation.goBack()}
         >
-          <Text style={[styles.cancelText, { color: theme.textSecondary }]}>Avbryt</Text>
+          <Text style={[styles.cancelText, { color: theme.textSecondary }]}>
+            Avbryt
+          </Text>
         </TouchableOpacity>
         <TouchableOpacity
           style={[styles.continueButton, { backgroundColor: accentColor }]}
@@ -178,7 +189,9 @@ const DurationSelect = ({ navigation, route }) => {
             })
           }
         >
-          <Text style={[styles.continueText, { color: theme.textContrast }]}>Fortsett</Text>
+          <Text style={[styles.continueText, { color: theme.textContrast }]}>
+            Fortsett
+          </Text>
         </TouchableOpacity>
       </View>
     </SafeAreaView>

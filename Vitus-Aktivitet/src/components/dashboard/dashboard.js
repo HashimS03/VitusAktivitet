@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useCallback } from "react";
+import { useRoute, useFocusEffect } from "@react-navigation/native";
 import {
   SafeAreaView,
   View,
@@ -25,7 +26,7 @@ import Color from "color";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 const SCREEN_WIDTH = Dimensions.get("window").width;
-const DAILY_STEP_GOAL = 1000;
+const DAILY_STEP_GOAL = 7500;
 const PROGRESS_RING_SIZE = 300;
 const PROGRESS_RING_THICKNESS = 30;
 
@@ -96,6 +97,55 @@ export default function Dashboard() {
   const [showTutorial, setShowTutorial] = useState(false);
   const [tutorialStep, setTutorialStep] = useState(0);
   //const TEST_MODE = true; // Always show tutorial during testing
+
+  const route = useRoute(); // Henter parametere fra navigation
+  useFocusEffect(
+    useCallback(() => {
+      console.log("🔄 Dashboard (MainApp) har fått fokus!");
+      console.log("📡 route.params nå:", route.params);
+
+      const updateSteps = async () => {
+        try {
+          const storedSteps = await AsyncStorage.getItem("stepCount");
+          const previousSteps = storedSteps ? JSON.parse(storedSteps) : 0;
+
+          if (route.params?.addedSteps) {
+            console.log("🔥 Mottatt addedSteps:", route.params.addedSteps);
+
+            const newStepCount = previousSteps + route.params.addedSteps;
+            console.log("📊 Oppdatert stepCount:", newStepCount);
+
+            await AsyncStorage.setItem(
+              "stepCount",
+              JSON.stringify(newStepCount)
+            );
+            setStepCount(newStepCount);
+
+            // Nullstill params så det ikke dobbelregistreres
+            navigation.setParams({ addedSteps: null });
+          }
+        } catch (error) {
+          console.error("❌ Feil ved oppdatering av stepCount:", error);
+        }
+      };
+
+      updateSteps();
+    }, [route.params])
+  );
+
+  useEffect(() => {
+    const resetSteps = async () => {
+      try {
+        console.log("🔄 Nullstiller stepCount ved app-start...");
+        await AsyncStorage.removeItem("stepCount");
+        setStepCount(0);
+      } catch (error) {
+        console.error("❌ Feil ved nullstilling av stepCount:", error);
+      }
+    };
+
+    resetSteps();
+  }, []); // Kjøres kun én gang når appen starter
 
   useEffect(() => {
     checkFirstTimeUser();

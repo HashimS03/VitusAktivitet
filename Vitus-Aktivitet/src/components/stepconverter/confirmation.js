@@ -10,16 +10,16 @@ import { ChevronLeft } from "lucide-react-native";
 import { useTheme } from "../context/ThemeContext"; // 🌙 Import Theme Support
 
 const STEPS_PER_MINUTE = {
-  Gå: 83.33, // About 1750 steps in 21 minutes
-  Jogging: 160,
-  Løping: 200,
-  Sykling: 0, // Non-step activities
-  Svømming: 0,
-  Styrke: 50,
-  Basketball: 120,
-  Fotball: 140,
-  Padel: 100,
-  Planke: 0,
+  Gå: 100, // Moderat gange (~5 km/t)
+  Jogging: 170, // Basert på ca. 5100 skritt per 30 min
+  Løping: 200, // Rundt 6000 skritt per 30 min
+  Sykling: 130, // Omregnet fra MET-verdier (~6 km sykling tilsvarer ~1000 skritt)
+  Svømming: 120, // Konvertert basert på MET (~30 min svømming tilsvarer 3600 skritt)
+  Styrke: 80, // Basert på bevegelse i styrkeøvelser (~2400 skritt per 30 min)
+  Basketball: 130, // Høyt tempo med mye bevegelse
+  Fotball: 150, // Høyintensitetsaktivitet med mye løping
+  Padel: 110, // Intens racketsport, men lavere enn fotball
+  Planke: 50, // Statisk, men energiforbruk konvertert (~1500 skritt per 30 min)
 };
 
 const StepConfirmation = ({ navigation, route }) => {
@@ -28,12 +28,17 @@ const StepConfirmation = ({ navigation, route }) => {
   const { theme, accentColor } = useTheme(); // 🌙 Get Theme & Accent Color
 
   const handleConfirm = () => {
-    // Here you would typically save the activity and update the step count
-    navigation.navigate("MainApp", { addedSteps: steps });
+    console.log("🚀 Sender skritt til MainApp → Home:", steps);
+    navigation.navigate("MainApp", {
+      screen: "Home", // Dette spesifiserer hvilken tab som skal vises
+      params: { addedSteps: steps }, // Sender addedSteps til Home
+    });
   };
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]}>
+    <SafeAreaView
+      style={[styles.container, { backgroundColor: theme.background }]}
+    >
       <View style={styles.header}>
         <TouchableOpacity
           onPress={() => navigation.goBack()}
@@ -43,7 +48,10 @@ const StepConfirmation = ({ navigation, route }) => {
         </TouchableOpacity>
         <View style={[styles.progressBar, { backgroundColor: theme.surface }]}>
           <View
-            style={[styles.progressFill, { backgroundColor: accentColor, width: "100%" }]}
+            style={[
+              styles.progressFill,
+              { backgroundColor: accentColor, width: "100%" },
+            ]}
           />
         </View>
         <Text style={[styles.pageIndicator, { color: theme.text }]}>3/3</Text>
@@ -51,14 +59,26 @@ const StepConfirmation = ({ navigation, route }) => {
 
       <View style={styles.content}>
         <Text style={[styles.title, { color: theme.text }]}>
-          Godta <Text style={[styles.highlightText, { color: accentColor }]}>Skritt</Text>
+          Godta{" "}
+          <Text style={[styles.highlightText, { color: accentColor }]}>
+            Skritt
+          </Text>
         </Text>
 
         <View style={styles.confirmationBox}>
           <Text style={[styles.confirmationText, { color: theme.text }]}>
-            <Text style={[styles.highlightText, { color: accentColor }]}>{duration}</Text> Minutter med å{" "}
-            <Text style={[styles.highlightText, { color: accentColor }]}>{activity}</Text> tilsvarer{"\n"}
-            <Text style={[styles.highlightText, { color: accentColor }]}>{steps}</Text> Skritt
+            <Text style={[styles.highlightText, { color: accentColor }]}>
+              {duration}
+            </Text>{" "}
+            Minutter med å{" "}
+            <Text style={[styles.highlightText, { color: accentColor }]}>
+              {activity}
+            </Text>{" "}
+            tilsvarer{"\n"}
+            <Text style={[styles.highlightText, { color: accentColor }]}>
+              {steps}
+            </Text>{" "}
+            Skritt
           </Text>
         </View>
       </View>
@@ -68,7 +88,11 @@ const StepConfirmation = ({ navigation, route }) => {
           style={[styles.cancelButton, { backgroundColor: theme.surface }]}
           onPress={() => navigation.goBack()}
         >
-          <Text style={[styles.cancelButtonText, { color: theme.textSecondary }]}>Avbryt</Text>
+          <Text
+            style={[styles.cancelButtonText, { color: theme.textSecondary }]}
+          >
+            Avbryt
+          </Text>
         </TouchableOpacity>
         <TouchableOpacity
           style={[styles.confirmButton, { backgroundColor: accentColor }]}
