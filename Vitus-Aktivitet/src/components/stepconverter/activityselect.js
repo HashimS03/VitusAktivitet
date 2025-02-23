@@ -1,12 +1,23 @@
-"use client"
+"use client";
 
-import { useState, useRef, useEffect } from "react"
-import { View, Text, TouchableOpacity, StyleSheet, SafeAreaView, TextInput, Dimensions, Animated } from "react-native"
-import { ChevronLeft, Search } from "lucide-react-native"
-import { useTheme } from "../context/ThemeContext"
+import React, { useState, useRef, useEffect } from "react";
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  StyleSheet,
+  SafeAreaView,
+  TextInput,
+  Dimensions,
+  Animated,
+  Platform,
+} from "react-native";
+import { ChevronLeft, Search } from "lucide-react-native";
+import { useTheme } from "../context/ThemeContext";
 
-const { width, height } = Dimensions.get("window")
-const ITEM_HEIGHT = 60
+const { width, height } = Dimensions.get("window");
+const ITEM_HEIGHT = 60;
+const VISIBLE_ITEMS = 5;
 
 const activities = [
   "Styrke",
@@ -18,20 +29,22 @@ const activities = [
   "Sykling",
   "Jogging",
   "Padel",
-  "Amerikansk Fotball",
-]
+];
 
 const ActivitySelect = ({ navigation }) => {
-  const { theme, isDarkMode } = useTheme()
-  const [searchQuery, setSearchQuery] = useState("")
-  const [showSearch, setShowSearch] = useState(false)
-  const [selectedActivity, setSelectedActivity] = useState(activities[0])
-  const scrollY = useRef(new Animated.Value(1)).current
-  const [selectedIndex, setSelectedIndex] = useState(0)
-  const flatListRef = useRef(null)
+  const { theme, isDarkMode } = useTheme();
+  const [searchQuery, setSearchQuery] = useState("");
+  const [showSearch, setShowSearch] = useState(false);
+  const [selectedActivity, setSelectedActivity] = useState(activities[0]);
+  const scrollY = useRef(new Animated.Value(0)).current;
+  const [selectedIndex, setSelectedIndex] = useState(0);
+  const flatListRef = useRef(null);
+  const scrollTimeout = useRef(null);
+  const isScrolling = useRef(false);
 
-  // Filter activities based on search query
-  const filteredActivities = activities.filter((activity) => activity.toLowerCase().includes(searchQuery.toLowerCase()))
+  const filteredActivities = activities.filter((activity) =>
+    activity.toLowerCase().includes(searchQuery.toLowerCase())
+  );
 
   const renderScrollItem = ({ item, index }) => {
     const inputRange = [
@@ -40,21 +53,21 @@ const ActivitySelect = ({ navigation }) => {
       index * ITEM_HEIGHT,
       (index + 1) * ITEM_HEIGHT,
       (index + 2) * ITEM_HEIGHT,
-    ]
+    ];
 
     const scale = scrollY.interpolate({
       inputRange,
       outputRange: [0.7, 0.8, 1, 0.8, 0.7],
       extrapolate: "clamp",
-    })
+    });
 
     const opacity = scrollY.interpolate({
       inputRange,
       outputRange: [0.3, 0.5, 1, 0.5, 0.3],
       extrapolate: "clamp",
-    })
+    });
 
-    const isSelected = item === selectedActivity
+    const isSelected = item === selectedActivity;
 
     return (
       <Animated.View
@@ -70,114 +83,177 @@ const ActivitySelect = ({ navigation }) => {
           style={[
             styles.activityText,
             { color: theme.textSecondary },
-            isSelected && [styles.selectedActivityText, { color: theme.primary }],
+            isSelected && [
+              styles.selectedActivityText,
+              { color: theme.primary },
+            ],
           ]}
         >
           {item}
         </Text>
       </Animated.View>
-    )
-  }
+    );
+  };
 
   const renderSearchItem = ({ item }) => {
-    const isSelected = item === selectedActivity
+    const isSelected = item === selectedActivity;
 
     return (
       <TouchableOpacity
         onPress={() => {
-          const newIndex = activities.indexOf(item)
-          setSelectedActivity(item)
-          setSelectedIndex(newIndex)
-          setShowSearch(false)
-          setSearchQuery("")
+          const newIndex = activities.indexOf(item);
+          setSelectedActivity(item);
+          setSelectedIndex(newIndex);
+          setShowSearch(false);
+          setSearchQuery("");
 
           // Add a small delay to ensure smooth transition
           setTimeout(() => {
             flatListRef.current?.scrollToOffset({
               offset: newIndex * ITEM_HEIGHT,
               animated: false,
-            })
+            });
             // Reset the animation value to match new position
-            scrollY.setValue(newIndex * ITEM_HEIGHT)
-          }, 50)
+            scrollY.setValue(newIndex * ITEM_HEIGHT);
+          }, 50);
         }}
-        style={[styles.searchItemContainer, { borderBottomColor: theme.border }]}
+        style={[
+          styles.searchItemContainer,
+          { borderBottomColor: theme.border },
+        ]}
       >
         <Text
           style={[
             styles.activityText,
             { color: theme.textSecondary },
-            isSelected && [styles.selectedActivityText, { color: theme.primary }],
+            isSelected && [
+              styles.selectedActivityText,
+              { color: theme.primary },
+            ],
           ]}
         >
           {item}
         </Text>
       </TouchableOpacity>
-    )
-  }
+    );
+  };
 
-  const handleScroll = Animated.event([{ nativeEvent: { contentOffset: { y: scrollY } } }], {
-    useNativeDriver: true,
-    listener: (event) => {
-      const offsetY = event.nativeEvent.contentOffset.y
-      const index = Math.round(offsetY / ITEM_HEIGHT)
-      if (index >= 0 && index < activities.length) {
-        setSelectedIndex(index)
-        setSelectedActivity(activities[index])
-      }
-    },
-  })
+  const scrollToIndex = (index, animated = true) => {
+    if (flatListRef.current) {
+      const safeIndex = Math.max(0, Math.min(index, activities.length - 1));
+      const offset = safeIndex * ITEM_HEIGHT; // Beregn eksakt scroll-posisjon
+
+      flatListRef.current.scrollToOffset({
+        offset,
+        animated,
+      });
+
+      console.log("Scrolling to offset:", offset); // Debugging
+    }
+  };
+
+  const handleScroll = Animated.event(
+    [{ nativeEvent: { contentOffset: { y: scrollY } } }],
+    {
+      useNativeDriver: true,
+      listener: (event) => {
+        if (isScrolling.current) return;
+
+        const offsetY = event.nativeEvent.contentOffset.y;
+        const index = Math.round(offsetY / ITEM_HEIGHT);
+
+        if (
+          index >= 0 &&
+          index < activities.length &&
+          index !== selectedIndex
+        ) {
+          setSelectedIndex(index);
+          setSelectedActivity(activities[index]);
+        }
+      },
+    }
+  );
 
   const handleMomentumScrollEnd = (event) => {
-    const offsetY = event.nativeEvent.contentOffset.y
-    const index = Math.round(offsetY / ITEM_HEIGHT)
+    isScrolling.current = false;
+    const offsetY = event.nativeEvent.contentOffset.y;
+    const index = Math.round(offsetY / ITEM_HEIGHT);
+
     if (index >= 0 && index < activities.length) {
-      setSelectedIndex(index)
-      setSelectedActivity(activities[index])
-      // Ensure perfect alignment
-      flatListRef.current?.scrollToOffset({
-        offset: index * ITEM_HEIGHT,
-        animated: true,
-      })
-      scrollY.setValue(index * ITEM_HEIGHT)
+      setSelectedIndex(index);
+      setSelectedActivity(activities[index]);
+
+      if (scrollTimeout.current) {
+        clearTimeout(scrollTimeout.current);
+      }
+
+      scrollTimeout.current = setTimeout(() => {
+        scrollToIndex(index);
+      }, 150);
     }
-  }
+  };
+
+  const handleScrollBeginDrag = () => {
+    isScrolling.current = true;
+    if (scrollTimeout.current) {
+      clearTimeout(scrollTimeout.current);
+    }
+  };
 
   useEffect(() => {
-    if (!showSearch && flatListRef.current) {
-      flatListRef.current?.scrollToOffset({
-        offset: selectedIndex * ITEM_HEIGHT,
-        animated: false,
-      })
-      scrollY.setValue(selectedIndex * ITEM_HEIGHT)
+    if (!showSearch) {
+      scrollToIndex(selectedIndex, false);
     }
-  }, [selectedIndex, showSearch, scrollY])
+
+    return () => {
+      if (scrollTimeout.current) {
+        clearTimeout(scrollTimeout.current);
+      }
+    };
+  }, [selectedIndex, showSearch]);
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]}>
+    <SafeAreaView
+      style={[styles.container, { backgroundColor: theme.background }]}
+    >
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()}>
           <ChevronLeft size={24} color={theme.text} />
         </TouchableOpacity>
         <View style={[styles.progressBar, { backgroundColor: theme.border }]}>
-          <View style={[styles.progressFill, { backgroundColor: theme.primary }]} />
+          <View
+            style={[styles.progressFill, { backgroundColor: theme.primary }]}
+          />
         </View>
         <Text style={[styles.pageIndicator, { color: theme.text }]}>1/3</Text>
       </View>
 
       <View style={styles.content}>
         <Text style={[styles.title, { color: theme.text }]}>
-          Hva er Din <Text style={[styles.highlightText, { color: theme.primary }]}>Aktivitet</Text>
+          Hva er Din{" "}
+          <Text style={[styles.highlightText, { color: theme.primary }]}>
+            Aktivitet
+          </Text>
         </Text>
-        <Text style={[styles.subtitle, { color: theme.textSecondary }]}>Velg Hvilke aktivitet du har gjennomført.</Text>
+        <Text style={[styles.subtitle, { color: theme.textSecondary }]}>
+          Velg Hvilke aktivitet du har gjennomført.
+        </Text>
 
         <View style={styles.scrollContainer}>
-          {!showSearch && <View style={[styles.centerLine, { borderColor: theme.primary }]} />}
+          {!showSearch && (
+            <View style={[styles.centerLine, { borderColor: theme.primary }]} />
+          )}
 
           {showSearch ? (
             <>
               <View
-                style={[styles.searchContainer, { borderBottomColor: theme.border, backgroundColor: theme.background }]}
+                style={[
+                  styles.searchContainer,
+                  {
+                    borderBottomColor: theme.border,
+                    backgroundColor: theme.background,
+                  },
+                ]}
               >
                 <TextInput
                   style={[styles.searchInput, { color: theme.primary }]}
@@ -190,8 +266,8 @@ const ActivitySelect = ({ navigation }) => {
                 <TouchableOpacity
                   style={styles.searchIcon}
                   onPress={() => {
-                    setShowSearch(false)
-                    setSearchQuery("")
+                    setShowSearch(false);
+                    setSearchQuery("");
                   }}
                 >
                   <Search size={24} color={theme.primary} />
@@ -217,16 +293,34 @@ const ActivitySelect = ({ navigation }) => {
                 decelerationRate="fast"
                 onScroll={handleScroll}
                 onMomentumScrollEnd={handleMomentumScrollEnd}
+                onScrollBeginDrag={handleScrollBeginDrag}
                 contentContainerStyle={{
-                  paddingVertical: (height - ITEM_HEIGHT) / 2.4 - ITEM_HEIGHT * 2,
+                  paddingVertical:
+                    (height - ITEM_HEIGHT) / 2.4 - ITEM_HEIGHT * 2,
+                  ...(Platform.OS === "android"
+                    ? {
+                        paddingTop:
+                          (height - ITEM_HEIGHT) / 2.4 - ITEM_HEIGHT * 1.2,
+                        paddingBottom: ITEM_HEIGHT * 4, // android needs more padding
+                      }
+                    : {}),
                 }}
                 getItemLayout={(data, index) => ({
                   length: ITEM_HEIGHT,
                   offset: ITEM_HEIGHT * index,
                   index,
                 })}
+                removeClippedSubviews={true}
+                maxToRenderPerBatch={VISIBLE_ITEMS}
+                windowSize={VISIBLE_ITEMS}
+                initialNumToRender={VISIBLE_ITEMS}
+                bounces={false} // 🛑 Hindrer overscrolling på iOS
+                overScrollMode="never" // 🛑 Hindrer overscrolling på Android
               />
-              <TouchableOpacity style={styles.searchButton} onPress={() => setShowSearch(true)}>
+              <TouchableOpacity
+                style={styles.searchButton}
+                onPress={() => setShowSearch(true)}
+              >
                 <Search size={24} color={theme.primary} />
               </TouchableOpacity>
             </>
@@ -239,7 +333,9 @@ const ActivitySelect = ({ navigation }) => {
           style={[styles.cancelButton, { backgroundColor: theme.surface }]}
           onPress={() => navigation.goBack()}
         >
-          <Text style={[styles.cancelText, { color: theme.textSecondary }]}>Avbryt</Text>
+          <Text style={[styles.cancelText, { color: theme.textSecondary }]}>
+            Avbryt
+          </Text>
         </TouchableOpacity>
         <TouchableOpacity
           style={[styles.continueButton, { backgroundColor: theme.primary }]}
@@ -249,12 +345,14 @@ const ActivitySelect = ({ navigation }) => {
             })
           }
         >
-          <Text style={[styles.continueText, { color: theme.primaryText }]}>Fortsett</Text>
+          <Text style={[styles.continueText, { color: theme.primaryText }]}>
+            Fortsett
+          </Text>
         </TouchableOpacity>
       </View>
     </SafeAreaView>
-  )
-}
+  );
+};
 
 const styles = StyleSheet.create({
   container: {
@@ -387,7 +485,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "500",
   },
-})
+});
 
-export default ActivitySelect
-
+export default ActivitySelect;
