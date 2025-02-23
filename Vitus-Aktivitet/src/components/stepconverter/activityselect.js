@@ -162,13 +162,17 @@ const ActivitySelect = ({ navigation }) => {
         const offsetY = event.nativeEvent.contentOffset.y;
         const index = Math.round(offsetY / ITEM_HEIGHT);
 
-        if (
-          index >= 0 &&
-          index < activities.length &&
-          index !== selectedIndex
-        ) {
-          setSelectedIndex(index);
-          setSelectedActivity(activities[index]);
+        if (index >= 0 && index < activities.length) {
+          // Nullstill tidligere timeout hvis det er en aktiv
+          if (scrollTimeout.current) {
+            clearTimeout(scrollTimeout.current);
+          }
+
+          // Sett en forsinkelse før verdien oppdateres
+          scrollTimeout.current = setTimeout(() => {
+            setSelectedIndex(index);
+            setSelectedActivity(activities[index]);
+          }, 300); // Forsinkelse på 300ms
         }
       },
     }
