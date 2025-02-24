@@ -120,10 +120,15 @@ const NewEvent = ({ navigation }) => {
     isPublic: false,
     tags: [],
   })
+
+  const [dateTimePickerConfig, setDateTimePickerConfig] = useState({
+    visible: false,
+    mode: "date",
+    currentField: "",
+    currentValue: new Date(),
+  })
+
   const [showActivityModal, setShowActivityModal] = useState(false)
-  const [showDatePicker, setShowDatePicker] = useState(false)
-  const [datePickerMode, setDatePickerMode] = useState("date")
-  const [currentDateSetting, setCurrentDateSetting] = useState(null)
   const [formProgress, setFormProgress] = useState(0)
   const [showConfirmModal, setShowConfirmModal] = useState(false)
   const [currentStep, setCurrentStep] = useState(0)
@@ -169,17 +174,36 @@ const NewEvent = ({ navigation }) => {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success)
   }
 
-  const handleDateChange = (event, selectedDate) => {
-    setShowDatePicker(false)
+  const handleDateTimeChange = (event, selectedDate) => {
     if (selectedDate) {
-      updateEventDetails(currentDateSetting, selectedDate)
+      const currentField = dateTimePickerConfig.currentField
+      const currentDate = eventDetails[currentField]
+
+      if (dateTimePickerConfig.mode === "date") {
+        selectedDate.setHours(currentDate.getHours())
+        selectedDate.setMinutes(currentDate.getMinutes())
+      } else {
+        selectedDate.setFullYear(currentDate.getFullYear())
+        selectedDate.setMonth(currentDate.getMonth())
+        selectedDate.setDate(currentDate.getDate())
+      }
+
+      updateEventDetails(currentField, selectedDate)
     }
+    closeDateTimePicker()
   }
 
-  const showDateTimePicker = (mode, setting) => {
-    setShowDatePicker(true)
-    setDatePickerMode(mode)
-    setCurrentDateSetting(setting)
+  const showDateTimePicker = (mode, field) => {
+    setDateTimePickerConfig({
+      visible: true,
+      mode,
+      currentField: field,
+      currentValue: eventDetails[field],
+    })
+  }
+
+  const closeDateTimePicker = () => {
+    setDateTimePickerConfig((prev) => ({ ...prev, visible: false }))
   }
 
   const validateForm = () => {
@@ -206,7 +230,7 @@ const NewEvent = ({ navigation }) => {
   }
 
   const createEvent = () => {
-    setShowConfirmModal(false) // Add this line to close the modal
+    setShowConfirmModal(false)
     console.log("Creating event:", eventDetails)
     navigation.navigate("ActiveEvent", { eventDetails })
   }
@@ -229,14 +253,21 @@ const NewEvent = ({ navigation }) => {
     </View>
   )
 
-  const renderDateTimePicker = (label, date, onPress) => (
-    <TouchableOpacity style={styles.dateTimeButton} onPress={onPress}>
+  const renderDateTimePicker = (label, date, field, mode) => (
+    <View style={styles.dateTimeContainer}>
       <Text style={[styles.dateTimeLabel, { color: theme.text }]}>{label}</Text>
-      <View style={[styles.dateTimeValue, { backgroundColor: theme.surface }]}>
-        <Text style={[styles.dateTimeText, { color: theme.text }]}>{date.toLocaleString()}</Text>
-        <MaterialCommunityIcons name="calendar-clock" size={24} color={theme.primary} />
-      </View>
-    </TouchableOpacity>
+      <TouchableOpacity
+        style={[styles.dateTimeButton, { backgroundColor: theme.surface }]}
+        onPress={() => showDateTimePicker(mode, field)}
+      >
+        <Text style={[styles.dateTimeText, { color: theme.text }]}>
+          {mode === "date"
+            ? date.toLocaleDateString()
+            : date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+        </Text>
+        <MaterialCommunityIcons name={mode === "date" ? "calendar" : "clock-outline"} size={24} color={theme.primary} />
+      </TouchableOpacity>
+    </View>
   )
 
   const renderStep = (stepIndex) => {
@@ -325,8 +356,10 @@ const NewEvent = ({ navigation }) => {
               (text) => updateEventDetails("location", text),
               "Skriv inn lokasjon",
             )}
-            {renderDateTimePicker("Startdato", eventDetails.startDate, () => showDateTimePicker("date", "startDate"))}
-            {renderDateTimePicker("Sluttdato", eventDetails.endDate, () => showDateTimePicker("date", "endDate"))}
+            {renderDateTimePicker("Startdato", eventDetails.startDate, "startDate", "date")}
+            {renderDateTimePicker("Starttid", eventDetails.startTime, "startTime", "time")}
+            {renderDateTimePicker("Sluttdato", eventDetails.endDate, "endDate", "date")}
+            {renderDateTimePicker("Sluttid", eventDetails.endTime, "endTime", "time")}
           </View>
         )
       case 3:
@@ -421,22 +454,24 @@ const NewEvent = ({ navigation }) => {
                 </TouchableOpacity>
               </View>
               <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.tagList}>
-                {eventDetails.tags.map((tag, index) => (
-                  <View key={index} style={[styles.tag, { backgroundColor: theme.primary }]}>
-                    <Text style={[styles.tagText, { color: "#FFFFFF" }]}>{tag}</Text>
-                    <TouchableOpacity
-                      onPress={() => {
-                        updateEventDetails(
-                          "tags",
-                          eventDetails.tags.filter((_, i) => i !== index),
-                        )
-                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
-                      }}
-                    >
-                      <MaterialCommunityIcons name="close" size={16} color="#FFFFFF" />
-                    </TouchableOpacity>
-                  </View>
-                ))}
+                {eventDetails.tags.map((tag, index) => {
+                  return (
+                    <View key={index} style={[styles.tag, { backgroundColor: theme.primary }]}>
+                      <Text style={[styles.tagText, { color: "#FFFFFF" }]}>{tag}</Text>
+                      <TouchableOpacity
+                        onPress={() => {
+                          updateEventDetails(
+                            "tags",
+                            eventDetails.tags.filter((_, i) => i !== index),
+                          )
+                          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
+                        }}
+                      >
+                        <MaterialCommunityIcons name="close" size={16} color="#FFFFFF" />
+                      </TouchableOpacity>
+                    </View>
+                  )
+                })}
               </ScrollView>
             </View>
           </View>
@@ -459,9 +494,6 @@ const NewEvent = ({ navigation }) => {
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
         >
-          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-            <MaterialCommunityIcons name="chevron-left" size={30} color="#FFFFFF" />
-          </TouchableOpacity>
           <Text style={styles.headerTitle}>Ny hendelse</Text>
           <Animated.View
             style={[
@@ -497,20 +529,19 @@ const NewEvent = ({ navigation }) => {
 
         <View style={styles.footer}>
           <TouchableOpacity
-            style={[
-              styles.footerButton,
-              { backgroundColor: theme.primary },
-              currentStep === 0 && styles.footerButtonDisabled,
-            ]}
+            style={[styles.footerButton, { backgroundColor: theme.primary }]}
             onPress={() => {
-              if (currentStep > 0) {
+              if (currentStep === 0) {
+                navigation.goBack()
+              } else {
                 setCurrentStep(currentStep - 1)
                 scrollViewRef.current?.scrollTo({ x: (currentStep - 1) * width, animated: true })
               }
             }}
-            disabled={currentStep === 0}
           >
-            <Text style={[styles.footerButtonText, { color: theme.background }]}>Forrige</Text>
+            <Text style={[styles.footerButtonText, { color: theme.background }]}>
+              {currentStep === 0 ? "Avbryt" : "Forrige"}
+            </Text>
           </TouchableOpacity>
           {currentStep < 4 ? (
             <TouchableOpacity
@@ -547,10 +578,7 @@ const NewEvent = ({ navigation }) => {
                 <Text style={[styles.confirmModalButtonText, { color: theme.text }]}>Avbryt</Text>
               </TouchableOpacity>
               <TouchableOpacity
-                style={[
-                  styles.confirmModalButton,
-                  { backgroundColor: theme.primary }, // Changed from styles.confirmButton
-                ]}
+                style={[styles.confirmModalButton, { backgroundColor: theme.primary }]}
                 onPress={createEvent}
               >
                 <Text style={[styles.confirmModalButtonText, { color: theme.background }]}>Bekreft</Text>
@@ -560,14 +588,36 @@ const NewEvent = ({ navigation }) => {
         </BlurView>
       </Modal>
 
-      {showDatePicker && (
-        <DateTimePicker
-          value={eventDetails[currentDateSetting]}
-          mode={datePickerMode}
-          is24Hour={true}
-          display="default"
-          onChange={handleDateChange}
-        />
+      {dateTimePickerConfig.visible && (
+        <Modal visible={true} transparent={true} animationType="fade">
+          <View style={[styles.modalContainer, { backgroundColor: "rgba(0,0,0,0.5)" }]}>
+            <View
+              style={[
+                styles.dateTimePickerContainer,
+                {
+                  backgroundColor: isDarkMode ? theme.surface : theme.background,
+                },
+              ]}
+            >
+              <DateTimePicker
+                value={dateTimePickerConfig.currentValue}
+                mode={dateTimePickerConfig.mode}
+                is24Hour={true}
+                display="spinner"
+                onChange={handleDateTimeChange}
+                themeVariant={isDarkMode ? "dark" : "light"}
+                textColor={isDarkMode ? "#FFFFFF" : "#000000"}
+                style={styles.dateTimePicker}
+              />
+              <TouchableOpacity
+                style={[styles.closeDateTimeButton, { backgroundColor: theme.primary }]}
+                onPress={closeDateTimePicker}
+              >
+                <Text style={[styles.closeDateTimeButtonText, { color: "#FFFFFF" }]}>Bekreft</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Modal>
       )}
     </SafeAreaView>
   )
@@ -585,12 +635,6 @@ const styles = StyleSheet.create({
     justifyContent: "flex-end",
     paddingBottom: 16,
     paddingHorizontal: 16,
-  },
-  backButton: {
-    position: "absolute",
-    top: 16,
-    left: 16,
-    zIndex: 1,
   },
   headerTitle: {
     fontSize: 24,
@@ -666,41 +710,102 @@ const styles = StyleSheet.create({
     textAlign: "center",
     marginTop: 8,
   },
-  dateTimeButton: {
+  dateTimeContainer: {
     marginBottom: 16,
+  },
+  dateTimeButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    padding: 12,
+    borderRadius: 8,
+    marginTop: 8,
   },
   dateTimeLabel: {
     fontSize: 16,
     fontWeight: "600",
-    marginBottom: 8,
-  },
-  dateTimeValue: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    padding: 12,
-    borderRadius: 8,
   },
   dateTimeText: {
     fontSize: 16,
   },
-  eventTypeButtons: {
+  dateTimePickerContainer: {
+    width: 320,
+    borderRadius: 16,
+    overflow: "hidden",
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 5,
+  },
+  dateTimePicker: {
+    width: 320,
+    height: 215,
+  },
+  closeDateTimeButton: {
+    width: "100%",
+    height: 48,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  closeDateTimeButtonText: {
+    fontSize: 16,
+    fontWeight: "600",
+  },
+  footer: {
     flexDirection: "row",
     justifyContent: "space-between",
-    marginBottom: 16,
+    padding: 16,
+    borderTopWidth: 1,
+    borderTopColor: "rgba(0, 0, 0, 0.1)",
   },
-  eventTypeButton: {
+  footerButton: {
     flex: 1,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    padding: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 24,
     borderRadius: 8,
-    borderWidth: 1,
     marginHorizontal: 4,
   },
-  eventTypeButtonText: {
-    marginLeft: 8,
+  footerButtonText: {
+    fontSize: 16,
+    fontWeight: "600",
+  },
+  modalContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  confirmModalContent: {
+    width: "80%",
+    borderRadius: 16,
+    padding: 20,
+  },
+  confirmModalTitle: {
+    fontSize: 20,
+    fontWeight: "600",
+    marginBottom: 16,
+    textAlign: "center",
+  },
+  confirmModalText: {
+    fontSize: 16,
+    marginBottom: 24,
+    textAlign: "center",
+  },
+  confirmModalButtons: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+  },
+  confirmModalButton: {
+    flex: 1,
+    padding: 12,
+    borderRadius: 8,
+    alignItems: "center",
+    marginHorizontal: 4,
+  },
+  confirmModalButtonText: {
     fontSize: 16,
     fontWeight: "600",
   },
@@ -750,60 +855,24 @@ const styles = StyleSheet.create({
   tagText: {
     marginRight: 4,
   },
-  footer: {
+  eventTypeButtons: {
     flexDirection: "row",
     justifyContent: "space-between",
-    padding: 16,
-    borderTopWidth: 1,
-    borderTopColor: "rgba(0, 0, 0, 0.1)",
-  },
-  footerButton: {
-    flex: 1,
-    paddingVertical: 12,
-    paddingHorizontal: 24,
-    borderRadius: 8,
-    marginHorizontal: 4,
-  },
-  footerButtonDisabled: {
-    opacity: 0.5,
-  },
-  footerButtonText: {
-    fontSize: 16,
-    fontWeight: "600",
-  },
-  modalContainer: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  confirmModalContent: {
-    width: "80%",
-    borderRadius: 16,
-    padding: 20,
-  },
-  confirmModalTitle: {
-    fontSize: 20,
-    fontWeight: "600",
     marginBottom: 16,
-    textAlign: "center",
   },
-  confirmModalText: {
-    fontSize: 16,
-    marginBottom: 24,
-    textAlign: "center",
-  },
-  confirmModalButtons: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-  },
-  confirmModalButton: {
+  eventTypeButton: {
     flex: 1,
-    padding: 12,
-    borderRadius: 8,
+    flexDirection: "row",
     alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    borderWidth: 1,
     marginHorizontal: 4,
   },
-  confirmModalButtonText: {
+  eventTypeButtonText: {
+    marginLeft: 8,
     fontSize: 16,
     fontWeight: "600",
   },
