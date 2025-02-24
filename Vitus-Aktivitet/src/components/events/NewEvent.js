@@ -1,6 +1,4 @@
-"use client";
-
-import { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useContext } from "react";
 import {
   View,
   Text,
@@ -25,6 +23,7 @@ import DateTimePicker from "@react-native-community/datetimepicker";
 import { LinearGradient } from "expo-linear-gradient";
 import * as Haptics from "expo-haptics";
 import { BlurView } from "expo-blur";
+import { EventContext } from "../events/EventContext"; // Importer EventContext
 
 const { width } = Dimensions.get("window");
 
@@ -103,6 +102,8 @@ const PREDEFINED_ACTIVITIES = [
 
 const NewEvent = ({ navigation }) => {
   const { theme, isDarkMode } = useTheme();
+  const { addEvent } = useContext(EventContext); // Hent addEvent fra Context
+
   const [eventDetails, setEventDetails] = useState({
     title: "",
     description: "",
@@ -245,8 +246,15 @@ const NewEvent = ({ navigation }) => {
 
   const createEvent = () => {
     setShowConfirmModal(false);
-    console.log("Creating event:", eventDetails);
-    navigation.navigate("ActiveEvent", { eventDetails });
+    const newEvent = {
+      id: Math.random().toString(), // Generer en unik ID for hendelsen
+      ...eventDetails,
+    };
+
+    // Legg til hendelsen i `activeEvents`-tilstanden via Context
+    addEvent(newEvent);
+
+    navigation.navigate("ActiveEvent", { eventId: newEvent.id });
   };
 
   const renderInput = (
