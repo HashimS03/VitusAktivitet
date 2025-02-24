@@ -1,6 +1,6 @@
-"use client"
+"use client";
 
-import { useState, useEffect, useRef } from "react"
+import { useState, useEffect, useRef } from "react";
 import {
   View,
   Text,
@@ -17,16 +17,16 @@ import {
   Platform,
   Switch,
   ScrollView,
-} from "react-native"
-import { MaterialCommunityIcons } from "@expo/vector-icons"
-import Slider from "@react-native-community/slider"
-import { useTheme } from "../context/ThemeContext"
-import DateTimePicker from "@react-native-community/datetimepicker"
-import { LinearGradient } from "expo-linear-gradient"
-import * as Haptics from "expo-haptics"
-import { BlurView } from "expo-blur"
+} from "react-native";
+import { MaterialCommunityIcons } from "@expo/vector-icons";
+import Slider from "@react-native-community/slider";
+import { useTheme } from "../context/ThemeContext";
+import DateTimePicker from "@react-native-community/datetimepicker";
+import { LinearGradient } from "expo-linear-gradient";
+import * as Haptics from "expo-haptics";
+import { BlurView } from "expo-blur";
 
-const { width } = Dimensions.get("window")
+const { width } = Dimensions.get("window");
 
 const PREDEFINED_ACTIVITIES = [
   {
@@ -99,10 +99,10 @@ const PREDEFINED_ACTIVITIES = [
     unit: "repetisjoner",
     color: "#1B9AAA",
   },
-]
+];
 
 const NewEvent = ({ navigation }) => {
-  const { theme, isDarkMode } = useTheme()
+  const { theme, isDarkMode } = useTheme();
   const [eventDetails, setEventDetails] = useState({
     title: "",
     description: "",
@@ -119,24 +119,24 @@ const NewEvent = ({ navigation }) => {
     membersPerTeam: "",
     isPublic: false,
     tags: [],
-  })
+  });
 
   const [dateTimePickerConfig, setDateTimePickerConfig] = useState({
     visible: false,
     mode: "date",
     currentField: "",
     currentValue: new Date(),
-  })
+  });
 
-  const [showActivityModal, setShowActivityModal] = useState(false)
-  const [formProgress, setFormProgress] = useState(0)
-  const [showConfirmModal, setShowConfirmModal] = useState(false)
-  const [currentStep, setCurrentStep] = useState(0)
-  const [tagInput, setTagInput] = useState("")
+  const [showActivityModal, setShowActivityModal] = useState(false);
+  const [formProgress, setFormProgress] = useState(0);
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [currentStep, setCurrentStep] = useState(0);
+  const [tagInput, setTagInput] = useState("");
 
-  const scrollViewRef = useRef(null)
-  const progressAnimation = useRef(new Animated.Value(0)).current
-  const stepAnimation = useRef(new Animated.Value(0)).current
+  const scrollViewRef = useRef(null);
+  const progressAnimation = useRef(new Animated.Value(0)).current;
+  const stepAnimation = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     Animated.timing(progressAnimation, {
@@ -144,8 +144,8 @@ const NewEvent = ({ navigation }) => {
       duration: 500,
       easing: Easing.bezier(0.4, 0, 0.2, 1),
       useNativeDriver: false,
-    }).start()
-  }, [formProgress, progressAnimation])
+    }).start();
+  }, [formProgress, progressAnimation]);
 
   useEffect(() => {
     Animated.timing(stepAnimation, {
@@ -153,45 +153,47 @@ const NewEvent = ({ navigation }) => {
       duration: 300,
       easing: Easing.inOut(Easing.ease),
       useNativeDriver: true,
-    }).start()
-  }, [currentStep, stepAnimation])
+    }).start();
+  }, [currentStep, stepAnimation]);
 
   const updateEventDetails = (key, value) => {
     setEventDetails((prev) => {
-      const updated = { ...prev, [key]: value }
-      const filledFields = Object.values(updated).filter((v) => v !== "" && v !== null).length
-      const progress = filledFields / Object.keys(updated).length
-      setFormProgress(progress)
-      return updated
-    })
-  }
+      const updated = { ...prev, [key]: value };
+      const filledFields = Object.values(updated).filter(
+        (v) => v !== "" && v !== null
+      ).length;
+      const progress = filledFields / Object.keys(updated).length;
+      setFormProgress(progress);
+      return updated;
+    });
+  };
 
   const handleActivitySelect = (activity) => {
-    updateEventDetails("selectedActivity", activity)
-    updateEventDetails("title", activity.name)
-    updateEventDetails("goalValue", activity.defaultGoal)
-    setShowActivityModal(false)
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success)
-  }
+    updateEventDetails("selectedActivity", activity);
+    updateEventDetails("title", activity.name);
+    updateEventDetails("goalValue", activity.defaultGoal);
+    setShowActivityModal(false);
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+  };
 
   const handleDateTimeChange = (event, selectedDate) => {
     if (selectedDate) {
-      const currentField = dateTimePickerConfig.currentField
-      const currentDate = eventDetails[currentField]
+      const currentField = dateTimePickerConfig.currentField;
+      const currentDate = eventDetails[currentField];
 
       if (dateTimePickerConfig.mode === "date") {
-        selectedDate.setHours(currentDate.getHours())
-        selectedDate.setMinutes(currentDate.getMinutes())
+        selectedDate.setHours(currentDate.getHours());
+        selectedDate.setMinutes(currentDate.getMinutes());
       } else {
-        selectedDate.setFullYear(currentDate.getFullYear())
-        selectedDate.setMonth(currentDate.getMonth())
-        selectedDate.setDate(currentDate.getDate())
+        selectedDate.setFullYear(currentDate.getFullYear());
+        selectedDate.setMonth(currentDate.getMonth());
+        selectedDate.setDate(currentDate.getDate());
       }
 
-      updateEventDetails(currentField, selectedDate)
+      updateEventDetails(currentField, selectedDate);
     }
-    closeDateTimePicker()
-  }
+    closeDateTimePicker();
+  };
 
   const showDateTimePicker = (mode, field) => {
     setDateTimePickerConfig({
@@ -199,43 +201,61 @@ const NewEvent = ({ navigation }) => {
       mode,
       currentField: field,
       currentValue: eventDetails[field],
-    })
-  }
+    });
+  };
 
   const closeDateTimePicker = () => {
-    setDateTimePickerConfig((prev) => ({ ...prev, visible: false }))
-  }
+    setDateTimePickerConfig((prev) => ({ ...prev, visible: false }));
+  };
 
   const validateForm = () => {
-    const requiredFields = ["title", "selectedActivity", "startDate", "endDate", "location", "eventType"]
-    const missingFields = requiredFields.filter((field) => !eventDetails[field])
+    const requiredFields = [
+      "title",
+      "selectedActivity",
+      "startDate",
+      "endDate",
+      "location",
+      "eventType",
+    ];
+    const missingFields = requiredFields.filter(
+      (field) => !eventDetails[field]
+    );
 
     if (missingFields.length > 0) {
-      Alert.alert("Manglende informasjon", `Vennligst fyll ut følgende felt: ${missingFields.join(", ")}`)
-      return false
+      Alert.alert(
+        "Manglende informasjon",
+        `Vennligst fyll ut følgende felt: ${missingFields.join(", ")}`
+      );
+      return false;
     }
 
     if (eventDetails.startDate > eventDetails.endDate) {
-      Alert.alert("Ugyldig datoer", "Sluttdato må være etter startdato")
-      return false
+      Alert.alert("Ugyldig datoer", "Sluttdato må være etter startdato");
+      return false;
     }
 
-    return true
-  }
+    return true;
+  };
 
   const handleConfirm = () => {
     if (validateForm()) {
-      setShowConfirmModal(true)
+      setShowConfirmModal(true);
     }
-  }
+  };
 
   const createEvent = () => {
-    setShowConfirmModal(false)
-    console.log("Creating event:", eventDetails)
-    navigation.navigate("ActiveEvent", { eventDetails })
-  }
+    setShowConfirmModal(false);
+    console.log("Creating event:", eventDetails);
+    navigation.navigate("ActiveEvent", { eventDetails });
+  };
 
-  const renderInput = (label, value, onChangeText, placeholder, multiline = false) => (
+  const renderInput = (
+    label,
+    value,
+    onChangeText,
+    placeholder,
+    multiline = false
+  ) => (
     <View style={styles.inputGroup}>
       <Text style={[styles.label, { color: theme.text }]}>{label}</Text>
       <TextInput
@@ -251,7 +271,7 @@ const NewEvent = ({ navigation }) => {
         multiline={multiline}
       />
     </View>
-  )
+  );
 
   const renderDateTimePicker = (label, date, field, mode) => (
     <View style={styles.dateTimeContainer}>
@@ -263,19 +283,28 @@ const NewEvent = ({ navigation }) => {
         <Text style={[styles.dateTimeText, { color: theme.text }]}>
           {mode === "date"
             ? date.toLocaleDateString()
-            : date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+            : date.toLocaleTimeString([], {
+                hour: "2-digit",
+                minute: "2-digit",
+              })}
         </Text>
-        <MaterialCommunityIcons name={mode === "date" ? "calendar" : "clock-outline"} size={24} color={theme.primary} />
+        <MaterialCommunityIcons
+          name={mode === "date" ? "calendar" : "clock-outline"}
+          size={24}
+          color={theme.primary}
+        />
       </TouchableOpacity>
     </View>
-  )
+  );
 
   const renderStep = (stepIndex) => {
     switch (stepIndex) {
       case 0:
         return (
           <View style={styles.stepContainer}>
-            <Text style={[styles.stepTitle, { color: theme.text }]}>Velg aktivitetstype</Text>
+            <Text style={[styles.stepTitle, { color: theme.text }]}>
+              Velg aktivitetstype
+            </Text>
             <View style={styles.activityGrid}>
               {PREDEFINED_ACTIVITIES.map((activity) => (
                 <TouchableOpacity
@@ -284,7 +313,9 @@ const NewEvent = ({ navigation }) => {
                     styles.activityItem,
                     {
                       backgroundColor:
-                        eventDetails.selectedActivity?.id === activity.id ? activity.color : theme.surface,
+                        eventDetails.selectedActivity?.id === activity.id
+                          ? activity.color
+                          : theme.surface,
                     },
                   ]}
                   onPress={() => handleActivitySelect(activity)}
@@ -292,12 +323,21 @@ const NewEvent = ({ navigation }) => {
                   <MaterialCommunityIcons
                     name={activity.icon}
                     size={32}
-                    color={eventDetails.selectedActivity?.id === activity.id ? "#FFFFFF" : activity.color}
+                    color={
+                      eventDetails.selectedActivity?.id === activity.id
+                        ? "#FFFFFF"
+                        : activity.color
+                    }
                   />
                   <Text
                     style={[
                       styles.activityItemText,
-                      { color: eventDetails.selectedActivity?.id === activity.id ? "#FFFFFF" : theme.text },
+                      {
+                        color:
+                          eventDetails.selectedActivity?.id === activity.id
+                            ? "#FFFFFF"
+                            : theme.text,
+                      },
                     ]}
                   >
                     {activity.name}
@@ -306,66 +346,103 @@ const NewEvent = ({ navigation }) => {
               ))}
             </View>
           </View>
-        )
+        );
       case 1:
         return (
           <View style={styles.stepContainer}>
-            <Text style={[styles.stepTitle, { color: theme.text }]}>Hendelsesdetaljer</Text>
+            <Text style={[styles.stepTitle, { color: theme.text }]}>
+              Hendelsesdetaljer
+            </Text>
             {renderInput(
               "Hendelsesnavn",
               eventDetails.title,
               (text) => updateEventDetails("title", text),
-              "Skriv inn hendelsesnavn",
+              "Skriv inn hendelsesnavn"
             )}
             {renderInput(
               "Beskrivelse",
               eventDetails.description,
               (text) => updateEventDetails("description", text),
               "Skriv inn beskrivelse",
-              true,
+              true
             )}
             <View style={styles.inputGroup}>
               <Text style={[styles.label, { color: theme.text }]}>
-                Mål {eventDetails.selectedActivity ? `(${eventDetails.selectedActivity.unit})` : ""}
+                Mål{" "}
+                {eventDetails.selectedActivity
+                  ? `(${eventDetails.selectedActivity.unit})`
+                  : ""}
               </Text>
               <Slider
                 style={styles.slider}
                 value={eventDetails.goalValue}
-                onValueChange={(value) => updateEventDetails("goalValue", value)}
+                onValueChange={(value) =>
+                  updateEventDetails("goalValue", value)
+                }
                 minimumValue={0}
-                maximumValue={eventDetails.selectedActivity?.type === "duration" ? 300 : 100}
+                maximumValue={
+                  eventDetails.selectedActivity?.type === "duration" ? 300 : 100
+                }
                 minimumTrackTintColor={theme.primary}
                 maximumTrackTintColor={theme.border}
                 thumbTintColor={theme.primary}
               />
               <Text style={[styles.goalValueText, { color: theme.text }]}>
                 {eventDetails.selectedActivity?.type === "duration"
-                  ? `${Math.floor(eventDetails.goalValue / 60)} min ${Math.floor(eventDetails.goalValue % 60)} sek`
-                  : `${Math.round(eventDetails.goalValue)} ${eventDetails.selectedActivity?.unit || "enheter"}`}
+                  ? `${Math.floor(
+                      eventDetails.goalValue / 60
+                    )} min ${Math.floor(eventDetails.goalValue % 60)} sek`
+                  : `${Math.round(eventDetails.goalValue)} ${
+                      eventDetails.selectedActivity?.unit || "enheter"
+                    }`}
               </Text>
             </View>
           </View>
-        )
+        );
       case 2:
         return (
           <View style={styles.stepContainer}>
-            <Text style={[styles.stepTitle, { color: theme.text }]}>Tid og sted</Text>
+            <Text style={[styles.stepTitle, { color: theme.text }]}>
+              Tid og sted
+            </Text>
             {renderInput(
               "Lokasjon",
               eventDetails.location,
               (text) => updateEventDetails("location", text),
-              "Skriv inn lokasjon",
+              "Skriv inn lokasjon"
             )}
-            {renderDateTimePicker("Startdato", eventDetails.startDate, "startDate", "date")}
-            {renderDateTimePicker("Starttid", eventDetails.startTime, "startTime", "time")}
-            {renderDateTimePicker("Sluttdato", eventDetails.endDate, "endDate", "date")}
-            {renderDateTimePicker("Sluttid", eventDetails.endTime, "endTime", "time")}
+            {renderDateTimePicker(
+              "Startdato",
+              eventDetails.startDate,
+              "startDate",
+              "date"
+            )}
+            {renderDateTimePicker(
+              "Starttid",
+              eventDetails.startTime,
+              "startTime",
+              "time"
+            )}
+            {renderDateTimePicker(
+              "Sluttdato",
+              eventDetails.endDate,
+              "endDate",
+              "date"
+            )}
+            {renderDateTimePicker(
+              "Sluttid",
+              eventDetails.endTime,
+              "endTime",
+              "time"
+            )}
           </View>
-        )
+        );
       case 3:
         return (
           <View style={styles.stepContainer}>
-            <Text style={[styles.stepTitle, { color: theme.text }]}>Deltakere</Text>
+            <Text style={[styles.stepTitle, { color: theme.text }]}>
+              Deltakere
+            </Text>
             <View style={styles.eventTypeButtons}>
               {["team", "individual"].map((type) => (
                 <TouchableOpacity
@@ -373,19 +450,30 @@ const NewEvent = ({ navigation }) => {
                   style={[
                     styles.eventTypeButton,
                     { borderColor: theme.border },
-                    eventDetails.eventType === type && { backgroundColor: theme.primary },
+                    eventDetails.eventType === type && {
+                      backgroundColor: theme.primary,
+                    },
                   ]}
                   onPress={() => updateEventDetails("eventType", type)}
                 >
                   <MaterialCommunityIcons
                     name={type === "team" ? "account-group" : "account"}
                     size={24}
-                    color={eventDetails.eventType === type ? theme.background : theme.text}
+                    color={
+                      eventDetails.eventType === type
+                        ? theme.background
+                        : theme.text
+                    }
                   />
                   <Text
                     style={[
                       styles.eventTypeButtonText,
-                      { color: eventDetails.eventType === type ? theme.background : theme.text },
+                      {
+                        color:
+                          eventDetails.eventType === type
+                            ? theme.background
+                            : theme.text,
+                      },
                     ]}
                   >
                     {type === "team" ? "Lagkonkurranse" : "Individuell"}
@@ -397,7 +485,7 @@ const NewEvent = ({ navigation }) => {
               "Antall deltakere",
               eventDetails.participantCount,
               (text) => updateEventDetails("participantCount", text),
-              "Skriv inn antall deltakere",
+              "Skriv inn antall deltakere"
             )}
             {eventDetails.eventType === "team" && (
               <>
@@ -405,84 +493,27 @@ const NewEvent = ({ navigation }) => {
                   "Antall lag",
                   eventDetails.teamCount,
                   (text) => updateEventDetails("teamCount", text),
-                  "Skriv inn antall lag",
+                  "Skriv inn antall lag"
                 )}
                 {renderInput(
                   "Medlemmer per lag",
                   eventDetails.membersPerTeam,
                   (text) => updateEventDetails("membersPerTeam", text),
-                  "Skriv inn antall medlemmer per lag",
+                  "Skriv inn antall medlemmer per lag"
                 )}
               </>
             )}
           </View>
-        )
-      case 4:
-        return (
-          <View style={styles.stepContainer}>
-            <Text style={[styles.stepTitle, { color: theme.text }]}>Tilleggsinnstillinger</Text>
-            <View style={styles.switchContainer}>
-              <Text style={[styles.switchLabel, { color: theme.text }]}>Offentlig hendelse</Text>
-              <Switch
-                value={eventDetails.isPublic}
-                onValueChange={(value) => updateEventDetails("isPublic", value)}
-                trackColor={{ false: theme.border, true: theme.primary }}
-                thumbColor={eventDetails.isPublic ? theme.background : theme.surface}
-              />
-            </View>
-            <View style={styles.tagsContainer}>
-              <Text style={[styles.label, { color: theme.text }]}>Tagger</Text>
-              <View style={styles.tagInputContainer}>
-                <TextInput
-                  style={[styles.tagInput, { backgroundColor: theme.surface, color: theme.text }]}
-                  value={tagInput}
-                  onChangeText={setTagInput}
-                  placeholder="Legg til tagger"
-                  placeholderTextColor={theme.textSecondary}
-                />
-                <TouchableOpacity
-                  style={[styles.addTagButton, { backgroundColor: theme.primary }]}
-                  onPress={() => {
-                    if (tagInput.trim()) {
-                      updateEventDetails("tags", [...eventDetails.tags, tagInput.trim()])
-                      setTagInput("")
-                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
-                    }
-                  }}
-                >
-                  <MaterialCommunityIcons name="plus" size={24} color="#FFFFFF" />
-                </TouchableOpacity>
-              </View>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.tagList}>
-                {eventDetails.tags.map((tag, index) => {
-                  return (
-                    <View key={index} style={[styles.tag, { backgroundColor: theme.primary }]}>
-                      <Text style={[styles.tagText, { color: "#FFFFFF" }]}>{tag}</Text>
-                      <TouchableOpacity
-                        onPress={() => {
-                          updateEventDetails(
-                            "tags",
-                            eventDetails.tags.filter((_, i) => i !== index),
-                          )
-                          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
-                        }}
-                      >
-                        <MaterialCommunityIcons name="close" size={16} color="#FFFFFF" />
-                      </TouchableOpacity>
-                    </View>
-                  )
-                })}
-              </ScrollView>
-            </View>
-          </View>
-        )
+        );
       default:
-        return null
+        return null;
     }
-  }
+  };
 
   return (
-    <SafeAreaView style={[styles.safeArea, { backgroundColor: theme.background }]}>
+    <SafeAreaView
+      style={[styles.safeArea, { backgroundColor: theme.background }]}
+    >
       <KeyboardAvoidingView
         behavior={Platform.OS === "ios" ? "padding" : "height"}
         style={styles.container}
@@ -516,13 +547,18 @@ const NewEvent = ({ navigation }) => {
           pagingEnabled
           showsHorizontalScrollIndicator={false}
           scrollEventThrottle={16}
-          onScroll={Animated.event([{ nativeEvent: { contentOffset: { x: stepAnimation } } }], {
-            useNativeDriver: true,
-          })}
+          onScroll={Animated.event(
+            [{ nativeEvent: { contentOffset: { x: stepAnimation } } }],
+            {
+              useNativeDriver: true,
+            }
+          )}
         >
-          {[0, 1, 2, 3, 4].map((step) => (
+          {[0, 1, 2, 3].map((step) => (
             <View key={step} style={[styles.stepWrapper, { width }]}>
-              <ScrollView contentContainerStyle={styles.stepScrollContent}>{renderStep(step)}</ScrollView>
+              <ScrollView contentContainerStyle={styles.stepScrollContent}>
+                {renderStep(step)}
+              </ScrollView>
             </View>
           ))}
         </Animated.ScrollView>
@@ -532,32 +568,51 @@ const NewEvent = ({ navigation }) => {
             style={[styles.footerButton, { backgroundColor: theme.primary }]}
             onPress={() => {
               if (currentStep === 0) {
-                navigation.goBack()
+                navigation.goBack();
               } else {
-                setCurrentStep(currentStep - 1)
-                scrollViewRef.current?.scrollTo({ x: (currentStep - 1) * width, animated: true })
+                setCurrentStep(currentStep - 1);
+                scrollViewRef.current?.scrollTo({
+                  x: (currentStep - 1) * width,
+                  animated: true,
+                });
               }
             }}
           >
-            <Text style={[styles.footerButtonText, { color: theme.background }]}>
+            <Text
+              style={[styles.footerButtonText, { color: theme.background }]}
+            >
               {currentStep === 0 ? "Avbryt" : "Forrige"}
             </Text>
           </TouchableOpacity>
-          {currentStep < 4 ? (
+          {currentStep < 3 ? (
             <TouchableOpacity
               style={[styles.footerButton, { backgroundColor: theme.primary }]}
               onPress={() => {
-                if (currentStep < 4) {
-                  setCurrentStep(currentStep + 1)
-                  scrollViewRef.current?.scrollTo({ x: (currentStep + 1) * width, animated: true })
+                if (currentStep < 3) {
+                  setCurrentStep(currentStep + 1);
+                  scrollViewRef.current?.scrollTo({
+                    x: (currentStep + 1) * width,
+                    animated: true,
+                  });
                 }
               }}
             >
-              <Text style={[styles.footerButtonText, { color: theme.background }]}>Neste</Text>
+              <Text
+                style={[styles.footerButtonText, { color: theme.background }]}
+              >
+                Neste
+              </Text>
             </TouchableOpacity>
           ) : (
-            <TouchableOpacity style={[styles.footerButton, { backgroundColor: theme.primary }]} onPress={handleConfirm}>
-              <Text style={[styles.footerButtonText, { color: theme.background }]}>Opprett hendelse</Text>
+            <TouchableOpacity
+              style={[styles.footerButton, { backgroundColor: theme.primary }]}
+              onPress={handleConfirm}
+            >
+              <Text
+                style={[styles.footerButtonText, { color: theme.background }]}
+              >
+                Opprett hendelse
+              </Text>
             </TouchableOpacity>
           )}
         </View>
@@ -565,23 +620,50 @@ const NewEvent = ({ navigation }) => {
 
       <Modal visible={showConfirmModal} animationType="fade" transparent={true}>
         <BlurView intensity={100} style={styles.modalContainer}>
-          <View style={[styles.confirmModalContent, { backgroundColor: theme.background }]}>
-            <Text style={[styles.confirmModalTitle, { color: theme.text }]}>Bekreft hendelse</Text>
-            <Text style={[styles.confirmModalText, { color: theme.textSecondary }]}>
+          <View
+            style={[
+              styles.confirmModalContent,
+              { backgroundColor: theme.background },
+            ]}
+          >
+            <Text style={[styles.confirmModalTitle, { color: theme.text }]}>
+              Bekreft hendelse
+            </Text>
+            <Text
+              style={[styles.confirmModalText, { color: theme.textSecondary }]}
+            >
               Er du sikker på at du vil opprette denne hendelsen?
             </Text>
             <View style={styles.confirmModalButtons}>
               <TouchableOpacity
-                style={[styles.confirmModalButton, styles.cancelButton, { backgroundColor: theme.surface }]}
+                style={[
+                  styles.confirmModalButton,
+                  styles.cancelButton,
+                  { backgroundColor: theme.surface },
+                ]}
                 onPress={() => setShowConfirmModal(false)}
               >
-                <Text style={[styles.confirmModalButtonText, { color: theme.text }]}>Avbryt</Text>
+                <Text
+                  style={[styles.confirmModalButtonText, { color: theme.text }]}
+                >
+                  Avbryt
+                </Text>
               </TouchableOpacity>
               <TouchableOpacity
-                style={[styles.confirmModalButton, { backgroundColor: theme.primary }]}
+                style={[
+                  styles.confirmModalButton,
+                  { backgroundColor: theme.primary },
+                ]}
                 onPress={createEvent}
               >
-                <Text style={[styles.confirmModalButtonText, { color: theme.background }]}>Bekreft</Text>
+                <Text
+                  style={[
+                    styles.confirmModalButtonText,
+                    { color: theme.background },
+                  ]}
+                >
+                  Bekreft
+                </Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -590,12 +672,19 @@ const NewEvent = ({ navigation }) => {
 
       {dateTimePickerConfig.visible && (
         <Modal visible={true} transparent={true} animationType="fade">
-          <View style={[styles.modalContainer, { backgroundColor: "rgba(0,0,0,0.5)" }]}>
+          <View
+            style={[
+              styles.modalContainer,
+              { backgroundColor: "rgba(0,0,0,0.5)" },
+            ]}
+          >
             <View
               style={[
                 styles.dateTimePickerContainer,
                 {
-                  backgroundColor: isDarkMode ? theme.surface : theme.background,
+                  backgroundColor: isDarkMode
+                    ? theme.surface
+                    : theme.background,
                 },
               ]}
             >
@@ -610,18 +699,25 @@ const NewEvent = ({ navigation }) => {
                 style={styles.dateTimePicker}
               />
               <TouchableOpacity
-                style={[styles.closeDateTimeButton, { backgroundColor: theme.primary }]}
+                style={[
+                  styles.closeDateTimeButton,
+                  { backgroundColor: theme.primary },
+                ]}
                 onPress={closeDateTimePicker}
               >
-                <Text style={[styles.closeDateTimeButtonText, { color: "#FFFFFF" }]}>Bekreft</Text>
+                <Text
+                  style={[styles.closeDateTimeButtonText, { color: "#FFFFFF" }]}
+                >
+                  Bekreft
+                </Text>
               </TouchableOpacity>
             </View>
           </View>
         </Modal>
       )}
     </SafeAreaView>
-  )
-}
+  );
+};
 
 const styles = StyleSheet.create({
   safeArea: {
@@ -809,52 +905,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "600",
   },
-  switchContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    marginBottom: 16,
-  },
-  switchLabel: {
-    fontSize: 16,
-    fontWeight: "600",
-  },
-  tagsContainer: {
-    marginBottom: 16,
-  },
-  tagInputContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 8,
-  },
-  tagInput: {
-    flex: 1,
-    height: 40,
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    marginRight: 8,
-  },
-  addTagButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  tagList: {
-    flexGrow: 0,
-  },
-  tag: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 16,
-    marginRight: 8,
-  },
-  tagText: {
-    marginRight: 4,
-  },
   eventTypeButtons: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -876,7 +926,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "600",
   },
-})
+});
 
-export default NewEvent
-
+export default NewEvent;

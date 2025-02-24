@@ -39,6 +39,7 @@ import ActiveEvent from "../components/events/activeevent";
 import InviteMembersScreen from "../components/events/InviteMembersScreen";
 import LogRecordingScreen from "../components/events/LogRecordingScreen";
 import EventLeaderboard from "../components/events/EventLeaderboard";
+import YourEvents from "../components/events/your-events";
 
 import ActivitySelect from "../components/stepconverter/activityselect";
 import DurationSelect from "../components/stepconverter/durationselect";
@@ -205,6 +206,8 @@ const App = () => {
           <Stack.Screen name="contactus" component={ContactUs} />
           <Stack.Screen name="helpsupport" component={HelpSupport} />
           <Stack.Screen name="securityprivacy" component={SecurityPrivacy} />
+          <Stack.Screen name="YourEvents" component={YourEvents} />
+
           <Stack.Screen name="PrivacyPolicy" component={PrivacyPolicy} />
           <Stack.Screen name="EventLeaderboard" component={EventLeaderboard} />
           <Stack.Screen
