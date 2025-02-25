@@ -14,14 +14,15 @@ import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
 import { useTheme } from "../context/ThemeContext";
 import { EventContext } from "../events/EventContext";
+import * as Progress from "react-native-progress";
 
 const YourEvents = () => {
   const navigation = useNavigation();
   const { theme } = useTheme();
-  const { activeEvents, deleteEvent } = useContext(EventContext);
+  const { activeEvents, deleteEvent, updateEvent } = useContext(EventContext);
 
-  const [selectedEvent, setSelectedEvent] = useState(null); // Track the selected event for the menu
-  const [isMenuVisible, setMenuVisible] = useState(false); // Control menu visibility
+  const [selectedEvent, setSelectedEvent] = useState(null);
+  const [isMenuVisible, setMenuVisible] = useState(false);
 
   const handleCreateEvent = () => {
     navigation.navigate("NewEvent");
@@ -37,8 +38,8 @@ const YourEvents = () => {
           text: "Delete",
           style: "destructive",
           onPress: () => {
-            deleteEvent(eventId); // Delete the event
-            setMenuVisible(false); // Close the menu
+            deleteEvent(eventId);
+            setMenuVisible(false);
           },
         },
       ]
@@ -46,8 +47,12 @@ const YourEvents = () => {
   };
 
   const handleEditEvent = (event) => {
-    setMenuVisible(false); // Close the menu
-    navigation.navigate("NewEvent", { eventDetails: event }); // Navigate to NewEvent with existing event details
+    setMenuVisible(false);
+    navigation.navigate("NewEvent", { eventDetails: event, isEditing: true });
+  };
+
+  const truncateText = (text, maxLength) => {
+    return text.length > maxLength ? text.substring(0, maxLength) + "..." : text;
   };
 
   return (
@@ -91,9 +96,11 @@ const YourEvents = () => {
           </TouchableOpacity>
         </View>
 
-        <Text style={[styles.sectionTitle, { color: theme.text }]}>
-          Active Events
-        </Text>
+        <View style={styles.sectionHeader}>
+          <Text style={[styles.sectionTitle, { color: theme.text }]}>
+            Active Events
+          </Text>
+        </View>
 
         {activeEvents.length === 0 ? (
           <View
@@ -135,45 +142,69 @@ const YourEvents = () => {
             </TouchableOpacity>
           </View>
         ) : (
-          activeEvents.map((event, index) => (
-            <TouchableOpacity
-              key={index}
-              style={[styles.eventCard, { backgroundColor: theme.surface }]}
-              onPress={() =>
-                navigation.navigate("ActiveEvent", { eventId: event.id })
-              }
-            >
-              <View style={styles.eventHeader}>
-                <Text style={[styles.eventTitle, { color: theme.text }]}>
-                  {event.title}
-                </Text>
-                <TouchableOpacity
-                  onPress={() => {
-                    setSelectedEvent(event); // Set the selected event
-                    setMenuVisible(true); // Show the menu
-                  }}
-                >
-                  <MaterialCommunityIcons
-                    name="dots-vertical"
-                    size={24}
-                    color={theme.text}
-                  />
-                </TouchableOpacity>
-              </View>
-              <Text
-                style={[
-                  styles.eventDescription,
-                  { color: theme.textSecondary },
-                ]}
+          activeEvents.map((event, index) => {
+            const progress = event.currentValue / event.goalValue;
+            const unit = event.selectedActivity?.unit || "km";
+            return (
+              <TouchableOpacity
+                key={index}
+                style={[styles.eventCard, { backgroundColor: theme.surface }]}
+                onPress={() =>
+                  navigation.navigate("ActiveEvent", { eventId: event.id })
+                }
               >
-                {event.description}
-              </Text>
-            </TouchableOpacity>
-          ))
+                <View style={styles.eventContent}>
+                  <Image
+                    source={require("../../../assets/event-illustration.png")}
+                    style={styles.eventImage}
+                  />
+                  <View style={styles.eventDetails}>
+                    <View style={styles.eventHeader}>
+                      <Text style={[styles.eventTitle, { color: theme.text }]}>
+                        {truncateText(event.title, 20)}
+                      </Text>
+                      <TouchableOpacity
+                        onPress={() => {
+                          setSelectedEvent(event);
+                          setMenuVisible(true);
+                        }}
+                      >
+                        <MaterialCommunityIcons
+                          name="dots-vertical"
+                          size={24}
+                          color={theme.text}
+                        />
+                      </TouchableOpacity>
+                    </View>
+                    <Text
+                      style={[
+                        styles.eventDescription,
+                        { color: theme.textSecondary },
+                      ]}
+                    >
+                      {truncateText(event.description, 50)}
+                    </Text>
+                    <Progress.Bar
+                      progress={progress || 0}
+                      width={null}
+                      height={8}
+                      color={theme.primary}
+                      unfilledColor={theme.primary + "30"}
+                      borderWidth={0}
+                      borderRadius={4}
+                      style={styles.progressBar}
+                    />
+                    <Text style={[styles.progressText, { color: theme.text }]}>
+                      {event.currentValue || 0} {unit} / {event.goalValue || 100} {unit}
+                    </Text>
+                  </View>
+                </View>
+              </TouchableOpacity>
+            );
+          })
         )}
       </ScrollView>
 
-      {/* Options Menu Modal */}
       <Modal
         visible={isMenuVisible}
         transparent={true}
@@ -275,11 +306,16 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "600",
   },
-  sectionTitle: {
-    fontSize: 34,
-    fontWeight: "600",
+  sectionHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
     marginBottom: 16,
     paddingHorizontal: 4,
+  },
+  sectionTitle: {
+    fontSize: 24,
+    fontWeight: "600",
   },
   emptyStateContainer: {
     borderRadius: 16,
@@ -319,6 +355,19 @@ const styles = StyleSheet.create({
     marginHorizontal: 4,
     marginBottom: 16,
   },
+  eventContent: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  eventImage: {
+    width: 80,
+    height: 80,
+    borderRadius: 8,
+    marginRight: 16,
+  },
+  eventDetails: {
+    flex: 1,
+  },
   eventHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -331,6 +380,15 @@ const styles = StyleSheet.create({
   },
   eventDescription: {
     fontSize: 14,
+    marginBottom: 16,
+    color: "#666",
+  },
+  progressBar: {
+    marginBottom: 8,
+  },
+  progressText: {
+    fontSize: 14,
+    fontWeight: "500",
   },
   modalContainer: {
     flex: 1,
