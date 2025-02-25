@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useContext } from "react";
 import { useRoute, useFocusEffect } from "@react-navigation/native";
 import {
   SafeAreaView,
@@ -12,6 +12,7 @@ import {
   Image,
   ScrollView,
   Modal,
+  FlatList,
 } from "react-native";
 import { Users, Bell, Award, ChevronRight } from "lucide-react-native";
 import * as Progress from "react-native-progress";
@@ -24,6 +25,7 @@ import { useTheme } from "../context/ThemeContext";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import Color from "color";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { EventContext } from "../events/EventContext"; // Import EventContext
 
 const SCREEN_WIDTH = Dimensions.get("window").width;
 const DAILY_STEP_GOAL = 7500;
@@ -96,8 +98,12 @@ export default function Dashboard() {
   const { theme, accentColor } = useTheme();
   const [showTutorial, setShowTutorial] = useState(false);
   const [tutorialStep, setTutorialStep] = useState(0);
+
+  const { activeEvents } = useContext(EventContext); // Get active events from context
+
   const route = useRoute();
   //const TEST_MODE = true; // Always show tutorial during testing
+
 
   useEffect(() => {
     const loadSteps = async () => {
@@ -171,17 +177,6 @@ export default function Dashboard() {
       setTimeout(() => setShowCelebration(false), 4000);
     }
   }, [stepCount, showCelebration]);
-
-  //const checkFirstTimeUser = async () => {
-  //try {
-  //const hasSeenTutorial = await AsyncStorage.getItem("hasSeenTutorial");
-  //if (TEST_MODE || hasSeenTutorial === null) {
-  //setShowTutorial(true);
-  //}
-  //} catch (error) {
-  //console.error("Error checking first time user:", error);
-  //}
-  //};
 
   const checkFirstTimeUser = async () => {
     try {
@@ -259,6 +254,53 @@ export default function Dashboard() {
     navigation.navigate("History");
   };
 
+  const renderEventItem = ({ item }) => (
+    <TouchableOpacity
+      style={[styles.eventCard, { backgroundColor: theme.surface }]}
+      onPress={() => navigation.navigate("ActiveEvent", { eventId: item.id })}
+    >
+      <Image
+        source={require("../../../assets/event-illustration.png")}
+        style={styles.eventImage}
+      />
+      <View style={styles.eventContent}>
+        <Text
+          style={[styles.eventTitle, { color: theme.text }]}
+          numberOfLines={1} // Limit title to one line
+        >
+          {item.title}
+        </Text>
+        <Text
+          style={[styles.eventDescription, { color: theme.textSecondary }]}
+          numberOfLines={1} // Limit description to one line
+        >
+          {item.description}
+        </Text>
+        <Progress.Bar
+          progress={item.progress || 0}
+          width={null}
+          color={accentColor}
+          unfilledColor={theme.border}
+          borderWidth={0}
+          height={6}
+          borderRadius={3}
+        />
+        <Text style={[styles.progressText, { color: theme.textSecondary }]}>
+          {item.currentValue || 0} {item.activityUnit} / {item.goalValue || 100}{" "}
+          {item.activityUnit}
+        </Text>
+      </View>
+    </TouchableOpacity>
+  );
+
+  const renderEmptyEventCard = () => (
+    <View style={[styles.eventCard, { backgroundColor: theme.surface }]}>
+      <Text style={[styles.eventTitle, { color: theme.textSecondary }]}>
+        No Events Created
+      </Text>
+    </View>
+  );
+
   return (
     <SafeAreaView
       style={[styles.container, { backgroundColor: theme.background }]}
@@ -333,42 +375,18 @@ export default function Dashboard() {
               </Text>
             </TouchableOpacity>
           </View>
-          <TouchableOpacity
-            onPress={() => navigation.navigate("Events")}
-            style={[styles.eventCard, { backgroundColor: theme.surface }]}
-          >
-            <Image
-              source={require("../../../assets/event-illustration.png")}
-              style={styles.eventImage}
+          {activeEvents.length > 0 ? (
+            <FlatList
+              data={activeEvents}
+              renderItem={renderEventItem}
+              keyExtractor={(item) => item.id}
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.eventList}
             />
-            <View style={styles.eventContent}>
-              <Text style={[styles.eventTitle, { color: theme.text }]}>
-                Summer Run Challenge
-              </Text>
-              <Text
-                style={[
-                  styles.eventDescription,
-                  { color: theme.textSecondary },
-                ]}
-              >
-                Complete 100km this month
-              </Text>
-              <Progress.Bar
-                progress={0.65}
-                width={null}
-                color={accentColor}
-                unfilledColor={theme.border}
-                borderWidth={0}
-                height={6}
-                borderRadius={3}
-              />
-              <Text
-                style={[styles.progressText, { color: theme.textSecondary }]}
-              >
-                65 km / 100 km
-              </Text>
-            </View>
-          </TouchableOpacity>
+          ) : (
+            renderEmptyEventCard()
+          )}
         </View>
 
         <View style={styles.statsContainer}>
@@ -522,16 +540,21 @@ const styles = StyleSheet.create({
   seeAllText: {
     fontSize: 14,
   },
+  eventList: {
+    paddingBottom: 16,
+  },
   eventCard: {
     flexDirection: "row",
     alignItems: "center",
     borderRadius: 16,
-    padding: 12,
+    padding: 16,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 3,
+    marginRight: 16,
+    width: SCREEN_WIDTH * 0.9,
   },
   eventImage: {
     width: 80,
@@ -547,10 +570,14 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "600",
     marginBottom: 4,
+    overflow: "hidden", // Ensure text doesn't overflow
+    whiteSpace: "nowrap", // Prevent text from wrapping
   },
   eventDescription: {
     fontSize: 14,
     marginBottom: 8,
+    overflow: "hidden", // Ensure text doesn't overflow
+    whiteSpace: "nowrap", // Prevent text from wrapping
   },
   progressText: {
     fontSize: 12,

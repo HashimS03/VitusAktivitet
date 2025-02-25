@@ -24,7 +24,7 @@ import DateTimePicker from "@react-native-community/datetimepicker"
 import { LinearGradient } from "expo-linear-gradient"
 import * as Haptics from "expo-haptics"
 import { BlurView } from "expo-blur"
-import { EventContext } from "../events/EventContext" // Import EventContext
+import { EventContext } from "../events/EventContext"
 
 const { width } = Dimensions.get("window")
 
@@ -103,7 +103,7 @@ const PREDEFINED_ACTIVITIES = [
 
 const NewEvent = ({ navigation, route }) => {
   const { theme, isDarkMode } = useTheme()
-  const { addEvent, updateEvent } = useContext(EventContext) // Use EventContext
+  const { addEvent, updateEvent } = useContext(EventContext)
   const { eventDetails: existingEvent, isEditing } = route.params || {}
 
   const [eventDetails, setEventDetails] = useState(
@@ -132,8 +132,8 @@ const NewEvent = ({ navigation, route }) => {
           membersPerTeam: "",
           isPublic: false,
           tags: [],
-          participants: [], // New field for individual events
-          teams: [], // New field for team events
+          participants: [],
+          teams: [],
         },
   )
 
@@ -255,7 +255,6 @@ const NewEvent = ({ navigation, route }) => {
       activityUnit: eventDetails.selectedActivity.unit,
     }
 
-    // Generate participants or teams based on the event type
     if (updatedEvent.eventType === "individual") {
       updatedEvent.participants = Array.from({ length: Number.parseInt(updatedEvent.participantCount) }, (_, i) => ({
         id: `participant_${i + 1}`,
@@ -844,4 +843,3 @@ const styles = StyleSheet.create({
 })
 
 export default NewEvent
-
