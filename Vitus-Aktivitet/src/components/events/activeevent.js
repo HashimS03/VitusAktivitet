@@ -20,12 +20,12 @@ import { useNavigation } from "@react-navigation/native";
 import InviteMembersScreen from "./InviteMembersScreen";
 import { useTheme } from "../context/ThemeContext";
 import * as Progress from "react-native-progress";
-import { EventContext } from "../events/EventContext"; // Importer EventContext
+import { EventContext } from "../events/EventContext"; // Import EventContext
 
 const ActiveEvent = ({ route }) => {
   const { eventId } = route.params || {};
-  const { activeEvents } = useContext(EventContext); // Hent activeEvents fra Context
-  const eventDetails = activeEvents.find((event) => event.id === eventId); // Finn hendelsen basert på eventId
+  const { activeEvents, updateEvent, deleteEvent } = useContext(EventContext); // Use EventContext
+  const eventDetails = activeEvents.find((event) => event.id === eventId); // Find the event based on eventId
 
   const [isModalVisible, setModalVisible] = useState(false);
   const [showInviteScreen, setShowInviteScreen] = useState(false);
@@ -36,8 +36,7 @@ const ActiveEvent = ({ route }) => {
   const navigation = useNavigation();
   const { theme, isDarkMode } = useTheme();
 
-  // Resten av koden for ActiveEvent...
-
+  // Set navigation options for smooth transitions
   useEffect(() => {
     navigation.setOptions({
       transitionSpec: {
@@ -60,15 +59,20 @@ const ActiveEvent = ({ route }) => {
     });
   }, [navigation]);
 
+  // Toggle the options modal
   const toggleModal = () => setModalVisible(!isModalVisible);
+
+  // Navigate back to the YourEvents screen
   const handleBackPress = () =>
     navigation.navigate("EventsMain", { screen: "YourEvents" });
 
+  // Navigate to the NewEvent screen to edit the event
   const handleEditEvent = () => {
     toggleModal();
     navigation.navigate("NewEvent", { eventDetails });
   };
 
+  // Delete the event after confirmation
   const handleDeleteEvent = () => {
     Alert.alert(
       "Slett hendelse",
@@ -79,6 +83,7 @@ const ActiveEvent = ({ route }) => {
           text: "Slett",
           style: "destructive",
           onPress: () => {
+            deleteEvent(eventId); // Delete the event from the context
             navigation.navigate("EventsMain", { screen: "YourEvents" });
           },
         },
@@ -86,10 +91,12 @@ const ActiveEvent = ({ route }) => {
     );
   };
 
+  // Show the progress update modal
   const handleUpdateProgress = () => {
     setShowProgressModal(true);
   };
 
+  // Submit the updated progress value
   const submitProgress = () => {
     const newValue = Number.parseInt(newProgress, 10);
     if (
@@ -109,24 +116,11 @@ const ActiveEvent = ({ route }) => {
     }
   };
 
+  // Render team members for team events
   const renderTeamMembers = () => {
     const totalTeams = eventDetails.teamCount;
     const membersPerTeam = eventDetails.membersPerTeam;
     const filledMembers = 1;
-
-    // Add detailed logging for team information
-    console.log("Team Event Details:", {
-      totalTeams: totalTeams,
-      membersPerTeam: membersPerTeam,
-      totalCapacity: totalTeams * membersPerTeam,
-      filledPositions: filledMembers,
-      remainingSlots: totalTeams * membersPerTeam - filledMembers,
-      teams: Array.from({ length: totalTeams }, (_, i) => ({
-        teamNumber: i + 1,
-        currentMembers: i === 0 ? 1 : 0,
-        availableSlots: i === 0 ? membersPerTeam - 1 : membersPerTeam,
-      })),
-    });
 
     return (
       <>
@@ -190,6 +184,7 @@ const ActiveEvent = ({ route }) => {
     );
   };
 
+  // Render individual participants for individual events
   const renderIndividualParticipants = () => {
     const totalParticipants =
       Number.parseInt(eventDetails?.participantCount) || 1;
@@ -247,6 +242,7 @@ const ActiveEvent = ({ route }) => {
       style={[styles.safeArea, { backgroundColor: theme.background }]}
     >
       <ScrollView contentContainerStyle={{ paddingBottom: 100 }}>
+        {/* Header */}
         <View style={styles.header}>
           <TouchableOpacity onPress={handleBackPress} style={styles.backButton}>
             <MaterialCommunityIcons
@@ -267,11 +263,13 @@ const ActiveEvent = ({ route }) => {
           </TouchableOpacity>
         </View>
 
+        {/* Event Banner */}
         <Image
           source={require("../../../assets/event-illustration.png")}
           style={styles.eventBanner}
         />
 
+        {/* Event Info */}
         <View
           style={[
             styles.eventInfoContainer,
@@ -311,6 +309,7 @@ const ActiveEvent = ({ route }) => {
           </View>
         </View>
 
+        {/* Progress Section */}
         <View style={styles.progressSection}>
           <Text style={[styles.sectionTitle, { color: theme.text }]}>
             Din Fremgang
@@ -369,6 +368,7 @@ const ActiveEvent = ({ route }) => {
           </TouchableOpacity>
         </View>
 
+        {/* Members Section */}
         <View style={styles.membersSection}>
           <Text style={[styles.sectionTitle, { color: theme.text }]}>
             {eventDetails?.type === "team" ? "Lag og Medlemmer" : "Deltakere"}
@@ -378,6 +378,7 @@ const ActiveEvent = ({ route }) => {
             : renderIndividualParticipants()}
         </View>
 
+        {/* Description Section */}
         <View style={styles.descriptionSection}>
           <Text style={[styles.sectionTitle, { color: theme.text }]}>
             Beskrivelse
@@ -390,6 +391,7 @@ const ActiveEvent = ({ route }) => {
           </Text>
         </View>
 
+        {/* Action Buttons */}
         <View style={styles.buttonContainer}>
           <TouchableOpacity
             style={[styles.actionButton, { backgroundColor: theme.primary }]}
@@ -426,6 +428,7 @@ const ActiveEvent = ({ route }) => {
         </View>
       </ScrollView>
 
+      {/* Options Modal */}
       <Modal
         animationType="fade"
         transparent={true}
@@ -472,6 +475,7 @@ const ActiveEvent = ({ route }) => {
         </View>
       </Modal>
 
+      {/* Progress Update Modal */}
       <Modal
         animationType="slide"
         transparent={true}
@@ -533,6 +537,7 @@ const ActiveEvent = ({ route }) => {
         </KeyboardAvoidingView>
       </Modal>
 
+      {/* Invite Members Screen */}
       <InviteMembersScreen
         visible={showInviteScreen}
         onClose={() => setShowInviteScreen(false)}
@@ -542,6 +547,7 @@ const ActiveEvent = ({ route }) => {
   );
 };
 
+// Styles
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
