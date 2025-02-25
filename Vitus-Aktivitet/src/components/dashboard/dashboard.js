@@ -96,9 +96,23 @@ export default function Dashboard() {
   const { theme, accentColor } = useTheme();
   const [showTutorial, setShowTutorial] = useState(false);
   const [tutorialStep, setTutorialStep] = useState(0);
+  const route = useRoute();
   //const TEST_MODE = true; // Always show tutorial during testing
 
-  const route = useRoute(); // Henter parametere fra navigation
+  useEffect(() => {
+    const loadSteps = async () => {
+      try {
+        const storedSteps = await AsyncStorage.getItem("stepCount");
+        const initialSteps = storedSteps ? JSON.parse(storedSteps) : 0;
+        setStepCount(initialSteps);
+        console.log("Loaded initial stepCount:", initialSteps);
+      } catch (error) {
+        console.error("Error loading stepCount:", error);
+      }
+    };
+    loadSteps();
+  }, []);
+
   useFocusEffect(
     useCallback(() => {
       console.log("🔄 Dashboard (MainApp) har fått fokus!");
@@ -121,8 +135,7 @@ export default function Dashboard() {
             );
             setStepCount(newStepCount);
 
-            // Nullstill params så det ikke dobbelregistreres
-            navigation.setParams({ addedSteps: null });
+            navigation.setParams({ addedSteps: null }); // Nullstill params
           }
         } catch (error) {
           console.error("❌ Feil ved oppdatering av stepCount:", error);
