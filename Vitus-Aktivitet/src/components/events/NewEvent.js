@@ -23,7 +23,7 @@ import DateTimePicker from "@react-native-community/datetimepicker";
 import { LinearGradient } from "expo-linear-gradient";
 import * as Haptics from "expo-haptics";
 import { BlurView } from "expo-blur";
-import { EventContext } from "../events/EventContext"; // Importer EventContext
+import { EventContext } from "../events/EventContext"; // Import EventContext
 
 const { width } = Dimensions.get("window");
 
@@ -100,27 +100,30 @@ const PREDEFINED_ACTIVITIES = [
   },
 ];
 
-const NewEvent = ({ navigation }) => {
+const NewEvent = ({ navigation, route }) => {
   const { theme, isDarkMode } = useTheme();
-  const { addEvent } = useContext(EventContext); // Hent addEvent fra Context
+  const { addEvent, updateEvent } = useContext(EventContext); // Use EventContext
+  const { eventDetails: existingEvent } = route.params || {}; // For editing existing events
 
-  const [eventDetails, setEventDetails] = useState({
-    title: "",
-    description: "",
-    goalValue: 50,
-    selectedActivity: null,
-    startDate: new Date(),
-    endDate: new Date(),
-    startTime: new Date(),
-    endTime: new Date(),
-    location: "",
-    eventType: null,
-    participantCount: "",
-    teamCount: "",
-    membersPerTeam: "",
-    isPublic: false,
-    tags: [],
-  });
+  const [eventDetails, setEventDetails] = useState(
+    existingEvent || {
+      title: "",
+      description: "",
+      goalValue: 50,
+      selectedActivity: null,
+      startDate: new Date(),
+      endDate: new Date(),
+      startTime: new Date(),
+      endTime: new Date(),
+      location: "",
+      eventType: null,
+      participantCount: "",
+      teamCount: "",
+      membersPerTeam: "",
+      isPublic: false,
+      tags: [],
+    }
+  );
 
   const [dateTimePickerConfig, setDateTimePickerConfig] = useState({
     visible: false,
@@ -247,12 +250,15 @@ const NewEvent = ({ navigation }) => {
   const createEvent = () => {
     setShowConfirmModal(false);
     const newEvent = {
-      id: Math.random().toString(), // Generer en unik ID for hendelsen
+      id: existingEvent ? existingEvent.id : Math.random().toString(), // Use existing ID if editing
       ...eventDetails,
     };
 
-    // Legg til hendelsen i `activeEvents`-tilstanden via Context
-    addEvent(newEvent);
+    if (existingEvent) {
+      updateEvent(newEvent); // Update existing event
+    } else {
+      addEvent(newEvent); // Add new event
+    }
 
     navigation.navigate("ActiveEvent", { eventId: newEvent.id });
   };
