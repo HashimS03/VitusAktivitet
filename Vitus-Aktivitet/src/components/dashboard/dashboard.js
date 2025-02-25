@@ -13,6 +13,7 @@ import {
   ScrollView,
   Modal,
   FlatList,
+  TextInput,
 } from "react-native";
 import { Users, Bell, Award, ChevronRight } from "lucide-react-native";
 import * as Progress from "react-native-progress";
@@ -28,7 +29,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { EventContext } from "../events/EventContext"; // Import EventContext
 
 const SCREEN_WIDTH = Dimensions.get("window").width;
-const DAILY_STEP_GOAL = 7500;
+const DAILY_STEP_GOAL = 7500; // Standard mål, men kan endres og lagres
 const PROGRESS_RING_SIZE = 300;
 const PROGRESS_RING_THICKNESS = 30;
 
@@ -98,25 +99,36 @@ export default function Dashboard() {
   const { theme, accentColor } = useTheme();
   const [showTutorial, setShowTutorial] = useState(false);
   const [tutorialStep, setTutorialStep] = useState(0);
+  const [showGoalModal, setShowGoalModal] = useState(false);
+  const [dailyGoal, setDailyGoal] = useState(DAILY_STEP_GOAL); // Dynamisk daglig mål
+  const [newGoal, setNewGoal] = useState("");
 
   const { activeEvents } = useContext(EventContext); // Get active events from context
 
   const route = useRoute();
-  //const TEST_MODE = true; // Always show tutorial during testing
 
-
+  // Last inn både skritt og daglig mål ved oppstart
   useEffect(() => {
-    const loadSteps = async () => {
+    const loadData = async () => {
       try {
+        // Last inn lagret daglig mål
+        const storedGoal = await AsyncStorage.getItem("dailyGoal");
+        const initialGoal = storedGoal
+          ? JSON.parse(storedGoal)
+          : DAILY_STEP_GOAL;
+        setDailyGoal(initialGoal);
+        console.log("Loaded initial dailyGoal:", initialGoal);
+
+        // Last inn lagrede skritt
         const storedSteps = await AsyncStorage.getItem("stepCount");
         const initialSteps = storedSteps ? JSON.parse(storedSteps) : 0;
         setStepCount(initialSteps);
         console.log("Loaded initial stepCount:", initialSteps);
       } catch (error) {
-        console.error("Error loading stepCount:", error);
+        console.error("Error loading data:", error);
       }
     };
-    loadSteps();
+    loadData();
   }, []);
 
   useFocusEffect(
@@ -172,11 +184,11 @@ export default function Dashboard() {
   }, []);
 
   useEffect(() => {
-    if (stepCount >= DAILY_STEP_GOAL && !showCelebration) {
+    if (stepCount >= dailyGoal && !showCelebration) {
       setShowCelebration(true);
       setTimeout(() => setShowCelebration(false), 4000);
     }
-  }, [stepCount, showCelebration]);
+  }, [stepCount, dailyGoal, showCelebration]);
 
   const checkFirstTimeUser = async () => {
     try {
@@ -252,6 +264,22 @@ export default function Dashboard() {
 
   const handleHistoryPress = () => {
     navigation.navigate("History");
+  };
+
+  const handleSetDailyGoal = async () => {
+    const goal = parseInt(newGoal, 10);
+    if (!isNaN(goal) && goal > 0) {
+      // Sørg for at målet er positivt
+      try {
+        await AsyncStorage.setItem("dailyGoal", JSON.stringify(goal)); // Lagre målet
+        setDailyGoal(goal);
+        setShowGoalModal(false);
+        setNewGoal(""); // Nullstill input etter lagring
+        console.log("Daily goal updated and saved:", goal);
+      } catch (error) {
+        console.error("Error saving daily goal:", error);
+      }
+    }
   };
 
   const renderEventItem = ({ item }) => (
@@ -333,7 +361,7 @@ export default function Dashboard() {
         <View style={styles.progressWrapper}>
           <View style={styles.progressContainer}>
             <CustomProgressCircle
-              progress={Math.min(stepCount / DAILY_STEP_GOAL, 1)}
+              progress={Math.min(stepCount / dailyGoal, 1)} // Bruk dynamisk dailyGoal
               accentColor={accentColor}
             />
             <View style={styles.progressContent}>
@@ -341,13 +369,15 @@ export default function Dashboard() {
                 source={require("../../../assets/løper.png")}
                 style={styles.runnerIcon}
               />
-              <Text style={[styles.stepsText, { color: accentColor }]}>
-                {stepCount.toLocaleString()}
-              </Text>
+              <TouchableOpacity onPress={() => setShowGoalModal(true)}>
+                <Text style={[styles.stepsText, { color: accentColor }]}>
+                  {stepCount.toLocaleString()}
+                </Text>
+              </TouchableOpacity>
               <Text
                 style={[styles.dailyStepsLabel, { color: theme.textSecondary }]}
               >
-                DAILY STEPS
+                DAILY STEPS (Goal: {dailyGoal})
               </Text>
             </View>
             <TouchableOpacity
@@ -363,6 +393,52 @@ export default function Dashboard() {
             </TouchableOpacity>
           </View>
         </View>
+
+        <Modal transparent visible={showGoalModal} animationType="fade">
+          <View style={styles.modalOverlay}>
+            <View
+              style={[styles.modalContent, { backgroundColor: theme.surface }]}
+            >
+              <Text style={[styles.modalTitle, { color: theme.text }]}>
+                Set Daily Goal
+              </Text>
+              <TextInput
+                style={[
+                  styles.input,
+                  { color: theme.text, borderColor: theme.border },
+                ]}
+                placeholder="Enter your daily goal"
+                placeholderTextColor={theme.textSecondary}
+                keyboardType="numeric"
+                value={newGoal}
+                onChangeText={setNewGoal}
+              />
+              <View style={styles.modalButtons}>
+                <TouchableOpacity
+                  style={[
+                    styles.modalButton,
+                    { backgroundColor: theme.border },
+                  ]}
+                  onPress={() => setShowGoalModal(false)}
+                >
+                  <Text style={[styles.modalButtonText, { color: theme.text }]}>
+                    Cancel
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.modalButton, { backgroundColor: accentColor }]}
+                  onPress={handleSetDailyGoal}
+                >
+                  <Text
+                    style={[styles.modalButtonText, { color: theme.surface }]}
+                  >
+                    Save
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        </Modal>
 
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
@@ -684,6 +760,44 @@ const styles = StyleSheet.create({
   },
   nextButtonText: {
     color: "#50C3AA",
+    fontWeight: "bold",
+  },
+  modalOverlay: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+  },
+  modalContent: {
+    width: "80%",
+    padding: 20,
+    borderRadius: 10,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: "bold",
+    marginBottom: 16,
+  },
+  input: {
+    height: 40,
+    borderWidth: 1,
+    borderRadius: 5,
+    paddingHorizontal: 10,
+    marginBottom: 16,
+  },
+  modalButtons: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+  },
+  modalButton: {
+    flex: 1,
+    padding: 10,
+    borderRadius: 5,
+    alignItems: "center",
+    marginHorizontal: 5,
+  },
+  modalButtonText: {
+    fontSize: 16,
     fontWeight: "bold",
   },
 });
