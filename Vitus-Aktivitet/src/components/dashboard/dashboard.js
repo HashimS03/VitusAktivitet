@@ -107,11 +107,34 @@ export default function Dashboard() {
 
   const route = useRoute();
 
-  // Last inn både skritt og daglig mål ved oppstart
+  // Reset kun skritt-relaterte data ved appstart
+  useEffect(() => {
+    const resetStepData = async () => {
+      try {
+        console.log("🔄 Resetter skritt-relaterte data i AsyncStorage...");
+        // Fjern kun skritt-relaterte nøkkelverdier
+        const allKeys = await AsyncStorage.getAllKeys();
+        const stepKeys = allKeys.filter(
+          (key) => key.startsWith("stepHistory_") || key === "stepCount"
+        );
+        if (stepKeys.length > 0) {
+          await AsyncStorage.multiRemove(stepKeys);
+        }
+        setStepCount(0); // Tilbakestiller stepCount til 0
+        console.log("✅ Skritt-data er nullstilt!");
+      } catch (error) {
+        console.error("❌ Feil ved nullstilling av skritt-data:", error);
+      }
+    };
+
+    resetStepData();
+  }, []); // Kjører kun én gang ved appstart
+
+  // Last inn både skritt og daglig mål ved oppstart (beholder dailyGoal)
   useEffect(() => {
     const loadData = async () => {
       try {
-        // Last inn lagret daglig mål
+        // Last inn lagret daglig mål (beholder eksisterende verdi hvis den finnes)
         const storedGoal = await AsyncStorage.getItem("dailyGoal");
         const initialGoal = storedGoal
           ? JSON.parse(storedGoal)
@@ -119,7 +142,7 @@ export default function Dashboard() {
         setDailyGoal(initialGoal);
         console.log("Loaded initial dailyGoal:", initialGoal);
 
-        // Last inn lagrede skritt
+        // Last inn lagrede skritt (starter på 0 etter reset)
         const storedSteps = await AsyncStorage.getItem("stepCount");
         const initialSteps = storedSteps ? JSON.parse(storedSteps) : 0;
         setStepCount(initialSteps);
@@ -153,6 +176,14 @@ export default function Dashboard() {
             );
             setStepCount(newStepCount);
 
+            // Lagre dagens skritt med dato
+            const today = new Date().toISOString().split("T")[0]; // Format: YYYY-MM-DD
+            const stepHistoryKey = `stepHistory_${today}`;
+            await AsyncStorage.setItem(
+              stepHistoryKey,
+              JSON.stringify(newStepCount)
+            );
+
             navigation.setParams({ addedSteps: null }); // Nullstill params
           }
         } catch (error) {
@@ -163,20 +194,6 @@ export default function Dashboard() {
       updateSteps();
     }, [route.params])
   );
-
-  useEffect(() => {
-    const resetSteps = async () => {
-      try {
-        console.log("🔄 Nullstiller stepCount ved app-start...");
-        await AsyncStorage.removeItem("stepCount");
-        setStepCount(0);
-      } catch (error) {
-        console.error("❌ Feil ved nullstilling av stepCount:", error);
-      }
-    };
-
-    resetSteps();
-  }, []); // Kjøres kun én gang når appen starter
 
   useEffect(() => {
     checkFirstTimeUser();
@@ -199,7 +216,7 @@ export default function Dashboard() {
         setShowTutorial(true);
         console.log("🎉 Førstegangsbruker! Viser tutorial...");
       } else {
-        console.log("✅ Tutorial allerede sett.");
+        setShowTutorial(false); // Forhindrer at tutorial vises på nytt etter reset
       }
     } catch (error) {
       console.error("❌ Feil ved sjekking av første gangs bruker:", error);
@@ -269,12 +286,11 @@ export default function Dashboard() {
   const handleSetDailyGoal = async () => {
     const goal = parseInt(newGoal, 10);
     if (!isNaN(goal) && goal > 0) {
-      // Sørg for at målet er positivt
       try {
-        await AsyncStorage.setItem("dailyGoal", JSON.stringify(goal)); // Lagre målet
+        await AsyncStorage.setItem("dailyGoal", JSON.stringify(goal));
         setDailyGoal(goal);
         setShowGoalModal(false);
-        setNewGoal(""); // Nullstill input etter lagring
+        setNewGoal("");
         console.log("Daily goal updated and saved:", goal);
       } catch (error) {
         console.error("Error saving daily goal:", error);
@@ -294,13 +310,13 @@ export default function Dashboard() {
       <View style={styles.eventContent}>
         <Text
           style={[styles.eventTitle, { color: theme.text }]}
-          numberOfLines={1} // Limit title to one line
+          numberOfLines={1}
         >
           {item.title}
         </Text>
         <Text
           style={[styles.eventDescription, { color: theme.textSecondary }]}
-          numberOfLines={1} // Limit description to one line
+          numberOfLines={1}
         >
           {item.description}
         </Text>
@@ -361,7 +377,7 @@ export default function Dashboard() {
         <View style={styles.progressWrapper}>
           <View style={styles.progressContainer}>
             <CustomProgressCircle
-              progress={Math.min(stepCount / dailyGoal, 1)} // Bruk dynamisk dailyGoal
+              progress={Math.min(stepCount / dailyGoal, 1)}
               accentColor={accentColor}
             />
             <View style={styles.progressContent}>
@@ -646,14 +662,14 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "600",
     marginBottom: 4,
-    overflow: "hidden", // Ensure text doesn't overflow
-    whiteSpace: "nowrap", // Prevent text from wrapping
+    overflow: "hidden",
+    whiteSpace: "nowrap",
   },
   eventDescription: {
     fontSize: 14,
     marginBottom: 8,
-    overflow: "hidden", // Ensure text doesn't overflow
-    whiteSpace: "nowrap", // Prevent text from wrapping
+    overflow: "hidden",
+    whiteSpace: "nowrap",
   },
   progressText: {
     fontSize: 12,
