@@ -646,7 +646,7 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 3,
     marginRight: 16,
-    width: SCREEN_WIDTH * 0.9,
+    width: SCREEN_WIDTH * 0.91,
   },
   eventImage: {
     width: 80,
