@@ -205,7 +205,7 @@ const fetchStepHistory = async (period) => {
         const hourlySteps = Array(24).fill(0);
         if (todayData) {
           const currentHour = today.getHours();
-          hourlySteps[currentHour] = total;
+          hourlySteps[currentHour] = total; // Plasser totale skritt i gjeldende time
         }
         return {
           total,
