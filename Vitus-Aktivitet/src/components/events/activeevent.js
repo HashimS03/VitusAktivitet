@@ -133,12 +133,16 @@ const ActiveEvent = ({ route }) => {
                     style={[
                       styles.emptyAvatar,
                       {
-                        backgroundColor: "#2E1F47",
+                        backgroundColor: theme.primary,
                       },
                     ]}
                     onPress={() => setShowInviteScreen(true)}
                   >
-                    <MaterialCommunityIcons name="plus" size={24} color="#9575CD" />
+                    <MaterialCommunityIcons
+                      name="plus"
+                      size={24}
+                      color={isDarkMode ? theme.surface : theme.background}
+                    />
                   </TouchableOpacity>
                 )}
                 {/* Show remaining slots as empty */}
@@ -148,13 +152,17 @@ const ActiveEvent = ({ route }) => {
                     style={[
                       styles.emptyAvatar,
                       {
-                        backgroundColor: "#2E1F47",
+                        backgroundColor: theme.primary,
                         marginLeft: 16,
                       },
                     ]}
                     onPress={() => setShowInviteScreen(true)}
                   >
-                    <MaterialCommunityIcons name="plus" size={24} color="#9575CD" />
+                    <MaterialCommunityIcons
+                      name="plus"
+                      size={24}
+                      color={isDarkMode ? theme.surface : theme.background}
+                    />
                   </TouchableOpacity>
                 ))}
               </View>
@@ -194,10 +202,10 @@ const ActiveEvent = ({ route }) => {
               {Array.from({ length: emptySlots }, (_, i) => (
                 <TouchableOpacity
                   key={`empty_${i}`}
-                  style={[styles.emptyAvatar, { backgroundColor: "#2E1F47" }]}
+                  style={[styles.emptyAvatar, { backgroundColor: theme.primary }]}
                   onPress={() => setShowInviteScreen(true)}
                 >
-                  <MaterialCommunityIcons name="plus" size={24} color="#9575CD" />
+                  <MaterialCommunityIcons name="plus" size={24} color={isDarkMode ? theme.surface : theme.background} />
                 </TouchableOpacity>
               ))}
             </View>
@@ -532,7 +540,6 @@ const styles = StyleSheet.create({
     borderRadius: 30,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "#2E1F47",
   },
   descriptionSection: {
     padding: 16,
@@ -619,3 +626,4 @@ const styles = StyleSheet.create({
 })
 
 export default ActiveEvent
+

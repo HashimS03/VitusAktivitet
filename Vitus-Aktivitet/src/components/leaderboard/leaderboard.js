@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useCallback, useMemo, useEffect } from "react";
+import { useState, useRef, useCallback, useMemo, useEffect, useContext } from "react";
 import {
   SafeAreaView,
   View,
@@ -24,6 +24,7 @@ import {
   X,
 } from "lucide-react-native";
 import { useTheme } from "../context/ThemeContext";
+import { EventContext } from "../events/EventContext";
 import { BlurView } from "expo-blur";
 import { LinearGradient } from "expo-linear-gradient";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -42,13 +43,14 @@ const Leaderboard = () => {
   const [showFilterModal, setShowFilterModal] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const { theme, isDarkMode, toggleTheme, accentColor } = useTheme();
+  const { activeEvents } = useContext(EventContext);
   const [leaderboardType, setLeaderboardType] = useState("General");
-  const [showLeaderboardTypeDropdown, setShowLeaderboardTypeDropdown] =
-    useState(false);
+  const [selectedEvent, setSelectedEvent] = useState(null);
+  const [showLeaderboardTypeDropdown, setShowLeaderboardTypeDropdown] = useState(false);
   const [isFirstTime, setIsFirstTime] = useState(true);
   const [hasJoinedLeaderboard, setHasJoinedLeaderboard] = useState(false);
   const [showJoinAlert, setShowJoinAlert] = useState(false);
-  const [testMode, setTestMode] = useState(true); // Activate test mode temporarily
+  const [testMode, setTestMode] = useState(true);
 
   const searchAnimation = useRef(new Animated.Value(0)).current;
 
@@ -58,12 +60,10 @@ const Leaderboard = () => {
 
   const checkFirstTimeUser = async () => {
     if (testMode) {
-      setIsFirstTime(true); // Always show for testing
+      setIsFirstTime(true);
     } else {
       try {
-        const hasSeenLeaderboard = await AsyncStorage.getItem(
-          "hasSeenLeaderboard"
-        );
+        const hasSeenLeaderboard = await AsyncStorage.getItem("hasSeenLeaderboard");
         if (hasSeenLeaderboard === "true") {
           setIsFirstTime(false);
         }
@@ -88,102 +88,101 @@ const Leaderboard = () => {
     }
   };
 
-  const generalLeaderboardData = useMemo(
-    () => [
-      {
-        id: "1",
-        name: "Ho Daniel",
-        points: 2000,
-        department: "IT",
-        avatar: require("../../../assets/figure/daniel.png"),
-        change: 0,
-      },
-      {
-        id: "2",
-        name: "Hashem",
-        points: 1500,
-        department: "HR",
-        avatar: require("../../../assets/figure/hashem.png"),
-        change: 2,
-      },
-      {
-        id: "3",
-        name: "Sarim",
-        points: 1200,
-        department: "Finance",
-        avatar: require("../../../assets/figure/sarim.png"),
-        change: -1,
-      },
-      {
-        id: "4",
-        name: "Sjartan",
-        points: 950,
-        department: "IT",
-        avatar: require("../../../assets/figure/avatar1.jpg"),
-        change: 3,
-      },
-      {
-        id: "5",
-        name: "Ahmed",
-        points: 920,
-        department: "HR",
-        avatar: require("../../../assets/figure/avatar2.jpg"),
-        change: -2,
-      },
-    ],
-    []
-  );
+  const generalLeaderboardData = useMemo(() => [
+    {
+      id: "1",
+      name: "Ho Daniel",
+      points: 2000,
+      department: "IT",
+      avatar: require("../../../assets/figure/daniel.png"),
+      change: 0,
+    },
+    {
+      id: "2",
+      name: "Hashem",
+      points: 1500,
+      department: "HR",
+      avatar: require("../../../assets/figure/hashem.png"),
+      change: 2,
+    },
+    {
+      id: "3",
+      name: "Sarim",
+      points: 1200,
+      department: "Finance",
+      avatar: require("../../../assets/figure/sarim.png"),
+      change: -1,
+    },
+    {
+      id: "4",
+      name: "Sjartan",
+      points: 950,
+      department: "IT",
+      avatar: require("../../../assets/figure/avatar1.jpg"),
+      change: 3,
+    },
+    {
+      id: "5",
+      name: "Ahmed",
+      points: 920,
+      department: "HR",
+      avatar: require("../../../assets/figure/avatar2.jpg"),
+      change: -2,
+    },
+  ], []);
 
-  const eventLeaderboardData = useMemo(
-    () => [
-      {
-        id: "1",
-        name: "Emma",
-        points: 1800,
-        department: "IT",
-        avatar: require("../../../assets/figure/avatar3.jpg"),
-        change: 2,
-      },
-      {
-        id: "2",
-        name: "Lars",
-        points: 1600,
-        department: "Finance",
-        avatar: require("../../../assets/figure/avatar4.jpeg"),
-        change: 1,
-      },
-      {
-        id: "3",
-        name: "Sofia",
-        points: 1400,
-        department: "HR",
-        avatar: require("../../../assets/figure/avatar5.jpeg"),
-        change: 3,
-      },
-    ],
-    []
-  );
+  const eventLeaderboardData = useMemo(() => {
+    const leaderboardData = {};
+    activeEvents.forEach(event => {
+      leaderboardData[event.id] = [
+        {
+          id: "1",
+          name: "User 1",
+          points: event.currentValue || 0,
+          department: "Participant",
+          avatar: require("../../../assets/figure/avatar3.jpg"),
+          change: 0,
+        },
+        {
+          id: "2",
+          name: "User 2",
+          points: Math.floor((event.currentValue || 0) * 0.8),
+          department: "Participant",
+          avatar: require("../../../assets/figure/avatar4.jpeg"),
+          change: 1,
+        },
+      ];
+    });
+    return leaderboardData;
+  }, [activeEvents]);
 
   const filteredData = useMemo(() => {
-    const typeFilteredData =
-      leaderboardType === "General"
-        ? generalLeaderboardData
-        : eventLeaderboardData;
-
-    return typeFilteredData
-      .filter(
-        (item) =>
-          (filterOption === "All" || item.department === filterOption) &&
-          (searchQuery === "" ||
-            item.name.toLowerCase().includes(searchQuery.toLowerCase()))
-      )
-      .sort((a, b) => b.points - a.points);
+    if (leaderboardType === "General") {
+      return generalLeaderboardData
+        .filter(
+          (item) =>
+            (filterOption === "All" || item.department === filterOption) &&
+            (searchQuery === "" || item.name.toLowerCase().includes(searchQuery.toLowerCase()))
+        )
+        .sort((a, b) => b.points - a.points);
+    } else if (selectedEvent) {
+      return (eventLeaderboardData[selectedEvent.id] || [])
+        .filter(
+          (item) =>
+            (filterOption === "All" || item.department === filterOption) &&
+            (searchQuery === "" || item.name.toLowerCase().includes(searchQuery.toLowerCase()))
+        )
+        .sort((a, b) => b.points - a.points);
+    }
+    return activeEvents;
   }, [
     filterOption,
     searchQuery,
     leaderboardType,
+    selectedEvent,
     generalLeaderboardData,
     eventLeaderboardData,
+    activeEvents,
   ]);
 
   const toggleSearch = useCallback(() => {
@@ -238,7 +237,6 @@ const Leaderboard = () => {
           <Text style={[styles.pointsText, { color: accentColor }]}>
             {item.points}
           </Text>
-
           {item.change !== 0 && (
             <View style={styles.changeContainer}>
               {item.change > 0 ? (
@@ -262,6 +260,35 @@ const Leaderboard = () => {
     [theme, searchAnimation, accentColor]
   );
 
+  const renderEventItem = useCallback(
+    ({ item }) => (
+      <TouchableOpacity
+        style={[styles.eventItem, { backgroundColor: theme.surface }]}
+        onPress={() => setSelectedEvent(item)}
+      >
+        <LinearGradient
+          colors={[theme.surfaceVariant, theme.surface]}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={StyleSheet.absoluteFill}
+        />
+        <Image
+          source={require("../../../assets/event-illustration.png")}
+          style={styles.eventImage}
+        />
+        <View style={styles.eventInfo}>
+          <Text style={[styles.eventName, { color: theme.text }]}>
+            {item.title}
+          </Text>
+          <Text style={[styles.eventDate, { color: theme.textSecondary }]}>
+            Goal: {item.goalValue} {item.selectedActivity?.unit || "km"}
+          </Text>
+        </View>
+      </TouchableOpacity>
+    ),
+    [theme]
+  );
+
   const renderHeader = useCallback(
     () => (
       <View style={styles.header}>
@@ -272,7 +299,6 @@ const Leaderboard = () => {
               style={StyleSheet.absoluteFill}
               tint={isDarkMode ? "dark" : "light"}
             />
-
             <View style={styles.headerContent}>
               <View style={styles.titleWrapper}>
                 <TouchableOpacity
@@ -290,7 +316,11 @@ const Leaderboard = () => {
                       },
                     ]}
                   >
-                    {leaderboardType === "General" ? "General " : "Event "}
+                    {leaderboardType === "General"
+                      ? "General "
+                      : selectedEvent
+                      ? `${selectedEvent.title} `
+                      : "Events "}
                   </Text>
                   <ChevronDown
                     size={16}
@@ -298,6 +328,16 @@ const Leaderboard = () => {
                     style={styles.titleIcon}
                   />
                 </TouchableOpacity>
+                {leaderboardType === "Event" && selectedEvent && (
+                  <TouchableOpacity
+                    style={styles.backButton}
+                    onPress={() => setSelectedEvent(null)}
+                  >
+                    <Text style={[styles.backButtonText, { color: accentColor }]}>
+                      Back to Events
+                    </Text>
+                  </TouchableOpacity>
+                )}
               </View>
               <View style={styles.headerButtons}>
                 <TouchableOpacity
@@ -351,7 +391,7 @@ const Leaderboard = () => {
                 <Search size={20} color={theme.textSecondary} />
                 <TextInput
                   style={[styles.searchInput, { color: theme.text }]}
-                  placeholder="Search users..."
+                  placeholder="Search..."
                   placeholderTextColor={theme.textSecondary}
                   value={searchQuery}
                   onChangeText={setSearchQuery}
@@ -404,6 +444,7 @@ const Leaderboard = () => {
       searchQuery,
       toggleSearch,
       leaderboardType,
+      selectedEvent,
       accentColor,
       hasJoinedLeaderboard,
     ]
@@ -452,7 +493,6 @@ const Leaderboard = () => {
               </Text>
             </TouchableOpacity>
           ))}
-
           <View style={styles.themeToggleContainer}>
             <Text style={[styles.themeToggleText, { color: theme.text }]}>
               Dark Mode
@@ -493,13 +533,6 @@ const Leaderboard = () => {
         >
           <Text style={styles.overlayButtonText}>Join Leaderboard</Text>
         </TouchableOpacity>
-        <TouchableOpacity
-          style={[
-            styles.overlayButton,
-            { backgroundColor: theme.surfaceVariant },
-          ]}
-          onPress={() => setIsFirstTime(false)}
-        ></TouchableOpacity>
       </View>
     </BlurView>
   );
@@ -511,7 +544,11 @@ const Leaderboard = () => {
       {renderHeader()}
       <AnimatedFlatList
         data={filteredData}
-        renderItem={renderLeaderboardItem}
+        renderItem={
+          leaderboardType === "Event" && !selectedEvent
+            ? renderEventItem
+            : renderLeaderboardItem
+        }
         keyExtractor={(item) => item.id}
         contentContainerStyle={styles.listContent}
         showsVerticalScrollIndicator={false}
@@ -549,6 +586,7 @@ const Leaderboard = () => {
                   ]}
                   onPress={() => {
                     setLeaderboardType(option);
+                    setSelectedEvent(null);
                     setShowLeaderboardTypeDropdown(false);
                   }}
                 >
@@ -576,7 +614,7 @@ const Leaderboard = () => {
           intensity={80}
           style={StyleSheet.absoluteFill}
           tint={isDarkMode ? "dark" : "light"}
-        ></BlurView>
+        />
       )}
       {showJoinAlert && (
         <View style={styles.alertOverlay}>
@@ -652,6 +690,13 @@ const styles = StyleSheet.create({
   },
   titleIcon: {
     marginTop: 2,
+  },
+  backButton: {
+    marginTop: 8,
+  },
+  backButtonText: {
+    fontSize: 16,
+    fontWeight: "500",
   },
   dropdownOverlay: {
     flex: 1,
@@ -749,6 +794,31 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     overflow: "hidden",
     width: "100%",
+  },
+  eventItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 12,
+    padding: 10,
+    borderRadius: 12,
+    overflow: "hidden",
+  },
+  eventImage: {
+    width: 80,
+    height: 80,
+    borderRadius: 8,
+    marginRight: 16,
+  },
+  eventInfo: {
+    flex: 1,
+  },
+  eventName: {
+    fontSize: 18,
+    fontWeight: "600",
+  },
+  eventDate: {
+    fontSize: 14,
+    marginTop: 4,
   },
   rankContainer: {
     width: 30,
@@ -850,26 +920,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "bold",
     color: "#FFFFFF",
-  },
-  blurredContent: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    padding: 20,
-  },
-  blurredText: {
-    fontSize: 18,
-    marginBottom: 16,
-  },
-  joinButton: {
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    borderRadius: 8,
-  },
-  joinButtonText: {
-    fontSize: 16,
-    fontWeight: "bold",
-    color: "#fff",
   },
   alertOverlay: {
     position: "absolute",
