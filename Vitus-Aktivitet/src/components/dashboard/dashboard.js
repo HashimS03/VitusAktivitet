@@ -176,12 +176,25 @@ export default function Dashboard() {
             );
             setStepCount(newStepCount);
 
-            // Lagre dagens skritt med dato
+            // Lagre dagens skritt i historikken
             const today = new Date().toISOString().split("T")[0]; // Format: YYYY-MM-DD
             const stepHistoryKey = `stepHistory_${today}`;
+            const storedHistorySteps = await AsyncStorage.getItem(
+              stepHistoryKey
+            );
+            const currentHistorySteps = storedHistorySteps
+              ? JSON.parse(storedHistorySteps)
+              : 0;
+            const updatedHistorySteps =
+              currentHistorySteps + route.params.addedSteps;
+
             await AsyncStorage.setItem(
               stepHistoryKey,
-              JSON.stringify(newStepCount)
+              JSON.stringify(updatedHistorySteps)
+            );
+            console.log(
+              "📜 Updated history steps for today:",
+              updatedHistorySteps
             );
 
             navigation.setParams({ addedSteps: null }); // Nullstill params
@@ -646,7 +659,7 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 3,
     marginRight: 16,
-    width: SCREEN_WIDTH * 0.9,
+    width: SCREEN_WIDTH * 0.91,
   },
   eventImage: {
     width: 80,
