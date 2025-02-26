@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useCallback, useMemo, useEffect, useContext } from "react";
+import { Platform } from "react-native"; // Added Platform import
 import {
   SafeAreaView,
   View,
@@ -26,7 +27,6 @@ import {
 import { useTheme } from "../context/ThemeContext";
 import { EventContext } from "../events/EventContext";
 import { BlurView } from "expo-blur";
-import { LinearGradient } from "expo-linear-gradient";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 const AnimatedFlatList = Animated.createAnimatedComponent(FlatList);
@@ -201,7 +201,7 @@ const Leaderboard = () => {
         style={[
           styles.leaderboardItem,
           {
-            backgroundColor: theme.surface,
+            backgroundColor: theme.surface || '#424242', // Solid dark gray for dark mode
             transform: [
               {
                 translateX: searchAnimation.interpolate({
@@ -213,41 +213,36 @@ const Leaderboard = () => {
           },
         ]}
       >
-        <LinearGradient
-          colors={[theme.surfaceVariant, theme.surface]}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={StyleSheet.absoluteFill}
-        />
+        {/* Removed LinearGradient, using solid background */}
         <View style={styles.rankContainer}>
-          <Text style={[styles.rankText, { color: theme.text }]}>
+          <Text style={[styles.rankText, { color: theme.text || '#FFFFFF' }]}>
             {index + 1}
           </Text>
         </View>
         <Image source={item.avatar} style={styles.avatar} />
         <View style={styles.infoContainer}>
-          <Text style={[styles.nameText, { color: theme.text }]}>
+          <Text style={[styles.nameText, { color: theme.text || '#FFFFFF' }]}>
             {item.name}
           </Text>
-          <Text style={[styles.departmentText, { color: theme.textSecondary }]}>
+          <Text style={[styles.departmentText, { color: theme.textSecondary || '#B0B0B0' }]}>
             {item.department}
           </Text>
         </View>
         <View style={styles.pointsContainer}>
-          <Text style={[styles.pointsText, { color: accentColor }]}>
+          <Text style={[styles.pointsText, { color: accentColor || '#00C2A8' }]}>
             {item.points}
           </Text>
           {item.change !== 0 && (
             <View style={styles.changeContainer}>
               {item.change > 0 ? (
-                <TrendingUp size={12} color={accentColor} />
+                <TrendingUp size={12} color={accentColor || '#00C2A8'} />
               ) : (
-                <TrendingDown size={12} color={theme.error} />
+                <TrendingDown size={12} color={theme.error || '#EF5350'} />
               )}
               <Text
                 style={[
                   styles.changeText,
-                  { color: item.change > 0 ? accentColor : theme.error },
+                  { color: item.change > 0 ? accentColor || '#00C2A8' : theme.error || '#EF5350' },
                 ]}
               >
                 {Math.abs(item.change)}
@@ -263,24 +258,19 @@ const Leaderboard = () => {
   const renderEventItem = useCallback(
     ({ item }) => (
       <TouchableOpacity
-        style={[styles.eventItem, { backgroundColor: theme.surface }]}
+        style={[styles.eventItem, { backgroundColor: theme.surface || '#424242' }]} // Solid dark gray for dark mode
         onPress={() => setSelectedEvent(item)}
       >
-        <LinearGradient
-          colors={[theme.surfaceVariant, theme.surface]}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={StyleSheet.absoluteFill}
-        />
+        {/* Removed LinearGradient, using solid background */}
         <Image
           source={require("../../../assets/event-illustration.png")}
           style={styles.eventImage}
         />
         <View style={styles.eventInfo}>
-          <Text style={[styles.eventName, { color: theme.text }]}>
+          <Text style={[styles.eventName, { color: theme.text || '#FFFFFF' }]}>
             {item.title}
           </Text>
-          <Text style={[styles.eventDate, { color: theme.textSecondary }]}>
+          <Text style={[styles.eventDate, { color: theme.textSecondary || '#B0B0B0' }]}>
             Goal: {item.goalValue} {item.selectedActivity?.unit || "km"}
           </Text>
         </View>
@@ -294,11 +284,15 @@ const Leaderboard = () => {
       <View style={styles.header}>
         {hasJoinedLeaderboard ? (
           <>
-            <BlurView
-              intensity={100}
-              style={StyleSheet.absoluteFill}
-              tint={isDarkMode ? "dark" : "light"}
-            />
+            {Platform.OS === "ios" ? (
+              <BlurView
+                intensity={100}
+                style={StyleSheet.absoluteFill}
+                tint={isDarkMode ? "dark" : "light"}
+              />
+            ) : (
+              <View style={[StyleSheet.absoluteFill, { backgroundColor: theme.background || '#1E1E1E' }]} />
+            )}
             <View style={styles.headerContent}>
               <View style={styles.titleWrapper}>
                 <TouchableOpacity
@@ -311,8 +305,8 @@ const Leaderboard = () => {
                       {
                         color:
                           leaderboardType === "General"
-                            ? accentColor
-                            : theme.text,
+                            ? accentColor || '#00C2A8'
+                            : theme.text || '#FFFFFF',
                       },
                     ]}
                   >
@@ -324,7 +318,7 @@ const Leaderboard = () => {
                   </Text>
                   <ChevronDown
                     size={16}
-                    color={theme.text}
+                    color={theme.text || '#FFFFFF'}
                     style={styles.titleIcon}
                   />
                 </TouchableOpacity>
@@ -333,7 +327,7 @@ const Leaderboard = () => {
                     style={styles.backButton}
                     onPress={() => setSelectedEvent(null)}
                   >
-                    <Text style={[styles.backButtonText, { color: accentColor }]}>
+                    <Text style={[styles.backButtonText, { color: accentColor || '#00C2A8' }]}>
                       Back to Events
                     </Text>
                   </TouchableOpacity>
@@ -343,25 +337,25 @@ const Leaderboard = () => {
                 <TouchableOpacity
                   style={[
                     styles.iconButton,
-                    { backgroundColor: theme.surfaceVariant },
+                    { backgroundColor: theme.surfaceVariant }, // Restored theme-dependent background
                   ]}
                   onPress={toggleSearch}
                 >
-                  <Search size={20} color={theme.text} />
+                  <Search size={20} color={theme.text || '#FFFFFF'} />
                 </TouchableOpacity>
                 <TouchableOpacity
                   style={[
                     styles.filterButton,
-                    { backgroundColor: theme.surfaceVariant },
+                    { backgroundColor: theme.surfaceVariant }, // Restored theme-dependent background
                   ]}
                   onPress={() => setShowFilterModal(true)}
                 >
                   <Text
-                    style={[styles.filterButtonText, { color: theme.text }]}
+                    style={[styles.filterButtonText, { color: theme.text || '#FFFFFF' }]}
                   >
                     {filterOption}
                   </Text>
-                  <ChevronDown size={20} color={theme.text} />
+                  <ChevronDown size={20} color={theme.text || '#FFFFFF'} />
                 </TouchableOpacity>
               </View>
             </View>
@@ -377,28 +371,32 @@ const Leaderboard = () => {
                 },
               ]}
             >
-              <BlurView
-                intensity={100}
-                style={StyleSheet.absoluteFill}
-                tint={isDarkMode ? "dark" : "light"}
-              />
+              {Platform.OS === "ios" ? (
+                <BlurView
+                  intensity={100}
+                  style={StyleSheet.absoluteFill}
+                  tint={isDarkMode ? "dark" : "light"}
+                />
+              ) : (
+                <View style={[StyleSheet.absoluteFill, { backgroundColor: theme.background || '#1E1E1E' }]} />
+              )}
               <View
                 style={[
                   styles.searchInputContainer,
-                  { backgroundColor: theme.surfaceVariant },
+                  { backgroundColor: theme.surfaceVariant }, // Restored theme-dependent background
                 ]}
               >
-                <Search size={20} color={theme.textSecondary} />
+                <Search size={20} color={theme.textSecondary || '#B0B0B0'} />
                 <TextInput
-                  style={[styles.searchInput, { color: theme.text }]}
+                  style={[styles.searchInput, { color: theme.text || '#FFFFFF' }]}
                   placeholder="Search..."
-                  placeholderTextColor={theme.textSecondary}
+                  placeholderTextColor={theme.textSecondary || '#B0B0B0'}
                   value={searchQuery}
                   onChangeText={setSearchQuery}
                 />
                 {searchQuery !== "" && (
                   <TouchableOpacity onPress={() => setSearchQuery("")}>
-                    <X size={20} color={theme.textSecondary} />
+                    <X size={20} color={theme.textSecondary || '#B0B0B0'} />
                   </TouchableOpacity>
                 )}
               </View>
@@ -410,7 +408,7 @@ const Leaderboard = () => {
                   style={[
                     styles.segmentOption,
                     selectedSegment === option && {
-                      backgroundColor: accentColor,
+                      backgroundColor: accentColor || '#00C2A8',
                     },
                   ]}
                   onPress={() => setSelectedSegment(option)}
@@ -420,7 +418,7 @@ const Leaderboard = () => {
                       styles.segmentOptionText,
                       {
                         color:
-                          selectedSegment === option ? "#FFFFFF" : theme.text,
+                          selectedSegment === option ? "#FFFFFF" : theme.text || '#FFFFFF',
                       },
                     ]}
                   >
@@ -458,13 +456,17 @@ const Leaderboard = () => {
       onRequestClose={() => setShowFilterModal(false)}
     >
       <View style={styles.modalOverlay}>
-        <BlurView
-          intensity={100}
-          style={StyleSheet.absoluteFill}
-          tint={isDarkMode ? "dark" : "light"}
-        />
-        <View style={[styles.modalContent, { backgroundColor: theme.surface }]}>
-          <Text style={[styles.modalTitle, { color: theme.text }]}>
+        {Platform.OS === "ios" ? (
+          <BlurView
+            intensity={100}
+            style={StyleSheet.absoluteFill}
+            tint={isDarkMode ? "dark" : "light"}
+          />
+        ) : (
+          <View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(0, 0, 0, 0.5)' }]} />
+        )}
+        <View style={[styles.modalContent, { backgroundColor: theme.surface || '#2D2D2D' }]}>
+          <Text style={[styles.modalTitle, { color: theme.text || '#FFFFFF' }]}>
             Filter Options
           </Text>
           {["All", "IT", "HR", "Finance"].map((option) => (
@@ -473,7 +475,7 @@ const Leaderboard = () => {
               style={[
                 styles.filterOption,
                 filterOption === option && {
-                  backgroundColor: `${accentColor}20`,
+                  backgroundColor: `${(accentColor || '#00C2A8').replace('#', '')}20`,
                 },
               ]}
               onPress={() => {
@@ -485,7 +487,7 @@ const Leaderboard = () => {
                 style={[
                   styles.filterOptionText,
                   {
-                    color: filterOption === option ? accentColor : theme.text,
+                    color: filterOption === option ? accentColor || '#00C2A8' : theme.text || '#FFFFFF',
                   },
                 ]}
               >
@@ -494,17 +496,17 @@ const Leaderboard = () => {
             </TouchableOpacity>
           ))}
           <View style={styles.themeToggleContainer}>
-            <Text style={[styles.themeToggleText, { color: theme.text }]}>
+            <Text style={[styles.themeToggleText, { color: theme.text || '#FFFFFF' }]}>
               Dark Mode
             </Text>
             <Switch
               value={isDarkMode}
               onValueChange={toggleTheme}
               trackColor={{
-                false: theme.surfaceVariant,
-                true: accentColor,
+                false: theme.surfaceVariant || '#424242',
+                true: accentColor || '#00C2A8',
               }}
-              thumbColor={isDarkMode ? theme.background : theme.text}
+              thumbColor={isDarkMode ? theme.background || '#1E1E1E' : theme.text || '#FFFFFF'}
             />
           </View>
         </View>
@@ -519,16 +521,16 @@ const Leaderboard = () => {
       tint={isDarkMode ? "dark" : "light"}
     >
       <View style={styles.overlayContent}>
-        <Text style={[styles.overlayTitle, { color: theme.text }]}>
+        <Text style={[styles.overlayTitle, { color: theme.text || '#FFFFFF' }]}>
           Join the Leaderboard
         </Text>
         <Text
-          style={[styles.overlayDescription, { color: theme.textSecondary }]}
+          style={[styles.overlayDescription, { color: theme.textSecondary || '#B0B0B0' }]}
         >
           Participate in the leaderboard to compare your progress with others!
         </Text>
         <TouchableOpacity
-          style={[styles.overlayButton, { backgroundColor: accentColor }]}
+          style={[styles.overlayButton, { backgroundColor: accentColor || '#00C2A8' }]}
           onPress={handleJoinLeaderboard}
         >
           <Text style={styles.overlayButtonText}>Join Leaderboard</Text>
@@ -539,7 +541,7 @@ const Leaderboard = () => {
 
   return (
     <SafeAreaView
-      style={[styles.container, { backgroundColor: theme.background }]}
+      style={[styles.container, { backgroundColor: theme.background || '#1E1E1E' }]} // Dark background for dark mode
     >
       {renderHeader()}
       <AnimatedFlatList
@@ -570,40 +572,43 @@ const Leaderboard = () => {
             activeOpacity={1}
             onPress={() => setShowLeaderboardTypeDropdown(false)}
           >
-            <BlurView
-              intensity={20}
-              style={[styles.dropdownContent]}
-              tint={isDarkMode ? "dark" : "light"}
-            >
-              {["General", "Event"].map((option) => (
-                <TouchableOpacity
-                  key={option}
+            {Platform.OS === "ios" ? (
+              <BlurView
+                intensity={20}
+                style={[styles.dropdownContent]}
+                tint={isDarkMode ? "dark" : "light"}
+              />
+            ) : (
+              <View style={[styles.dropdownContent, { backgroundColor: theme.surface || '#2D2D2D' }]} />
+            )}
+            {["General", "Event"].map((option) => (
+              <TouchableOpacity
+                key={option}
+                style={[
+                  styles.dropdownItem,
+                  leaderboardType === option && {
+                    backgroundColor: `${(accentColor || '#00C2A8').replace('#', '')}20`,
+                  },
+                ]}
+                onPress={() => {
+                  setLeaderboardType(option);
+                  setSelectedEvent(null);
+                  setShowLeaderboardTypeDropdown(false);
+                }}
+              >
+                <Text
                   style={[
-                    styles.dropdownItem,
-                    leaderboardType === option && {
-                      backgroundColor: `${accentColor}20`,
+                    styles.dropdownItemText,
+                    {
+                      color:
+                        leaderboardType === option ? accentColor || '#00C2A8' : theme.text || '#FFFFFF',
                     },
                   ]}
-                  onPress={() => {
-                    setLeaderboardType(option);
-                    setSelectedEvent(null);
-                    setShowLeaderboardTypeDropdown(false);
-                  }}
                 >
-                  <Text
-                    style={[
-                      styles.dropdownItemText,
-                      {
-                        color:
-                          leaderboardType === option ? accentColor : theme.text,
-                      },
-                    ]}
-                  >
-                    {option} Leaderboard
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </BlurView>
+                  {option} Leaderboard
+                </Text>
+              </TouchableOpacity>
+            ))}
           </TouchableOpacity>
         </Modal>
       )}
@@ -618,17 +623,22 @@ const Leaderboard = () => {
       )}
       {showJoinAlert && (
         <View style={styles.alertOverlay}>
-          <BlurView
-            intensity={80}
-            style={StyleSheet.absoluteFill}
-            tint={isDarkMode ? "dark" : "light"}
-          />
-          <View style={styles.alertContainer}>
+          {Platform.OS === "ios" ? (
+            <BlurView
+              intensity={80}
+              style={StyleSheet.absoluteFill}
+              tint={isDarkMode ? "dark" : "light"}
+            />
+          ) : (
+            <View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(0, 0, 0, 0.4)' }]} />
+          )}
+          <View style={[styles.alertContainer, { backgroundColor: theme.surface || '#2D2D2D' }]}>
             <View style={styles.alertContent}>
-              <Text style={styles.alertTitle}>Join Leaderboard</Text>
-              <Text style={styles.alertMessage}>
-                Would you like to join the leaderboard and compare your progress
-                with others?
+              <Text style={[styles.alertTitle, { color: theme.text || '#FFFFFF' }]}>
+                Join Leaderboard
+              </Text>
+              <Text style={[styles.alertMessage, { color: theme.textSecondary || '#B0B0B0' }]}>
+                Would you like to join the leaderboard and compare your progress with others?
               </Text>
               <View style={styles.alertButtons}>
                 <TouchableOpacity
@@ -636,7 +646,7 @@ const Leaderboard = () => {
                   onPress={() => setShowJoinAlert(false)}
                 >
                   <Text
-                    style={[styles.alertButtonText, { color: accentColor }]}
+                    style={[styles.alertButtonText, { color: accentColor || '#00C2A8' }]}
                   >
                     Close
                   </Text>
@@ -647,7 +657,7 @@ const Leaderboard = () => {
                   onPress={handleConfirmJoin}
                 >
                   <Text
-                    style={[styles.alertButtonText, { color: accentColor }]}
+                    style={[styles.alertButtonText, { color: accentColor || '#00C2A8' }]}
                   >
                     Join
                   </Text>
@@ -710,7 +720,6 @@ const styles = StyleSheet.create({
     maxWidth: 250,
     borderRadius: 12,
     overflow: "hidden",
-    backgroundColor: "rgba(255, 255, 255, 0.95)",
     shadowColor: "#000",
     shadowOffset: {
       width: 0,
@@ -864,7 +873,7 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    backgroundColor: "transparent",
   },
   modalContent: {
     width: SCREEN_WIDTH * 0.8,
@@ -929,11 +938,10 @@ const styles = StyleSheet.create({
     bottom: 0,
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: "rgba(0, 0, 0, 0.4)",
+    backgroundColor: "transparent",
   },
   alertContainer: {
     width: "70%",
-    backgroundColor: "#F9F9F9",
     borderRadius: 14,
     overflow: "hidden",
   },
@@ -944,14 +952,12 @@ const styles = StyleSheet.create({
     textAlign: "center",
     fontSize: 17,
     fontWeight: "600",
-    color: "#000",
     paddingTop: 20,
     paddingBottom: 10,
   },
   alertMessage: {
     textAlign: "center",
     fontSize: 13,
-    color: "#666666",
     paddingHorizontal: 20,
     paddingBottom: 20,
   },
