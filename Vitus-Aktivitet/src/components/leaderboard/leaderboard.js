@@ -1,6 +1,13 @@
 "use client";
 
-import { useState, useRef, useCallback, useMemo, useEffect, useContext } from "react";
+import {
+  useState,
+  useRef,
+  useCallback,
+  useMemo,
+  useEffect,
+  useContext,
+} from "react";
 import { Platform } from "react-native"; // Added Platform import
 import {
   SafeAreaView,
@@ -46,7 +53,8 @@ const Leaderboard = () => {
   const { activeEvents } = useContext(EventContext);
   const [leaderboardType, setLeaderboardType] = useState("General");
   const [selectedEvent, setSelectedEvent] = useState(null);
-  const [showLeaderboardTypeDropdown, setShowLeaderboardTypeDropdown] = useState(false);
+  const [showLeaderboardTypeDropdown, setShowLeaderboardTypeDropdown] =
+    useState(false);
   const [isFirstTime, setIsFirstTime] = useState(true);
   const [hasJoinedLeaderboard, setHasJoinedLeaderboard] = useState(false);
   const [showJoinAlert, setShowJoinAlert] = useState(false);
@@ -63,7 +71,9 @@ const Leaderboard = () => {
       setIsFirstTime(true);
     } else {
       try {
-        const hasSeenLeaderboard = await AsyncStorage.getItem("hasSeenLeaderboard");
+        const hasSeenLeaderboard = await AsyncStorage.getItem(
+          "hasSeenLeaderboard"
+        );
         if (hasSeenLeaderboard === "true") {
           setIsFirstTime(false);
         }
@@ -88,52 +98,55 @@ const Leaderboard = () => {
     }
   };
 
-  const generalLeaderboardData = useMemo(() => [
-    {
-      id: "1",
-      name: "Ho Daniel",
-      points: 2000,
-      department: "IT",
-      avatar: require("../../../assets/figure/daniel.png"),
-      change: 0,
-    },
-    {
-      id: "2",
-      name: "Hashem",
-      points: 1500,
-      department: "HR",
-      avatar: require("../../../assets/figure/hashem.png"),
-      change: 2,
-    },
-    {
-      id: "3",
-      name: "Sarim",
-      points: 1200,
-      department: "Finance",
-      avatar: require("../../../assets/figure/sarim.png"),
-      change: -1,
-    },
-    {
-      id: "4",
-      name: "Sjartan",
-      points: 950,
-      department: "IT",
-      avatar: require("../../../assets/figure/avatar1.jpg"),
-      change: 3,
-    },
-    {
-      id: "5",
-      name: "Ahmed",
-      points: 920,
-      department: "HR",
-      avatar: require("../../../assets/figure/avatar2.jpg"),
-      change: -2,
-    },
-  ], []);
+  const generalLeaderboardData = useMemo(
+    () => [
+      {
+        id: "1",
+        name: "Ho Daniel",
+        points: 2000,
+        department: "IT",
+        avatar: require("../../../assets/figure/daniel.png"),
+        change: 0,
+      },
+      {
+        id: "2",
+        name: "Hashem",
+        points: 1500,
+        department: "HR",
+        avatar: require("../../../assets/figure/hashem.png"),
+        change: 2,
+      },
+      {
+        id: "3",
+        name: "Sarim",
+        points: 1200,
+        department: "Finance",
+        avatar: require("../../../assets/figure/sarim.png"),
+        change: -1,
+      },
+      {
+        id: "4",
+        name: "Sjartan",
+        points: 950,
+        department: "IT",
+        avatar: require("../../../assets/figure/avatar1.jpg"),
+        change: 3,
+      },
+      {
+        id: "5",
+        name: "Ahmed",
+        points: 920,
+        department: "HR",
+        avatar: require("../../../assets/figure/avatar2.jpg"),
+        change: -2,
+      },
+    ],
+    []
+  );
 
   const eventLeaderboardData = useMemo(() => {
     const leaderboardData = {};
-    activeEvents.forEach(event => {
+    activeEvents.forEach((event) => {
       leaderboardData[event.id] = [
         {
           id: "1",
@@ -162,7 +175,8 @@ const Leaderboard = () => {
         .filter(
           (item) =>
             (filterOption === "All" || item.department === filterOption) &&
-            (searchQuery === "" || item.name.toLowerCase().includes(searchQuery.toLowerCase()))
+            (searchQuery === "" ||
+              item.name.toLowerCase().includes(searchQuery.toLowerCase()))
         )
         .sort((a, b) => b.points - a.points);
     } else if (selectedEvent) {
@@ -170,7 +184,8 @@ const Leaderboard = () => {
         .filter(
           (item) =>
             (filterOption === "All" || item.department === filterOption) &&
-            (searchQuery === "" || item.name.toLowerCase().includes(searchQuery.toLowerCase()))
+            (searchQuery === "" ||
+              item.name.toLowerCase().includes(searchQuery.toLowerCase()))
         )
         .sort((a, b) => b.points - a.points);
     }
@@ -201,7 +216,7 @@ const Leaderboard = () => {
         style={[
           styles.leaderboardItem,
           {
-            backgroundColor: theme.surface || '#424242', // Solid dark gray for dark mode
+            backgroundColor: theme.surface || "#424242", // Solid dark gray for dark mode
             transform: [
               {
                 translateX: searchAnimation.interpolate({
@@ -215,34 +230,46 @@ const Leaderboard = () => {
       >
         {/* Removed LinearGradient, using solid background */}
         <View style={styles.rankContainer}>
-          <Text style={[styles.rankText, { color: theme.text || '#FFFFFF' }]}>
+          <Text style={[styles.rankText, { color: theme.text || "#FFFFFF" }]}>
             {index + 1}
           </Text>
         </View>
         <Image source={item.avatar} style={styles.avatar} />
         <View style={styles.infoContainer}>
-          <Text style={[styles.nameText, { color: theme.text || '#FFFFFF' }]}>
+          <Text style={[styles.nameText, { color: theme.text || "#FFFFFF" }]}>
             {item.name}
           </Text>
-          <Text style={[styles.departmentText, { color: theme.textSecondary || '#B0B0B0' }]}>
+          <Text
+            style={[
+              styles.departmentText,
+              { color: theme.textSecondary || "#B0B0B0" },
+            ]}
+          >
             {item.department}
           </Text>
         </View>
         <View style={styles.pointsContainer}>
-          <Text style={[styles.pointsText, { color: accentColor || '#00C2A8' }]}>
+          <Text
+            style={[styles.pointsText, { color: accentColor || "#00C2A8" }]}
+          >
             {item.points}
           </Text>
           {item.change !== 0 && (
             <View style={styles.changeContainer}>
               {item.change > 0 ? (
-                <TrendingUp size={12} color={accentColor || '#00C2A8'} />
+                <TrendingUp size={12} color={accentColor || "#00C2A8"} />
               ) : (
-                <TrendingDown size={12} color={theme.error || '#EF5350'} />
+                <TrendingDown size={12} color={theme.error || "#EF5350"} />
               )}
               <Text
                 style={[
                   styles.changeText,
-                  { color: item.change > 0 ? accentColor || '#00C2A8' : theme.error || '#EF5350' },
+                  {
+                    color:
+                      item.change > 0
+                        ? accentColor || "#00C2A8"
+                        : theme.error || "#EF5350",
+                  },
                 ]}
               >
                 {Math.abs(item.change)}
@@ -258,19 +285,27 @@ const Leaderboard = () => {
   const renderEventItem = useCallback(
     ({ item }) => (
       <TouchableOpacity
-        style={[styles.eventItem, { backgroundColor: theme.surface || '#424242' }]} // Solid dark gray for dark mode
+        style={[
+          styles.eventItem,
+          { backgroundColor: theme.surface || "#424242" },
+        ]} // Solid dark gray for dark mode
         onPress={() => setSelectedEvent(item)}
       >
         {/* Removed LinearGradient, using solid background */}
         <Image
-          source={require("../../../assets/event-illustration.png")}
+          source={require("../../../assets/trophy_icon.png")}
           style={styles.eventImage}
         />
         <View style={styles.eventInfo}>
-          <Text style={[styles.eventName, { color: theme.text || '#FFFFFF' }]}>
+          <Text style={[styles.eventName, { color: theme.text || "#FFFFFF" }]}>
             {item.title}
           </Text>
-          <Text style={[styles.eventDate, { color: theme.textSecondary || '#B0B0B0' }]}>
+          <Text
+            style={[
+              styles.eventDate,
+              { color: theme.textSecondary || "#B0B0B0" },
+            ]}
+          >
             Goal: {item.goalValue} {item.selectedActivity?.unit || "km"}
           </Text>
         </View>
@@ -291,7 +326,12 @@ const Leaderboard = () => {
                 tint={isDarkMode ? "dark" : "light"}
               />
             ) : (
-              <View style={[StyleSheet.absoluteFill, { backgroundColor: theme.background || '#1E1E1E' }]} />
+              <View
+                style={[
+                  StyleSheet.absoluteFill,
+                  { backgroundColor: theme.background || "#1E1E1E" },
+                ]}
+              />
             )}
             <View style={styles.headerContent}>
               <View style={styles.titleWrapper}>
@@ -305,8 +345,8 @@ const Leaderboard = () => {
                       {
                         color:
                           leaderboardType === "General"
-                            ? accentColor || '#00C2A8'
-                            : theme.text || '#FFFFFF',
+                            ? accentColor || "#00C2A8"
+                            : theme.text || "#FFFFFF",
                       },
                     ]}
                   >
@@ -318,7 +358,7 @@ const Leaderboard = () => {
                   </Text>
                   <ChevronDown
                     size={16}
-                    color={theme.text || '#FFFFFF'}
+                    color={theme.text || "#FFFFFF"}
                     style={styles.titleIcon}
                   />
                 </TouchableOpacity>
@@ -327,7 +367,12 @@ const Leaderboard = () => {
                     style={styles.backButton}
                     onPress={() => setSelectedEvent(null)}
                   >
-                    <Text style={[styles.backButtonText, { color: accentColor || '#00C2A8' }]}>
+                    <Text
+                      style={[
+                        styles.backButtonText,
+                        { color: accentColor || "#00C2A8" },
+                      ]}
+                    >
                       Back to Events
                     </Text>
                   </TouchableOpacity>
@@ -341,7 +386,7 @@ const Leaderboard = () => {
                   ]}
                   onPress={toggleSearch}
                 >
-                  <Search size={20} color={theme.text || '#FFFFFF'} />
+                  <Search size={20} color={theme.text || "#FFFFFF"} />
                 </TouchableOpacity>
                 <TouchableOpacity
                   style={[
@@ -351,11 +396,14 @@ const Leaderboard = () => {
                   onPress={() => setShowFilterModal(true)}
                 >
                   <Text
-                    style={[styles.filterButtonText, { color: theme.text || '#FFFFFF' }]}
+                    style={[
+                      styles.filterButtonText,
+                      { color: theme.text || "#FFFFFF" },
+                    ]}
                   >
                     {filterOption}
                   </Text>
-                  <ChevronDown size={20} color={theme.text || '#FFFFFF'} />
+                  <ChevronDown size={20} color={theme.text || "#FFFFFF"} />
                 </TouchableOpacity>
               </View>
             </View>
@@ -378,7 +426,12 @@ const Leaderboard = () => {
                   tint={isDarkMode ? "dark" : "light"}
                 />
               ) : (
-                <View style={[StyleSheet.absoluteFill, { backgroundColor: theme.background || '#1E1E1E' }]} />
+                <View
+                  style={[
+                    StyleSheet.absoluteFill,
+                    { backgroundColor: theme.background || "#1E1E1E" },
+                  ]}
+                />
               )}
               <View
                 style={[
@@ -386,17 +439,20 @@ const Leaderboard = () => {
                   { backgroundColor: theme.surfaceVariant }, // Restored theme-dependent background
                 ]}
               >
-                <Search size={20} color={theme.textSecondary || '#B0B0B0'} />
+                <Search size={20} color={theme.textSecondary || "#B0B0B0"} />
                 <TextInput
-                  style={[styles.searchInput, { color: theme.text || '#FFFFFF' }]}
+                  style={[
+                    styles.searchInput,
+                    { color: theme.text || "#FFFFFF" },
+                  ]}
                   placeholder="Search..."
-                  placeholderTextColor={theme.textSecondary || '#B0B0B0'}
+                  placeholderTextColor={theme.textSecondary || "#B0B0B0"}
                   value={searchQuery}
                   onChangeText={setSearchQuery}
                 />
                 {searchQuery !== "" && (
                   <TouchableOpacity onPress={() => setSearchQuery("")}>
-                    <X size={20} color={theme.textSecondary || '#B0B0B0'} />
+                    <X size={20} color={theme.textSecondary || "#B0B0B0"} />
                   </TouchableOpacity>
                 )}
               </View>
@@ -408,7 +464,7 @@ const Leaderboard = () => {
                   style={[
                     styles.segmentOption,
                     selectedSegment === option && {
-                      backgroundColor: accentColor || '#00C2A8',
+                      backgroundColor: accentColor || "#00C2A8",
                     },
                   ]}
                   onPress={() => setSelectedSegment(option)}
@@ -418,7 +474,9 @@ const Leaderboard = () => {
                       styles.segmentOptionText,
                       {
                         color:
-                          selectedSegment === option ? "#FFFFFF" : theme.text || '#FFFFFF',
+                          selectedSegment === option
+                            ? "#FFFFFF"
+                            : theme.text || "#FFFFFF",
                       },
                     ]}
                   >
@@ -463,10 +521,20 @@ const Leaderboard = () => {
             tint={isDarkMode ? "dark" : "light"}
           />
         ) : (
-          <View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(0, 0, 0, 0.5)' }]} />
+          <View
+            style={[
+              StyleSheet.absoluteFill,
+              { backgroundColor: "rgba(0, 0, 0, 0.5)" },
+            ]}
+          />
         )}
-        <View style={[styles.modalContent, { backgroundColor: theme.surface || '#2D2D2D' }]}>
-          <Text style={[styles.modalTitle, { color: theme.text || '#FFFFFF' }]}>
+        <View
+          style={[
+            styles.modalContent,
+            { backgroundColor: theme.surface || "#2D2D2D" },
+          ]}
+        >
+          <Text style={[styles.modalTitle, { color: theme.text || "#FFFFFF" }]}>
             Filter Options
           </Text>
           {["All", "IT", "HR", "Finance"].map((option) => (
@@ -475,7 +543,10 @@ const Leaderboard = () => {
               style={[
                 styles.filterOption,
                 filterOption === option && {
-                  backgroundColor: `${(accentColor || '#00C2A8').replace('#', '')}20`,
+                  backgroundColor: `${(accentColor || "#00C2A8").replace(
+                    "#",
+                    ""
+                  )}20`,
                 },
               ]}
               onPress={() => {
@@ -487,7 +558,10 @@ const Leaderboard = () => {
                 style={[
                   styles.filterOptionText,
                   {
-                    color: filterOption === option ? accentColor || '#00C2A8' : theme.text || '#FFFFFF',
+                    color:
+                      filterOption === option
+                        ? accentColor || "#00C2A8"
+                        : theme.text || "#FFFFFF",
                   },
                 ]}
               >
@@ -496,17 +570,26 @@ const Leaderboard = () => {
             </TouchableOpacity>
           ))}
           <View style={styles.themeToggleContainer}>
-            <Text style={[styles.themeToggleText, { color: theme.text || '#FFFFFF' }]}>
+            <Text
+              style={[
+                styles.themeToggleText,
+                { color: theme.text || "#FFFFFF" },
+              ]}
+            >
               Dark Mode
             </Text>
             <Switch
               value={isDarkMode}
               onValueChange={toggleTheme}
               trackColor={{
-                false: theme.surfaceVariant || '#424242',
-                true: accentColor || '#00C2A8',
+                false: theme.surfaceVariant || "#424242",
+                true: accentColor || "#00C2A8",
               }}
-              thumbColor={isDarkMode ? theme.background || '#1E1E1E' : theme.text || '#FFFFFF'}
+              thumbColor={
+                isDarkMode
+                  ? theme.background || "#1E1E1E"
+                  : theme.text || "#FFFFFF"
+              }
             />
           </View>
         </View>
@@ -521,16 +604,22 @@ const Leaderboard = () => {
       tint={isDarkMode ? "dark" : "light"}
     >
       <View style={styles.overlayContent}>
-        <Text style={[styles.overlayTitle, { color: theme.text || '#FFFFFF' }]}>
+        <Text style={[styles.overlayTitle, { color: theme.text || "#FFFFFF" }]}>
           Join the Leaderboard
         </Text>
         <Text
-          style={[styles.overlayDescription, { color: theme.textSecondary || '#B0B0B0' }]}
+          style={[
+            styles.overlayDescription,
+            { color: theme.textSecondary || "#B0B0B0" },
+          ]}
         >
           Participate in the leaderboard to compare your progress with others!
         </Text>
         <TouchableOpacity
-          style={[styles.overlayButton, { backgroundColor: accentColor || '#00C2A8' }]}
+          style={[
+            styles.overlayButton,
+            { backgroundColor: accentColor || "#00C2A8" },
+          ]}
           onPress={handleJoinLeaderboard}
         >
           <Text style={styles.overlayButtonText}>Join Leaderboard</Text>
@@ -541,7 +630,10 @@ const Leaderboard = () => {
 
   return (
     <SafeAreaView
-      style={[styles.container, { backgroundColor: theme.background || '#1E1E1E' }]} // Dark background for dark mode
+      style={[
+        styles.container,
+        { backgroundColor: theme.background || "#1E1E1E" },
+      ]} // Dark background for dark mode
     >
       {renderHeader()}
       <AnimatedFlatList
@@ -579,7 +671,12 @@ const Leaderboard = () => {
                 tint={isDarkMode ? "dark" : "light"}
               />
             ) : (
-              <View style={[styles.dropdownContent, { backgroundColor: theme.surface || '#2D2D2D' }]} />
+              <View
+                style={[
+                  styles.dropdownContent,
+                  { backgroundColor: theme.surface || "#2D2D2D" },
+                ]}
+              />
             )}
             {["General", "Event"].map((option) => (
               <TouchableOpacity
@@ -587,7 +684,10 @@ const Leaderboard = () => {
                 style={[
                   styles.dropdownItem,
                   leaderboardType === option && {
-                    backgroundColor: `${(accentColor || '#00C2A8').replace('#', '')}20`,
+                    backgroundColor: `${(accentColor || "#00C2A8").replace(
+                      "#",
+                      ""
+                    )}20`,
                   },
                 ]}
                 onPress={() => {
@@ -601,7 +701,9 @@ const Leaderboard = () => {
                     styles.dropdownItemText,
                     {
                       color:
-                        leaderboardType === option ? accentColor || '#00C2A8' : theme.text || '#FFFFFF',
+                        leaderboardType === option
+                          ? accentColor || "#00C2A8"
+                          : theme.text || "#FFFFFF",
                     },
                   ]}
                 >
@@ -630,15 +732,33 @@ const Leaderboard = () => {
               tint={isDarkMode ? "dark" : "light"}
             />
           ) : (
-            <View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(0, 0, 0, 0.4)' }]} />
+            <View
+              style={[
+                StyleSheet.absoluteFill,
+                { backgroundColor: "rgba(0, 0, 0, 0.4)" },
+              ]}
+            />
           )}
-          <View style={[styles.alertContainer, { backgroundColor: theme.surface || '#2D2D2D' }]}>
+          <View
+            style={[
+              styles.alertContainer,
+              { backgroundColor: theme.surface || "#2D2D2D" },
+            ]}
+          >
             <View style={styles.alertContent}>
-              <Text style={[styles.alertTitle, { color: theme.text || '#FFFFFF' }]}>
+              <Text
+                style={[styles.alertTitle, { color: theme.text || "#FFFFFF" }]}
+              >
                 Join Leaderboard
               </Text>
-              <Text style={[styles.alertMessage, { color: theme.textSecondary || '#B0B0B0' }]}>
-                Would you like to join the leaderboard and compare your progress with others?
+              <Text
+                style={[
+                  styles.alertMessage,
+                  { color: theme.textSecondary || "#B0B0B0" },
+                ]}
+              >
+                Would you like to join the leaderboard and compare your progress
+                with others?
               </Text>
               <View style={styles.alertButtons}>
                 <TouchableOpacity
@@ -646,7 +766,10 @@ const Leaderboard = () => {
                   onPress={() => setShowJoinAlert(false)}
                 >
                   <Text
-                    style={[styles.alertButtonText, { color: accentColor || '#00C2A8' }]}
+                    style={[
+                      styles.alertButtonText,
+                      { color: accentColor || "#00C2A8" },
+                    ]}
                   >
                     Close
                   </Text>
@@ -657,7 +780,10 @@ const Leaderboard = () => {
                   onPress={handleConfirmJoin}
                 >
                   <Text
-                    style={[styles.alertButtonText, { color: accentColor || '#00C2A8' }]}
+                    style={[
+                      styles.alertButtonText,
+                      { color: accentColor || "#00C2A8" },
+                    ]}
                   >
                     Join
                   </Text>

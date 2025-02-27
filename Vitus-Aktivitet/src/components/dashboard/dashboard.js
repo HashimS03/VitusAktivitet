@@ -317,7 +317,7 @@ export default function Dashboard() {
       onPress={() => navigation.navigate("ActiveEvent", { eventId: item.id })}
     >
       <Image
-        source={require("../../../assets/event-illustration.png")}
+        source={require("../../../assets/trophy_icon.png")}
         style={styles.eventImage}
       />
       <View style={styles.eventContent}>
@@ -487,7 +487,7 @@ export default function Dashboard() {
               keyExtractor={(item) => item.id}
               horizontal
               showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.eventList}
+              contentContainerStyle={{ paddingBottom: 0, marginBottom: 0 }} // Endre dette
             />
           ) : (
             renderEmptyEventCard()
@@ -600,7 +600,7 @@ const styles = StyleSheet.create({
   },
   progressWrapper: {
     paddingVertical: 0,
-    marginTop: -20,
+    marginTop: -30,
   },
   progressContainer: {
     alignItems: "center",
@@ -647,6 +647,8 @@ const styles = StyleSheet.create({
   },
   eventList: {
     paddingBottom: 16,
+    borderColor: "red", // Debugging
+    borderWidth: 2,
   },
   eventCard: {
     flexDirection: "row",
@@ -692,7 +694,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     paddingHorizontal: 16,
-    marginBottom: 20,
+    marginTop: -5,
   },
   statCard: {
     width: "48%",
