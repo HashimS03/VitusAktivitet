@@ -351,10 +351,10 @@ const Leaderboard = () => {
                     ]}
                   >
                     {leaderboardType === "General"
-                      ? "General "
+                      ? "General"
                       : selectedEvent
-                      ? `${selectedEvent.title} `
-                      : "Events "}
+                      ? selectedEvent.title
+                      : "Events"}
                   </Text>
                   <ChevronDown
                     size={16}
@@ -664,53 +664,60 @@ const Leaderboard = () => {
             activeOpacity={1}
             onPress={() => setShowLeaderboardTypeDropdown(false)}
           >
-            {Platform.OS === "ios" ? (
-              <BlurView
-                intensity={20}
-                style={[styles.dropdownContent]}
-                tint={isDarkMode ? "dark" : "light"}
-              />
-            ) : (
-              <View
-                style={[
-                  styles.dropdownContent,
-                  { backgroundColor: theme.surface || "#2D2D2D" },
-                ]}
-              />
-            )}
-            {["General", "Event"].map((option) => (
-              <TouchableOpacity
-                key={option}
-                style={[
-                  styles.dropdownItem,
-                  leaderboardType === option && {
-                    backgroundColor: `${(accentColor || "#00C2A8").replace(
-                      "#",
-                      ""
-                    )}20`,
-                  },
-                ]}
-                onPress={() => {
-                  setLeaderboardType(option);
-                  setSelectedEvent(null);
-                  setShowLeaderboardTypeDropdown(false);
-                }}
-              >
-                <Text
+            <View
+              style={[
+                styles.dropdownContainer,
+                {
+                  backgroundColor: theme.surface || "#2D2D2D", // Dark gray background like the modal
+                  borderRadius: 12,
+                  shadowColor: "#000",
+                  shadowOffset: { width: 0, height: 2 },
+                  shadowOpacity: 0.1,
+                  shadowRadius: 8,
+                  elevation: 5,
+                  position: "absolute",
+                  top: 80, // Adjusted to appear lower (increased from 60)
+                  left: 20,
+                  right: 20,
+                  maxWidth: 250,
+                  paddingVertical: 8,
+                },
+              ]}
+            >
+              {["General", "Event"].map((option) => (
+                <TouchableOpacity
+                  key={option}
                   style={[
-                    styles.dropdownItemText,
-                    {
-                      color:
-                        leaderboardType === option
-                          ? accentColor || "#00C2A8"
-                          : theme.text || "#FFFFFF",
+                    styles.dropdownItem,
+                    leaderboardType === option && {
+                      backgroundColor: `${(accentColor || "#00C2A8").replace(
+                        "#",
+                        ""
+                      )}20`,
                     },
                   ]}
+                  onPress={() => {
+                    setLeaderboardType(option);
+                    setSelectedEvent(null);
+                    setShowLeaderboardTypeDropdown(false);
+                  }}
                 >
-                  {option} Leaderboard
-                </Text>
-              </TouchableOpacity>
-            ))}
+                  <Text
+                    style={[
+                      styles.dropdownItemText,
+                      {
+                        color:
+                          leaderboardType === option
+                            ? accentColor || "#00C2A8"
+                            : theme.text || "#FFFFFF",
+                      },
+                    ]}
+                  >
+                    {option} Leaderboard
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
           </TouchableOpacity>
         </Modal>
       )}
@@ -837,27 +844,27 @@ const styles = StyleSheet.create({
   dropdownOverlay: {
     flex: 1,
     backgroundColor: "transparent",
+    justifyContent: "flex-start",
+    alignItems: "center",
   },
-  dropdownContent: {
+  dropdownContainer: {
     position: "absolute",
-    top: 85,
+    top: 80, // Adjusted to appear lower (increased from 60)
     left: 20,
     right: 20,
     maxWidth: 250,
+    paddingVertical: 8,
     borderRadius: 12,
-    overflow: "hidden",
     shadowColor: "#000",
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
+    shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 8,
     elevation: 5,
   },
   dropdownItem: {
-    padding: 16,
-    borderRadius: 0,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 8,
   },
   dropdownItemText: {
     fontSize: 16,
