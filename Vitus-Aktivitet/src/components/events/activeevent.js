@@ -1,6 +1,6 @@
-"use client"
+"use client";
 
-import { useState, useContext, useEffect } from "react"
+import { useState, useContext, useEffect } from "react";
 import {
   View,
   Text,
@@ -14,27 +14,27 @@ import {
   TextInput,
   KeyboardAvoidingView,
   Platform,
-} from "react-native"
-import { MaterialCommunityIcons } from "@expo/vector-icons"
-import { useNavigation } from "@react-navigation/native"
-import InviteMembersScreen from "./InviteMembersScreen"
-import { useTheme } from "../context/ThemeContext"
-import * as Progress from "react-native-progress"
-import { EventContext } from "../events/EventContext"
+} from "react-native";
+import { MaterialCommunityIcons } from "@expo/vector-icons";
+import { useNavigation } from "@react-navigation/native";
+import InviteMembersScreen from "./InviteMembersScreen";
+import { useTheme } from "../context/ThemeContext";
+import * as Progress from "react-native-progress";
+import { EventContext } from "../events/EventContext";
 
 const ActiveEvent = ({ route }) => {
-  const { eventId } = route.params || {}
-  const { activeEvents, updateEvent, deleteEvent } = useContext(EventContext)
-  const eventDetails = activeEvents.find((event) => event.id === eventId)
+  const { eventId } = route.params || {};
+  const { activeEvents, updateEvent, deleteEvent } = useContext(EventContext);
+  const eventDetails = activeEvents.find((event) => event.id === eventId);
 
-  const [isModalVisible, setModalVisible] = useState(false)
-  const [showInviteScreen, setShowInviteScreen] = useState(false)
-  const [progress, setProgress] = useState(0)
-  const [currentValue, setCurrentValue] = useState(0)
-  const [showProgressModal, setShowProgressModal] = useState(false)
-  const [newProgress, setNewProgress] = useState("")
-  const navigation = useNavigation()
-  const { theme, isDarkMode } = useTheme()
+  const [isModalVisible, setModalVisible] = useState(false);
+  const [showInviteScreen, setShowInviteScreen] = useState(false);
+  const [progress, setProgress] = useState(0);
+  const [currentValue, setCurrentValue] = useState(0);
+  const [showProgressModal, setShowProgressModal] = useState(false);
+  const [newProgress, setNewProgress] = useState("");
+  const navigation = useNavigation();
+  const { theme, isDarkMode } = useTheme();
 
   useEffect(() => {
     navigation.setOptions({
@@ -55,77 +55,115 @@ const ActiveEvent = ({ route }) => {
           ],
         },
       }),
-    })
-  }, [navigation])
+    });
+  }, [navigation]);
 
-  const toggleModal = () => setModalVisible(!isModalVisible)
+  const toggleModal = () => setModalVisible(!isModalVisible);
 
-  const handleBackPress = () => navigation.navigate("EventsMain", { screen: "YourEvents" })
+  const handleBackPress = () =>
+    navigation.navigate("EventsMain", { screen: "YourEvents" });
 
   const handleEditEvent = () => {
-    toggleModal()
-    navigation.navigate("NewEvent", { eventDetails, isEditing: true })
-  }
+    toggleModal();
+    navigation.navigate("NewEvent", { eventDetails, isEditing: true });
+  };
 
   const handleDeleteEvent = () => {
-    Alert.alert("Slett hendelse", "Er du sikker på at du vil slette denne hendelsen?", [
-      { text: "Avbryt", style: "cancel" },
-      {
-        text: "Slett",
-        style: "destructive",
-        onPress: () => {
-          deleteEvent(eventId)
-          navigation.navigate("EventsMain", { screen: "YourEvents" })
+    Alert.alert(
+      "Slett hendelse",
+      "Er du sikker på at du vil slette denne hendelsen?",
+      [
+        { text: "Avbryt", style: "cancel" },
+        {
+          text: "Slett",
+          style: "destructive",
+          onPress: () => {
+            deleteEvent(eventId);
+            navigation.navigate("EventsMain", { screen: "YourEvents" });
+          },
         },
-      },
-    ])
-  }
+      ]
+    );
+  };
 
   const handleUpdateProgress = () => {
-    setShowProgressModal(true)
-  }
+    setShowProgressModal(true);
+  };
 
   const submitProgress = () => {
-    const newValue = Number.parseInt(newProgress, 10)
-    if (!isNaN(newValue) && newValue >= 0 && newValue <= eventDetails.goalValue) {
-      setCurrentValue(newValue)
-      setProgress(newValue / eventDetails.goalValue)
-      setShowProgressModal(false)
-      setNewProgress("")
+    const newValue = Number.parseInt(newProgress, 10);
+    if (
+      !isNaN(newValue) &&
+      newValue >= 0 &&
+      newValue <= eventDetails.goalValue
+    ) {
+      setCurrentValue(newValue);
+      setProgress(newValue / eventDetails.goalValue);
+      setShowProgressModal(false);
+      setNewProgress("");
 
       updateEvent({
         ...eventDetails,
         currentValue: newValue,
         progress: newValue / eventDetails.goalValue,
-      })
+      });
     } else {
-      Alert.alert("Ugyldig verdi", "Vennligst skriv inn en gyldig verdi mellom 0 og målet.")
+      Alert.alert(
+        "Ugyldig verdi",
+        "Vennligst skriv inn en gyldig verdi mellom 0 og målet."
+      );
     }
-  }
+  };
 
   const renderTeamMembers = () => {
     if (!eventDetails.teams || eventDetails.teams.length === 0) {
-      return <Text style={[styles.memberCount, { color: theme.textSecondary }]}>Ingen lag tilgjengelig</Text>
+      return (
+        <Text style={[styles.memberCount, { color: theme.textSecondary }]}>
+          Ingen lag tilgjengelig
+        </Text>
+      );
     }
 
-    const totalMembers = 1 // Only you are in the first team
-    const maxMembers = eventDetails.teamCount * eventDetails.membersPerTeam
+    const totalMembers = 1; // Only you are in the first team
+    const maxMembers = eventDetails.teamCount * eventDetails.membersPerTeam;
 
     return (
       <>
         <Text style={[styles.memberCount, { color: theme.textSecondary }]}>
           {totalMembers} av {maxMembers} medlemmer
         </Text>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.membersList}>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          style={styles.membersList}
+        >
           {eventDetails.teams.map((team, teamIndex) => (
-            <View key={team.id} style={[styles.teamContainer, teamIndex > 0 && { marginLeft: 24 }]}>
-              <Text style={[styles.teamTitle, { color: theme.text }]}>{team.name}</Text>
+            <View
+              key={team.id}
+              style={[
+                styles.teamContainer,
+                teamIndex > 0 && { marginLeft: 24 },
+              ]}
+            >
+              <Text style={[styles.teamTitle, { color: theme.text }]}>
+                {team.name}
+              </Text>
               <View style={styles.teamMembers}>
                 {teamIndex === 0 ? (
                   // First team (Lag 1) - Show your avatar
                   <View style={styles.memberAvatar}>
-                    <Image source={require("../../../assets/member-avatar.png")} style={styles.avatarImage} />
-                    <Text style={[styles.memberName, { color: theme.textSecondary }]}>Du</Text>
+                    <Image
+                      source={require("../../../assets/member-avatar.png")}
+                      style={styles.avatarImage}
+                    />
+                    <Text
+                      style={[
+                        styles.memberName,
+                        { color: theme.textSecondary },
+                      ]}
+                    >
+                      Du
+                    </Text>
                   </View>
                 ) : (
                   // Other teams - Show plus icon
@@ -146,54 +184,70 @@ const ActiveEvent = ({ route }) => {
                   </TouchableOpacity>
                 )}
                 {/* Show remaining slots as empty */}
-                {Array.from({ length: eventDetails.membersPerTeam - 1 }, (_, i) => (
-                  <TouchableOpacity
-                    key={`empty_${team.id}_${i}`}
-                    style={[
-                      styles.emptyAvatar,
-                      {
-                        backgroundColor: theme.primary,
-                        marginLeft: 16,
-                      },
-                    ]}
-                    onPress={() => setShowInviteScreen(true)}
-                  >
-                    <MaterialCommunityIcons
-                      name="plus"
-                      size={24}
-                      color={isDarkMode ? theme.surface : theme.background}
-                    />
-                  </TouchableOpacity>
-                ))}
+                {Array.from(
+                  { length: eventDetails.membersPerTeam - 1 },
+                  (_, i) => (
+                    <TouchableOpacity
+                      key={`empty_${team.id}_${i}`}
+                      style={[
+                        styles.emptyAvatar,
+                        {
+                          backgroundColor: theme.primary,
+                          marginLeft: 16,
+                        },
+                      ]}
+                      onPress={() => setShowInviteScreen(true)}
+                    >
+                      <MaterialCommunityIcons
+                        name="plus"
+                        size={24}
+                        color={isDarkMode ? theme.surface : theme.background}
+                      />
+                    </TouchableOpacity>
+                  )
+                )}
               </View>
             </View>
           ))}
         </ScrollView>
       </>
-    )
-  }
+    );
+  };
 
   const renderIndividualParticipants = () => {
     if (!eventDetails.participants || eventDetails.participants.length === 0) {
-      return <Text style={[styles.memberCount, { color: theme.textSecondary }]}>Ingen deltakere tilgjengelig</Text>
+      return (
+        <Text style={[styles.memberCount, { color: theme.textSecondary }]}>
+          Ingen deltakere tilgjengelig
+        </Text>
+      );
     }
 
-    const filledParticipants = 1 // We'll only show the first participant
-    const totalParticipants = eventDetails.participantCount || 0
-    const emptySlots = Math.max(0, totalParticipants - filledParticipants)
+    const filledParticipants = 1; // We'll only show the first participant
+    const totalParticipants = eventDetails.participantCount || 0;
+    const emptySlots = Math.max(0, totalParticipants - filledParticipants);
 
     return (
       <>
         <Text style={[styles.memberCount, { color: theme.textSecondary }]}>
           {filledParticipants} av {totalParticipants} deltakere
         </Text>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.membersList}>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          style={styles.membersList}
+        >
           <View style={styles.participantsContainer}>
             <View style={styles.participantsRow}>
               {/* Show only the first participant */}
               <View style={styles.memberAvatar}>
-                <Image source={require("../../../assets/member-avatar.png")} style={styles.avatarImage} />
-                <Text style={[styles.memberName, { color: theme.textSecondary }]}>
+                <Image
+                  source={require("../../../assets/member-avatar.png")}
+                  style={styles.avatarImage}
+                />
+                <Text
+                  style={[styles.memberName, { color: theme.textSecondary }]}
+                >
                   {eventDetails.participants[0]?.name || "Du"}
                 </Text>
               </View>
@@ -202,59 +256,94 @@ const ActiveEvent = ({ route }) => {
               {Array.from({ length: emptySlots }, (_, i) => (
                 <TouchableOpacity
                   key={`empty_${i}`}
-                  style={[styles.emptyAvatar, { backgroundColor: theme.primary }]}
+                  style={[
+                    styles.emptyAvatar,
+                    { backgroundColor: theme.primary },
+                  ]}
                   onPress={() => setShowInviteScreen(true)}
                 >
-                  <MaterialCommunityIcons name="plus" size={24} color={isDarkMode ? theme.surface : theme.background} />
+                  <MaterialCommunityIcons
+                    name="plus"
+                    size={24}
+                    color={isDarkMode ? theme.surface : theme.background}
+                  />
                 </TouchableOpacity>
               ))}
             </View>
           </View>
         </ScrollView>
       </>
-    )
-  }
+    );
+  };
 
   useEffect(() => {
     if (!eventDetails) {
-      navigation.goBack()
+      navigation.goBack();
     } else {
-      setCurrentValue(eventDetails.currentValue || 0)
-      setProgress(eventDetails.progress || 0)
+      setCurrentValue(eventDetails.currentValue || 0);
+      setProgress(eventDetails.progress || 0);
     }
-  }, [eventDetails, navigation])
+  }, [eventDetails, navigation]);
 
   useEffect(() => {
-    console.log("Event Details:", eventDetails)
-  }, [eventDetails])
+    console.log("Event Details:", eventDetails);
+  }, [eventDetails]);
 
   if (!eventDetails) {
-    return null
+    return null;
   }
 
   return (
-    <SafeAreaView style={[styles.safeArea, { backgroundColor: theme.background }]}>
+    <SafeAreaView
+      style={[styles.safeArea, { backgroundColor: theme.background }]}
+    >
       <ScrollView contentContainerStyle={{ paddingBottom: 100 }}>
         {/* Header */}
         <View style={styles.header}>
           <TouchableOpacity onPress={handleBackPress} style={styles.backButton}>
-            <MaterialCommunityIcons name="arrow-left" size={24} color={theme.text} />
+            <MaterialCommunityIcons
+              name="arrow-left"
+              size={24}
+              color={theme.text}
+            />
           </TouchableOpacity>
-          <Text style={[styles.title, { color: theme.text }]}>{eventDetails.title || "Hendelse"}</Text>
+          <Text style={[styles.title, { color: theme.text }]}>
+            {eventDetails.title || "Hendelse"}
+          </Text>
           <TouchableOpacity onPress={toggleModal} style={styles.menuButton}>
-            <MaterialCommunityIcons name="dots-vertical" size={24} color={theme.text} />
+            <MaterialCommunityIcons
+              name="dots-vertical"
+              size={24}
+              color={theme.text}
+            />
           </TouchableOpacity>
         </View>
 
         {/* Event Banner */}
-        <Image source={require("../../../assets/event-illustration.png")} style={styles.eventBanner} />
+        <Image
+          source={require("../../../assets/event-illustration.png")}
+          style={styles.eventBanner}
+        />
 
         {/* Event Info */}
-        <View style={[styles.eventInfoContainer, { backgroundColor: isDarkMode ? "#333333" : "#F5F5F5" }]}>
-          <Text style={[styles.eventTitle, { color: theme.text }]}>{eventDetails.title}</Text>
+        <View
+          style={[
+            styles.eventInfoContainer,
+            { backgroundColor: isDarkMode ? "#333333" : "#F5F5F5" },
+          ]}
+        >
+          <Text style={[styles.eventTitle, { color: theme.text }]}>
+            {eventDetails.title}
+          </Text>
           <View style={styles.eventDetails}>
-            <MaterialCommunityIcons name="calendar" size={20} color={theme.textSecondary} />
-            <Text style={[styles.eventDetailText, { color: theme.textSecondary }]}>
+            <MaterialCommunityIcons
+              name="calendar"
+              size={20}
+              color={theme.textSecondary}
+            />
+            <Text
+              style={[styles.eventDetailText, { color: theme.textSecondary }]}
+            >
               {new Date(eventDetails.startDate).toLocaleDateString()} •{" "}
               {new Date(eventDetails.startTime).toLocaleTimeString([], {
                 hour: "2-digit",
@@ -263,18 +352,36 @@ const ActiveEvent = ({ route }) => {
             </Text>
           </View>
           <View style={styles.eventDetails}>
-            <MaterialCommunityIcons name="map-marker" size={20} color={theme.textSecondary} />
-            <Text style={[styles.eventDetailText, { color: theme.textSecondary }]}>{eventDetails.location}</Text>
+            <MaterialCommunityIcons
+              name="map-marker"
+              size={20}
+              color={theme.textSecondary}
+            />
+            <Text
+              style={[styles.eventDetailText, { color: theme.textSecondary }]}
+            >
+              {eventDetails.location}
+            </Text>
           </View>
         </View>
 
         {/* Progress Section */}
         <View style={styles.progressSection}>
-          <Text style={[styles.sectionTitle, { color: theme.text }]}>Din Fremgang</Text>
-          <View style={[styles.progressCard, { backgroundColor: theme.surface }]}>
+          <Text style={[styles.sectionTitle, { color: theme.text }]}>
+            Din Fremgang
+          </Text>
+          <View
+            style={[styles.progressCard, { backgroundColor: theme.surface }]}
+          >
             <View style={styles.progressHeader}>
-              <MaterialCommunityIcons name="arm-flex" size={24} color={theme.primary} />
-              <Text style={[styles.progressTitle, { color: theme.text }]}>{eventDetails.title}</Text>
+              <MaterialCommunityIcons
+                name="arm-flex"
+                size={24}
+                color={theme.primary}
+              />
+              <Text style={[styles.progressTitle, { color: theme.text }]}>
+                {eventDetails.title}
+              </Text>
             </View>
             <Progress.Bar
               progress={progress}
@@ -287,33 +394,58 @@ const ActiveEvent = ({ route }) => {
               style={styles.progressBar}
             />
             <View style={styles.progressInfo}>
-              <Text style={[styles.progressText, { color: theme.textSecondary }]}>
-                {currentValue} av {eventDetails.goalValue} {eventDetails.activityUnit}
+              <Text
+                style={[styles.progressText, { color: theme.textSecondary }]}
+              >
+                {currentValue} av {eventDetails.goalValue}{" "}
+                {eventDetails.activityUnit}
               </Text>
-              <Text style={[styles.progressPercentage, { color: theme.primary }]}>{Math.round(progress * 100)}%</Text>
+              <Text
+                style={[styles.progressPercentage, { color: theme.primary }]}
+              >
+                {Math.round(progress * 100)}%
+              </Text>
             </View>
           </View>
           <TouchableOpacity
             style={[styles.updateButton, { backgroundColor: theme.primary }]}
             onPress={handleUpdateProgress}
           >
-            <MaterialCommunityIcons name="plus" size={24} color={theme.background} />
-            <Text style={[styles.updateButtonText, { color: theme.background }]}>Oppdater fremgang</Text>
+            <MaterialCommunityIcons
+              name="plus"
+              size={24}
+              color={theme.background}
+            />
+            <Text
+              style={[styles.updateButtonText, { color: theme.background }]}
+            >
+              Oppdater fremgang
+            </Text>
           </TouchableOpacity>
         </View>
 
         {/* Members Section */}
         <View style={styles.membersSection}>
           <Text style={[styles.sectionTitle, { color: theme.text }]}>
-            {eventDetails.eventType === "team" ? "Lag og Medlemmer" : "Deltakere"}
+            {eventDetails.eventType === "team"
+              ? "Lag og Medlemmer"
+              : "Deltakere"}
           </Text>
-          {eventDetails.eventType === "team" ? renderTeamMembers() : renderIndividualParticipants()}
+          {eventDetails.eventType === "team"
+            ? renderTeamMembers()
+            : renderIndividualParticipants()}
         </View>
 
         {/* Description Section */}
         <View style={styles.descriptionSection}>
-          <Text style={[styles.sectionTitle, { color: theme.text }]}>Beskrivelse</Text>
-          <Text style={[styles.descriptionText, { color: theme.textSecondary }]}>{eventDetails.description}</Text>
+          <Text style={[styles.sectionTitle, { color: theme.text }]}>
+            Beskrivelse
+          </Text>
+          <Text
+            style={[styles.descriptionText, { color: theme.textSecondary }]}
+          >
+            {eventDetails.description}
+          </Text>
         </View>
 
         {/* Action Buttons */}
@@ -322,33 +454,79 @@ const ActiveEvent = ({ route }) => {
             style={[styles.actionButton, { backgroundColor: theme.primary }]}
             onPress={() => setShowInviteScreen(true)}
           >
-            <MaterialCommunityIcons name="account-plus" size={24} color={theme.background} />
-            <Text style={[styles.actionButtonText, { color: theme.background }]}>Inviter</Text>
+            <MaterialCommunityIcons
+              name="account-plus"
+              size={24}
+              color={theme.background}
+            />
+            <Text
+              style={[styles.actionButtonText, { color: theme.background }]}
+            >
+              Inviter
+            </Text>
           </TouchableOpacity>
           <TouchableOpacity
             style={[styles.actionButton, { backgroundColor: theme.primary }]}
-            onPress={() => navigation.navigate("Leaderboard", { eventId: eventDetails.id })}
+            onPress={() =>
+              navigation.navigate("Leaderboard", { eventId: eventDetails.id })
+            }
           >
-            <MaterialCommunityIcons name="trophy" size={24} color={theme.background} />
-            <Text style={[styles.actionButtonText, { color: theme.background }]}>Resultater</Text>
+            <MaterialCommunityIcons
+              name="trophy"
+              size={24}
+              color={theme.background}
+            />
+            <Text
+              style={[styles.actionButtonText, { color: theme.background }]}
+            >
+              Resultater
+            </Text>
           </TouchableOpacity>
         </View>
       </ScrollView>
 
       {/* Options Modal */}
-      <Modal animationType="fade" transparent={true} visible={isModalVisible} onRequestClose={toggleModal}>
+      <Modal
+        animationType="fade"
+        transparent={true}
+        visible={isModalVisible}
+        onRequestClose={toggleModal}
+      >
         <View style={styles.modalContainer}>
-          <View style={[styles.modalContent, { backgroundColor: theme.surface }]}>
-            <TouchableOpacity style={styles.modalOption} onPress={handleEditEvent}>
-              <MaterialCommunityIcons name="pencil" size={24} color={theme.text} />
-              <Text style={[styles.modalOptionText, { color: theme.text }]}>Rediger hendelse</Text>
+          <View
+            style={[styles.modalContent, { backgroundColor: theme.surface }]}
+          >
+            <TouchableOpacity
+              style={styles.modalOption}
+              onPress={handleEditEvent}
+            >
+              <MaterialCommunityIcons
+                name="pencil"
+                size={24}
+                color={theme.text}
+              />
+              <Text style={[styles.modalOptionText, { color: theme.text }]}>
+                Rediger hendelse
+              </Text>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.modalOption} onPress={handleDeleteEvent}>
+            <TouchableOpacity
+              style={styles.modalOption}
+              onPress={handleDeleteEvent}
+            >
               <MaterialCommunityIcons name="delete" size={24} color="#FF0000" />
-              <Text style={[styles.modalOptionText, { color: "#FF0000" }]}>Slett hendelse</Text>
+              <Text style={[styles.modalOptionText, { color: "#FF0000" }]}>
+                Slett hendelse
+              </Text>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.modalCloseButton} onPress={toggleModal}>
-              <Text style={[styles.modalCloseButtonText, { color: theme.primary }]}>Lukk</Text>
+            <TouchableOpacity
+              style={styles.modalCloseButton}
+              onPress={toggleModal}
+            >
+              <Text
+                style={[styles.modalCloseButtonText, { color: theme.primary }]}
+              >
+                Lukk
+              </Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -361,12 +539,22 @@ const ActiveEvent = ({ route }) => {
         visible={showProgressModal}
         onRequestClose={() => setShowProgressModal(false)}
       >
-        <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={{ flex: 1 }}>
+        <KeyboardAvoidingView
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
+          style={{ flex: 1 }}
+        >
           <View style={styles.modalContainer}>
-            <View style={[styles.modalContent, { backgroundColor: theme.surface }]}>
-              <Text style={[styles.modalTitle, { color: theme.text }]}>Oppdater fremgang</Text>
+            <View
+              style={[styles.modalContent, { backgroundColor: theme.surface }]}
+            >
+              <Text style={[styles.modalTitle, { color: theme.text }]}>
+                Oppdater fremgang
+              </Text>
               <TextInput
-                style={[styles.input, { color: theme.text, borderColor: theme.border }]}
+                style={[
+                  styles.input,
+                  { color: theme.text, borderColor: theme.border },
+                ]}
                 placeholder={`Skriv inn antall ${eventDetails.activityUnit}`}
                 placeholderTextColor={theme.textSecondary}
                 keyboardType="numeric"
@@ -374,13 +562,30 @@ const ActiveEvent = ({ route }) => {
                 onChangeText={setNewProgress}
               />
               <TouchableOpacity
-                style={[styles.submitButton, { backgroundColor: theme.primary }]}
+                style={[
+                  styles.submitButton,
+                  { backgroundColor: theme.primary },
+                ]}
                 onPress={submitProgress}
               >
-                <Text style={[styles.submitButtonText, { color: theme.background }]}>Oppdater</Text>
+                <Text
+                  style={[styles.submitButtonText, { color: theme.background }]}
+                >
+                  Oppdater
+                </Text>
               </TouchableOpacity>
-              <TouchableOpacity style={styles.modalCloseButton} onPress={() => setShowProgressModal(false)}>
-                <Text style={[styles.modalCloseButtonText, { color: theme.primary }]}>Avbryt</Text>
+              <TouchableOpacity
+                style={styles.modalCloseButton}
+                onPress={() => setShowProgressModal(false)}
+              >
+                <Text
+                  style={[
+                    styles.modalCloseButtonText,
+                    { color: theme.primary },
+                  ]}
+                >
+                  Avbryt
+                </Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -394,8 +599,8 @@ const ActiveEvent = ({ route }) => {
         eventId={eventDetails.id}
       />
     </SafeAreaView>
-  )
-}
+  );
+};
 
 // Styles
 const styles = StyleSheet.create({
@@ -623,7 +828,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "600",
   },
-})
+});
 
-export default ActiveEvent
-
+export default ActiveEvent;

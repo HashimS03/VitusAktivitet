@@ -155,7 +155,7 @@ const YourEvents = () => {
               >
                 <View style={styles.eventContent}>
                   <Image
-                    source={require("../../../assets/event-illustration.png")}
+                    source={require("../../../assets/trophy_icon.png")}
                     style={styles.eventImage}
                   />
                   <View style={styles.eventDetails}>
