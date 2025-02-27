@@ -170,31 +170,25 @@ export default function Dashboard() {
             const newStepCount = previousSteps + route.params.addedSteps;
             console.log("📊 Oppdatert stepCount:", newStepCount);
 
+            // Lagre oppdatert total i stepCount
             await AsyncStorage.setItem(
               "stepCount",
               JSON.stringify(newStepCount)
             );
             setStepCount(newStepCount);
 
-            // Lagre dagens skritt i historikken
+            // Oppdater historikken med totale skritt (synkronisert med stepCount)
             const today = new Date().toISOString().split("T")[0]; // Format: YYYY-MM-DD
             const stepHistoryKey = `stepHistory_${today}`;
-            const storedHistorySteps = await AsyncStorage.getItem(
-              stepHistoryKey
-            );
-            const currentHistorySteps = storedHistorySteps
-              ? JSON.parse(storedHistorySteps)
-              : 0;
-            const updatedHistorySteps =
-              currentHistorySteps + route.params.addedSteps;
 
+            // Sett historikken til å matche den nye totale stepCount
             await AsyncStorage.setItem(
               stepHistoryKey,
-              JSON.stringify(updatedHistorySteps)
+              JSON.stringify(newStepCount)
             );
             console.log(
-              "📜 Updated history steps for today:",
-              updatedHistorySteps
+              "📜 Updated history steps for today to total:",
+              newStepCount
             );
 
             navigation.setParams({ addedSteps: null }); // Nullstill params
