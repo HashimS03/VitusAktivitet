@@ -1,6 +1,6 @@
-"use client"
+"use client";
 
-import { useState, useEffect, useRef, useContext } from "react"
+import { useState, useEffect, useRef, useContext } from "react";
 import {
   View,
   Text,
@@ -16,17 +16,18 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
-} from "react-native"
-import { MaterialCommunityIcons } from "@expo/vector-icons"
-import Slider from "@react-native-community/slider"
-import { useTheme } from "../context/ThemeContext"
-import DateTimePicker from "@react-native-community/datetimepicker"
-import { LinearGradient } from "expo-linear-gradient"
-import * as Haptics from "expo-haptics"
-import { BlurView } from "expo-blur"
-import { EventContext } from "../events/EventContext"
+} from "react-native";
+import { MaterialCommunityIcons } from "@expo/vector-icons";
+import Slider from "@react-native-community/slider";
+import { useTheme } from "../context/ThemeContext";
+import DateTimePicker from "@react-native-community/datetimepicker";
+import { LinearGradient } from "expo-linear-gradient";
+import * as Haptics from "expo-haptics";
+import { BlurView } from "expo-blur";
+import { EventContext } from "../events/EventContext";
+import { useNavigation } from "@react-navigation/native";
 
-const { width } = Dimensions.get("window")
+const { width } = Dimensions.get("window");
 
 const PREDEFINED_ACTIVITIES = [
   {
@@ -99,12 +100,13 @@ const PREDEFINED_ACTIVITIES = [
     unit: "repetisjoner",
     color: "#1B9AAA",
   },
-]
+];
 
-const NewEvent = ({ navigation, route }) => {
-  const { theme, isDarkMode } = useTheme()
-  const { addEvent, updateEvent } = useContext(EventContext)
-  const { eventDetails: existingEvent, isEditing } = route.params || {}
+const NewEvent = ({ route }) => {
+  const { theme, isDarkMode } = useTheme();
+  const { addEvent, updateEvent } = useContext(EventContext);
+  const { eventDetails: existingEvent, isEditing } = route.params || {};
+  const navigation = useNavigation();
 
   const [eventDetails, setEventDetails] = useState(
     existingEvent
@@ -134,25 +136,38 @@ const NewEvent = ({ navigation, route }) => {
           tags: [],
           participants: [],
           teams: [],
-        },
-  )
+        }
+  );
 
   const [dateTimePickerConfig, setDateTimePickerConfig] = useState({
     visible: false,
     mode: "date",
     currentField: "",
     currentValue: new Date(),
-  })
+  });
 
-  const [showActivityModal, setShowActivityModal] = useState(false)
-  const [formProgress, setFormProgress] = useState(0)
-  const [showConfirmModal, setShowConfirmModal] = useState(false)
-  const [currentStep, setCurrentStep] = useState(0)
-  const [tagInput, setTagInput] = useState("")
+  const [showActivityModal, setShowActivityModal] = useState(false);
+  const [formProgress, setFormProgress] = useState(0);
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [currentStep, setCurrentStep] = useState(0);
+  const [tagInput, setTagInput] = useState("");
+  const [showCancelModal, setShowCancelModal] = useState(false);
 
-  const scrollViewRef = useRef(null)
-  const progressAnimation = useRef(new Animated.Value(0)).current
-  const stepAnimation = useRef(new Animated.Value(0)).current
+  const scrollViewRef = useRef(null);
+  const progressAnimation = useRef(new Animated.Value(0)).current;
+  const stepAnimation = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    navigation.setOptions({
+      gestureEnabled: false,
+    });
+
+    return () => {
+      navigation.setOptions({
+        gestureEnabled: true,
+      });
+    };
+  }, [navigation]);
 
   useEffect(() => {
     Animated.timing(progressAnimation, {
@@ -160,8 +175,8 @@ const NewEvent = ({ navigation, route }) => {
       duration: 500,
       easing: Easing.bezier(0.4, 0, 0.2, 1),
       useNativeDriver: false,
-    }).start()
-  }, [formProgress, progressAnimation])
+    }).start();
+  }, [formProgress, progressAnimation]);
 
   useEffect(() => {
     Animated.timing(stepAnimation, {
@@ -169,47 +184,49 @@ const NewEvent = ({ navigation, route }) => {
       duration: 300,
       easing: Easing.inOut(Easing.ease),
       useNativeDriver: true,
-    }).start()
-  }, [currentStep, stepAnimation])
+    }).start();
+  }, [currentStep, stepAnimation]);
 
   const updateEventDetails = (key, value) => {
     setEventDetails((prev) => {
-      const updated = { ...prev, [key]: value }
-      const filledFields = Object.values(updated).filter((v) => v !== "" && v !== null).length
-      const progress = filledFields / Object.keys(updated).length
-      setFormProgress(progress)
-      return updated
-    })
-  }
+      const updated = { ...prev, [key]: value };
+      const filledFields = Object.values(updated).filter(
+        (v) => v !== "" && v !== null
+      ).length;
+      const progress = filledFields / Object.keys(updated).length;
+      setFormProgress(progress);
+      return updated;
+    });
+  };
 
   const handleActivitySelect = (activity) => {
-    updateEventDetails("selectedActivity", activity)
+    updateEventDetails("selectedActivity", activity);
     if (!isEditing) {
-      updateEventDetails("title", activity.name)
-      updateEventDetails("goalValue", activity.defaultGoal)
+      updateEventDetails("title", activity.name);
+      updateEventDetails("goalValue", activity.defaultGoal);
     }
-    setShowActivityModal(false)
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success)
-  }
+    setShowActivityModal(false);
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+  };
 
   const handleDateTimeChange = (event, selectedDate) => {
     if (selectedDate) {
-      const currentField = dateTimePickerConfig.currentField
-      const currentDate = eventDetails[currentField]
+      const currentField = dateTimePickerConfig.currentField;
+      const currentDate = eventDetails[currentField];
 
       if (dateTimePickerConfig.mode === "date") {
-        selectedDate.setHours(currentDate.getHours())
-        selectedDate.setMinutes(currentDate.getMinutes())
+        selectedDate.setHours(currentDate.getHours());
+        selectedDate.setMinutes(currentDate.getMinutes());
       } else {
-        selectedDate.setFullYear(currentDate.getFullYear())
-        selectedDate.setMonth(currentDate.getMonth())
-        selectedDate.setDate(currentDate.getDate())
+        selectedDate.setFullYear(currentDate.getFullYear());
+        selectedDate.setMonth(currentDate.getMonth());
+        selectedDate.setDate(currentDate.getDate());
       }
 
-      updateEventDetails(currentField, selectedDate)
+      updateEventDetails(currentField, selectedDate);
     }
-    closeDateTimePicker()
-  }
+    closeDateTimePicker();
+  };
 
   const showDateTimePicker = (mode, field) => {
     setDateTimePickerConfig({
@@ -217,70 +234,107 @@ const NewEvent = ({ navigation, route }) => {
       mode,
       currentField: field,
       currentValue: eventDetails[field],
-    })
-  }
+    });
+  };
 
   const closeDateTimePicker = () => {
-    setDateTimePickerConfig((prev) => ({ ...prev, visible: false }))
-  }
+    setDateTimePickerConfig((prev) => ({ ...prev, visible: false }));
+  };
 
   const validateForm = () => {
-    const requiredFields = ["title", "selectedActivity", "startDate", "endDate", "location", "eventType"]
-    const missingFields = requiredFields.filter((field) => !eventDetails[field])
+    const requiredFields = [
+      "title",
+      "selectedActivity",
+      "startDate",
+      "endDate",
+      "location",
+      "eventType",
+    ];
+    const missingFields = requiredFields.filter(
+      (field) => !eventDetails[field]
+    );
 
     if (missingFields.length > 0) {
-      Alert.alert("Manglende informasjon", `Vennligst fyll ut følgende felt: ${missingFields.join(", ")}`)
-      return false
+      Alert.alert(
+        "Manglende informasjon",
+        `Vennligst fyll ut følgende felt: ${missingFields.join(", ")}`
+      );
+      return false;
     }
 
     if (eventDetails.startDate > eventDetails.endDate) {
-      Alert.alert("Ugyldig datoer", "Sluttdato må være etter startdato")
-      return false
+      Alert.alert("Ugyldig datoer", "Sluttdato må være etter startdato");
+      return false;
     }
 
-    return true
-  }
+    return true;
+  };
 
   const handleConfirm = () => {
     if (validateForm()) {
-      setShowConfirmModal(true)
+      setShowConfirmModal(true);
     }
-  }
+  };
 
   const createEvent = () => {
-    setShowConfirmModal(false)
+    setShowConfirmModal(false);
     const updatedEvent = {
       ...eventDetails,
       goalValue: Math.round(eventDetails.goalValue),
       activityUnit: eventDetails.selectedActivity.unit,
-    }
+    };
 
     if (updatedEvent.eventType === "individual") {
-      updatedEvent.participants = Array.from({ length: Number.parseInt(updatedEvent.participantCount) }, (_, i) => ({
-        id: `participant_${i + 1}`,
-        name: `Deltaker ${i + 1}`,
-      }))
+      updatedEvent.participants = Array.from(
+        { length: Number.parseInt(updatedEvent.participantCount) },
+        (_, i) => ({
+          id: `participant_${i + 1}`,
+          name: `Deltaker ${i + 1}`,
+        })
+      );
     } else if (updatedEvent.eventType === "team") {
-      updatedEvent.teams = Array.from({ length: Number.parseInt(updatedEvent.teamCount) }, (_, i) => ({
-        id: `team_${i + 1}`,
-        name: `Lag ${i + 1}`,
-        members: Array.from({ length: Number.parseInt(updatedEvent.membersPerTeam) }, (_, j) => ({
-          id: `member_${i + 1}_${j + 1}`,
-          name: `Medlem ${j + 1}`,
-        })),
-      }))
+      updatedEvent.teams = Array.from(
+        { length: Number.parseInt(updatedEvent.teamCount) },
+        (_, i) => ({
+          id: `team_${i + 1}`,
+          name: `Lag ${i + 1}`,
+          members: Array.from(
+            { length: Number.parseInt(updatedEvent.membersPerTeam) },
+            (_, j) => ({
+              id: `member_${i + 1}_${j + 1}`,
+              name: `Medlem ${j + 1}`,
+            })
+          ),
+        })
+      );
     }
 
     if (isEditing) {
-      updateEvent(updatedEvent)
+      updateEvent(updatedEvent);
     } else {
-      addEvent(updatedEvent)
+      addEvent(updatedEvent);
     }
 
-    navigation.navigate("ActiveEvent", { eventId: updatedEvent.id })
-  }
+    // Erstatter navigasjonsstakken i stedet for å legge til ny skjerm
+    navigation.replace("ActiveEvent", { eventId: updatedEvent.id });
+  };
 
-  const renderInput = (label, value, onChangeText, placeholder, multiline = false) => (
+  const handleCancel = () => {
+    setShowCancelModal(true);
+  };
+
+  const confirmCancel = () => {
+    setShowCancelModal(false);
+    navigation.goBack();
+  };
+
+  const renderInput = (
+    label,
+    value,
+    onChangeText,
+    placeholder,
+    multiline = false
+  ) => (
     <View style={styles.inputGroup}>
       <Text style={[styles.label, { color: theme.text }]}>{label}</Text>
       <TextInput
@@ -296,7 +350,7 @@ const NewEvent = ({ navigation, route }) => {
         multiline={multiline}
       />
     </View>
-  )
+  );
 
   const renderDateTimePicker = (label, date, field, mode) => (
     <View style={styles.dateTimeContainer}>
@@ -313,10 +367,14 @@ const NewEvent = ({ navigation, route }) => {
                 minute: "2-digit",
               })}
         </Text>
-        <MaterialCommunityIcons name={mode === "date" ? "calendar" : "clock-outline"} size={24} color={theme.primary} />
+        <MaterialCommunityIcons
+          name={mode === "date" ? "calendar" : "clock-outline"}
+          size={24}
+          color={theme.primary}
+        />
       </TouchableOpacity>
     </View>
-  )
+  );
 
   const renderStep = (stepIndex) => {
     switch (stepIndex) {
@@ -334,7 +392,9 @@ const NewEvent = ({ navigation, route }) => {
                     styles.activityItem,
                     {
                       backgroundColor:
-                        eventDetails.selectedActivity?.id === activity.id ? activity.color : theme.surface,
+                        eventDetails.selectedActivity?.id === activity.id
+                          ? activity.color
+                          : theme.surface,
                     },
                   ]}
                   onPress={() => handleActivitySelect(activity)}
@@ -342,13 +402,20 @@ const NewEvent = ({ navigation, route }) => {
                   <MaterialCommunityIcons
                     name={activity.icon}
                     size={32}
-                    color={eventDetails.selectedActivity?.id === activity.id ? "#FFFFFF" : activity.color}
+                    color={
+                      eventDetails.selectedActivity?.id === activity.id
+                        ? "#FFFFFF"
+                        : activity.color
+                    }
                   />
                   <Text
                     style={[
                       styles.activityItemText,
                       {
-                        color: eventDetails.selectedActivity?.id === activity.id ? "#FFFFFF" : theme.text,
+                        color:
+                          eventDetails.selectedActivity?.id === activity.id
+                            ? "#FFFFFF"
+                            : theme.text,
                       },
                     ]}
                   >
@@ -358,34 +425,43 @@ const NewEvent = ({ navigation, route }) => {
               ))}
             </View>
           </View>
-        )
+        );
       case 1:
         return (
           <View style={styles.stepContainer}>
-            <Text style={[styles.stepTitle, { color: theme.text }]}>Hendelsesdetaljer</Text>
+            <Text style={[styles.stepTitle, { color: theme.text }]}>
+              Hendelsesdetaljer
+            </Text>
             {renderInput(
               "Hendelsesnavn",
               eventDetails.title,
               (text) => updateEventDetails("title", text),
-              "Skriv inn hendelsesnavn",
+              "Skriv inn hendelsesnavn"
             )}
             {renderInput(
               "Beskrivelse",
               eventDetails.description,
               (text) => updateEventDetails("description", text),
               "Skriv inn beskrivelse",
-              true,
+              true
             )}
             <View style={styles.inputGroup}>
               <Text style={[styles.label, { color: theme.text }]}>
-                Mål {eventDetails.selectedActivity ? `(${eventDetails.selectedActivity.unit})` : ""}
+                Mål{" "}
+                {eventDetails.selectedActivity
+                  ? `(${eventDetails.selectedActivity.unit})`
+                  : ""}
               </Text>
               <Slider
                 style={styles.slider}
                 value={eventDetails.goalValue}
-                onValueChange={(value) => updateEventDetails("goalValue", Math.round(value))}
+                onValueChange={(value) =>
+                  updateEventDetails("goalValue", Math.round(value))
+                }
                 minimumValue={0}
-                maximumValue={eventDetails.selectedActivity?.type === "duration" ? 300 : 100}
+                maximumValue={
+                  eventDetails.selectedActivity?.type === "duration" ? 300 : 100
+                }
                 step={1}
                 minimumTrackTintColor={theme.primary}
                 maximumTrackTintColor={theme.border}
@@ -393,32 +469,60 @@ const NewEvent = ({ navigation, route }) => {
               />
               <Text style={[styles.goalValueText, { color: theme.text }]}>
                 {eventDetails.selectedActivity?.type === "duration"
-                  ? `${Math.floor(eventDetails.goalValue / 60)} min ${Math.floor(eventDetails.goalValue % 60)} sek`
-                  : `${Math.round(eventDetails.goalValue)} ${eventDetails.selectedActivity?.unit || "enheter"}`}
+                  ? `${Math.floor(
+                      eventDetails.goalValue / 60
+                    )} min ${Math.floor(eventDetails.goalValue % 60)} sek`
+                  : `${Math.round(eventDetails.goalValue)} ${
+                      eventDetails.selectedActivity?.unit || "enheter"
+                    }`}
               </Text>
             </View>
           </View>
-        )
+        );
       case 2:
         return (
           <View style={styles.stepContainer}>
-            <Text style={[styles.stepTitle, { color: theme.text }]}>Tid og sted</Text>
+            <Text style={[styles.stepTitle, { color: theme.text }]}>
+              Tid og sted
+            </Text>
             {renderInput(
               "Lokasjon",
               eventDetails.location,
               (text) => updateEventDetails("location", text),
-              "Skriv inn lokasjon",
+              "Skriv inn lokasjon"
             )}
-            {renderDateTimePicker("Startdato", eventDetails.startDate, "startDate", "date")}
-            {renderDateTimePicker("Starttid", eventDetails.startTime, "startTime", "time")}
-            {renderDateTimePicker("Sluttdato", eventDetails.endDate, "endDate", "date")}
-            {renderDateTimePicker("Sluttid", eventDetails.endTime, "endTime", "time")}
+            {renderDateTimePicker(
+              "Startdato",
+              eventDetails.startDate,
+              "startDate",
+              "date"
+            )}
+            {renderDateTimePicker(
+              "Starttid",
+              eventDetails.startTime,
+              "startTime",
+              "time"
+            )}
+            {renderDateTimePicker(
+              "Sluttdato",
+              eventDetails.endDate,
+              "endDate",
+              "date"
+            )}
+            {renderDateTimePicker(
+              "Sluttid",
+              eventDetails.endTime,
+              "endTime",
+              "time"
+            )}
           </View>
-        )
+        );
       case 3:
         return (
           <View style={styles.stepContainer}>
-            <Text style={[styles.stepTitle, { color: theme.text }]}>Deltakere</Text>
+            <Text style={[styles.stepTitle, { color: theme.text }]}>
+              Deltakere
+            </Text>
             <View style={styles.eventTypeButtons}>
               {["team", "individual"].map((type) => (
                 <TouchableOpacity
@@ -435,13 +539,20 @@ const NewEvent = ({ navigation, route }) => {
                   <MaterialCommunityIcons
                     name={type === "team" ? "account-group" : "account"}
                     size={24}
-                    color={eventDetails.eventType === type ? theme.background : theme.text}
+                    color={
+                      eventDetails.eventType === type
+                        ? theme.background
+                        : theme.text
+                    }
                   />
                   <Text
                     style={[
                       styles.eventTypeButtonText,
                       {
-                        color: eventDetails.eventType === type ? theme.background : theme.text,
+                        color:
+                          eventDetails.eventType === type
+                            ? theme.background
+                            : theme.text,
                       },
                     ]}
                   >
@@ -454,7 +565,7 @@ const NewEvent = ({ navigation, route }) => {
               "Antall deltakere",
               eventDetails.participantCount,
               (text) => updateEventDetails("participantCount", text),
-              "Skriv inn antall deltakere",
+              "Skriv inn antall deltakere"
             )}
             {eventDetails.eventType === "team" && (
               <>
@@ -462,25 +573,27 @@ const NewEvent = ({ navigation, route }) => {
                   "Antall lag",
                   eventDetails.teamCount,
                   (text) => updateEventDetails("teamCount", text),
-                  "Skriv inn antall lag",
+                  "Skriv inn antall lag"
                 )}
                 {renderInput(
                   "Medlemmer per lag",
                   eventDetails.membersPerTeam,
                   (text) => updateEventDetails("membersPerTeam", text),
-                  "Skriv inn antall medlemmer per lag",
+                  "Skriv inn antall medlemmer per lag"
                 )}
               </>
             )}
           </View>
-        )
+        );
       default:
-        return null
+        return null;
     }
-  }
+  };
 
   return (
-    <SafeAreaView style={[styles.safeArea, { backgroundColor: theme.background }]}>
+    <SafeAreaView
+      style={[styles.safeArea, { backgroundColor: theme.background }]}
+    >
       <KeyboardAvoidingView
         behavior={Platform.OS === "ios" ? "padding" : "height"}
         style={styles.container}
@@ -492,7 +605,9 @@ const NewEvent = ({ navigation, route }) => {
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
         >
-          <Text style={styles.headerTitle}>{isEditing ? "Rediger hendelse" : "Ny hendelse"}</Text>
+          <Text style={styles.headerTitle}>
+            {isEditing ? "Rediger hendelse" : "Ny hendelse"}
+          </Text>
           <Animated.View
             style={[
               styles.progressBar,
@@ -511,16 +626,21 @@ const NewEvent = ({ navigation, route }) => {
           style={styles.scrollContainer}
           contentContainerStyle={styles.scrollContent}
           horizontal
-          pagingEnabled
           showsHorizontalScrollIndicator={false}
+          scrollEnabled={false}
           scrollEventThrottle={16}
-          onScroll={Animated.event([{ nativeEvent: { contentOffset: { x: stepAnimation } } }], {
-            useNativeDriver: true,
-          })}
+          onScroll={Animated.event(
+            [{ nativeEvent: { contentOffset: { x: stepAnimation } } }],
+            {
+              useNativeDriver: true,
+            }
+          )}
         >
           {[0, 1, 2, 3].map((step) => (
             <View key={step} style={[styles.stepWrapper, { width }]}>
-              <ScrollView contentContainerStyle={styles.stepScrollContent}>{renderStep(step)}</ScrollView>
+              <ScrollView contentContainerStyle={styles.stepScrollContent}>
+                {renderStep(step)}
+              </ScrollView>
             </View>
           ))}
         </Animated.ScrollView>
@@ -530,17 +650,19 @@ const NewEvent = ({ navigation, route }) => {
             style={[styles.footerButton, { backgroundColor: theme.primary }]}
             onPress={() => {
               if (currentStep === 0) {
-                navigation.goBack()
+                handleCancel();
               } else {
-                setCurrentStep(currentStep - 1)
+                setCurrentStep(currentStep - 1);
                 scrollViewRef.current?.scrollTo({
                   x: (currentStep - 1) * width,
                   animated: true,
-                })
+                });
               }
             }}
           >
-            <Text style={[styles.footerButtonText, { color: theme.background }]}>
+            <Text
+              style={[styles.footerButtonText, { color: theme.background }]}
+            >
               {currentStep === 0 ? "Avbryt" : "Forrige"}
             </Text>
           </TouchableOpacity>
@@ -549,19 +671,28 @@ const NewEvent = ({ navigation, route }) => {
               style={[styles.footerButton, { backgroundColor: theme.primary }]}
               onPress={() => {
                 if (currentStep < 3) {
-                  setCurrentStep(currentStep + 1)
+                  setCurrentStep(currentStep + 1);
                   scrollViewRef.current?.scrollTo({
                     x: (currentStep + 1) * width,
                     animated: true,
-                  })
+                  });
                 }
               }}
             >
-              <Text style={[styles.footerButtonText, { color: theme.background }]}>Neste</Text>
+              <Text
+                style={[styles.footerButtonText, { color: theme.background }]}
+              >
+                Neste
+              </Text>
             </TouchableOpacity>
           ) : (
-            <TouchableOpacity style={[styles.footerButton, { backgroundColor: theme.primary }]} onPress={handleConfirm}>
-              <Text style={[styles.footerButtonText, { color: theme.background }]}>
+            <TouchableOpacity
+              style={[styles.footerButton, { backgroundColor: theme.primary }]}
+              onPress={handleConfirm}
+            >
+              <Text
+                style={[styles.footerButtonText, { color: theme.background }]}
+              >
                 {isEditing ? "Oppdater hendelse" : "Opprett hendelse"}
               </Text>
             </TouchableOpacity>
@@ -569,29 +700,106 @@ const NewEvent = ({ navigation, route }) => {
         </View>
       </KeyboardAvoidingView>
 
+      <Modal visible={showCancelModal} animationType="fade" transparent={true}>
+        <BlurView intensity={100} style={styles.modalContainer}>
+          <View
+            style={[
+              styles.confirmModalContent,
+              { backgroundColor: theme.background },
+            ]}
+          >
+            <Text style={[styles.confirmModalTitle, { color: theme.text }]}>
+              Avbryt oppretting
+            </Text>
+            <Text
+              style={[styles.confirmModalText, { color: theme.textSecondary }]}
+            >
+              Er du sikker på at du vil avbryte? Endringer vil ikke bli lagret.
+            </Text>
+            <View style={styles.confirmModalButtons}>
+              <TouchableOpacity
+                style={[
+                  styles.confirmModalButton,
+                  styles.cancelButton,
+                  { backgroundColor: theme.surface },
+                ]}
+                onPress={() => setShowCancelModal(false)}
+              >
+                <Text
+                  style={[styles.confirmModalButtonText, { color: theme.text }]}
+                >
+                  Fortsett
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[
+                  styles.confirmModalButton,
+                  { backgroundColor: theme.primary },
+                ]}
+                onPress={confirmCancel}
+              >
+                <Text
+                  style={[
+                    styles.confirmModalButtonText,
+                    { color: theme.background },
+                  ]}
+                >
+                  Avbryt
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </BlurView>
+      </Modal>
+
       <Modal visible={showConfirmModal} animationType="fade" transparent={true}>
         <BlurView intensity={100} style={styles.modalContainer}>
-          <View style={[styles.confirmModalContent, { backgroundColor: theme.background }]}>
+          <View
+            style={[
+              styles.confirmModalContent,
+              { backgroundColor: theme.background },
+            ]}
+          >
             <Text style={[styles.confirmModalTitle, { color: theme.text }]}>
               {isEditing ? "Bekreft endringer" : "Bekreft hendelse"}
             </Text>
-            <Text style={[styles.confirmModalText, { color: theme.textSecondary }]}>
+            <Text
+              style={[styles.confirmModalText, { color: theme.textSecondary }]}
+            >
               {isEditing
                 ? "Er du sikker på at du vil oppdatere denne hendelsen?"
                 : "Er du sikker på at du vil opprette denne hendelsen?"}
             </Text>
             <View style={styles.confirmModalButtons}>
               <TouchableOpacity
-                style={[styles.confirmModalButton, styles.cancelButton, { backgroundColor: theme.surface }]}
+                style={[
+                  styles.confirmModalButton,
+                  styles.cancelButton,
+                  { backgroundColor: theme.surface },
+                ]}
                 onPress={() => setShowConfirmModal(false)}
               >
-                <Text style={[styles.confirmModalButtonText, { color: theme.text }]}>Avbryt</Text>
+                <Text
+                  style={[styles.confirmModalButtonText, { color: theme.text }]}
+                >
+                  Avbryt
+                </Text>
               </TouchableOpacity>
               <TouchableOpacity
-                style={[styles.confirmModalButton, { backgroundColor: theme.primary }]}
+                style={[
+                  styles.confirmModalButton,
+                  { backgroundColor: theme.primary },
+                ]}
                 onPress={createEvent}
               >
-                <Text style={[styles.confirmModalButtonText, { color: theme.background }]}>Bekreft</Text>
+                <Text
+                  style={[
+                    styles.confirmModalButtonText,
+                    { color: theme.background },
+                  ]}
+                >
+                  Bekreft
+                </Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -600,12 +808,19 @@ const NewEvent = ({ navigation, route }) => {
 
       {dateTimePickerConfig.visible && (
         <Modal visible={true} transparent={true} animationType="fade">
-          <View style={[styles.modalContainer, { backgroundColor: "rgba(0,0,0,0.5)" }]}>
+          <View
+            style={[
+              styles.modalContainer,
+              { backgroundColor: "rgba(0,0,0,0.5)" },
+            ]}
+          >
             <View
               style={[
                 styles.dateTimePickerContainer,
                 {
-                  backgroundColor: isDarkMode ? theme.surface : theme.background,
+                  backgroundColor: isDarkMode
+                    ? theme.surface
+                    : theme.background,
                 },
               ]}
             >
@@ -620,18 +835,25 @@ const NewEvent = ({ navigation, route }) => {
                 style={styles.dateTimePicker}
               />
               <TouchableOpacity
-                style={[styles.closeDateTimeButton, { backgroundColor: theme.primary }]}
+                style={[
+                  styles.closeDateTimeButton,
+                  { backgroundColor: theme.primary },
+                ]}
                 onPress={closeDateTimePicker}
               >
-                <Text style={[styles.closeDateTimeButtonText, { color: "#FFFFFF" }]}>Bekreft</Text>
+                <Text
+                  style={[styles.closeDateTimeButtonText, { color: "#FFFFFF" }]}
+                >
+                  Bekreft
+                </Text>
               </TouchableOpacity>
             </View>
           </View>
         </Modal>
       )}
     </SafeAreaView>
-  )
-}
+  );
+};
 
 const styles = StyleSheet.create({
   safeArea: {
@@ -840,6 +1062,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "600",
   },
-})
+});
 
-export default NewEvent
+export default NewEvent;
