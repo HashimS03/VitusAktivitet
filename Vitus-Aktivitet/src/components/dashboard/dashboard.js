@@ -308,7 +308,12 @@ export default function Dashboard() {
   const renderEventItem = ({ item }) => (
     <TouchableOpacity
       style={[styles.eventCard, { backgroundColor: theme.surface }]}
-      onPress={() => navigation.navigate("ActiveEvent", { eventId: item.id })}
+      onPress={() =>
+        navigation.navigate("Events", {
+          screen: "ActiveEvent",
+          params: { eventId: item.id },
+        })
+      }
     >
       <Image
         source={require("../../../assets/trophy_icon.png")}
@@ -481,7 +486,7 @@ export default function Dashboard() {
               keyExtractor={(item) => item.id}
               horizontal
               showsHorizontalScrollIndicator={false}
-              contentContainerStyle={{ paddingBottom: 0, marginBottom: 0 }} // Endre dette
+              contentContainerStyle={{ paddingBottom: 0, marginBottom: 0 }}
             />
           ) : (
             renderEmptyEventCard()

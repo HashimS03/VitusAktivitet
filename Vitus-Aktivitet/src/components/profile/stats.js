@@ -1,6 +1,6 @@
-"use client"
+"use client";
 
-import { useState, useEffect, useRef } from "react"
+import { useState, useEffect, useRef } from "react";
 import {
   View,
   Text,
@@ -12,39 +12,90 @@ import {
   Animated,
   Easing,
   ScrollView, // Added ScrollView import
-} from "react-native"
-import { ChevronLeft, Settings, Zap, BarChart2, Check, TrendingUp, Award, Calendar } from "lucide-react-native"
-import { useNavigation, useRoute } from "@react-navigation/native"
-import { useTheme } from "../context/ThemeContext"
-import { AnimatedCircularProgress } from "react-native-circular-progress"
-import { LineChart } from "react-native-chart-kit"
-import Achievements from "./achievements" // or import the desired redesign
-import Activity from "./activity" // Import the Activity component
+} from "react-native";
+import {
+  ChevronLeft,
+  Settings,
+  Zap,
+  BarChart2,
+  Check,
+  TrendingUp,
+  Award,
+  Calendar,
+} from "lucide-react-native";
+import { useNavigation, useRoute } from "@react-navigation/native";
+import { useTheme } from "../context/ThemeContext";
+import { AnimatedCircularProgress } from "react-native-circular-progress";
+import { LineChart } from "react-native-chart-kit";
+import Achievements from "./achievements"; // or import the desired redesign
+import Activity from "./activity"; // Import the Activity component
 
-const TABS = ["STATS", "ACHIEVEMENTS", "ACTIVITY"]
+const TABS = ["STATS", "ACHIEVEMENTS", "ACTIVITY"];
 
 const Stats = () => {
-  const [activeTab, setActiveTab] = useState("STATS")
-  const [selectedStat, setSelectedStat] = useState(null)
-  const navigation = useNavigation()
-  const route = useRoute()
-  const { theme, accentColor } = useTheme()
-  const scrollY = useRef(new Animated.Value(0)).current
+  const [activeTab, setActiveTab] = useState("STATS");
+  const [selectedStat, setSelectedStat] = useState(null);
+  const navigation = useNavigation();
+  const route = useRoute();
+  const { theme, accentColor } = useTheme();
+  const scrollY = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     if (route.params?.initialTab) {
-      setActiveTab(route.params.initialTab)
+      setActiveTab(route.params.initialTab);
     }
-  }, [route.params?.initialTab])
+  }, [route.params?.initialTab]);
 
   const statsData = [
-    { icon: Zap, value: 7568, label: "Poeng", iconColor: "#FF9500", iconBgColor: "#FFF5E6", max: 10000 },
-    { icon: BarChart2, value: 99, label: "Leaderboard", iconColor: "#007AFF", iconBgColor: "#E5F1FF", max: 100 },
-    { icon: Check, value: 83, label: "Completed Events", iconColor: "#34C759", iconBgColor: "#E8F7EB", max: 100 },
-    { icon: TrendingUp, value: 86, label: "Daily goal", iconColor: "#FF3B30", iconBgColor: "#FFE5E5", max: 100 },
-    { icon: Award, value: 12, label: "Achievements", iconColor: "#5856D6", iconBgColor: "#EAEAFF", max: 50 },
-    { icon: Calendar, value: 28, label: "Active Days", iconColor: "#FF2D55", iconBgColor: "#FFE5ED", max: 30 },
-  ]
+    {
+      icon: Zap,
+      value: 7568,
+      label: "Poeng",
+      iconColor: "#FF9500",
+      iconBgColor: "#FFF5E6",
+      max: 10000,
+    },
+    {
+      icon: BarChart2,
+      value: 99,
+      label: "Leaderboard",
+      iconColor: "#007AFF",
+      iconBgColor: "#E5F1FF",
+      max: 100,
+    },
+    {
+      icon: Check,
+      value: 83,
+      label: "Completed Events",
+      iconColor: "#34C759",
+      iconBgColor: "#E8F7EB",
+      max: 100,
+    },
+    {
+      icon: TrendingUp,
+      value: 86,
+      label: "Daily goal",
+      iconColor: "#FF3B30",
+      iconBgColor: "#FFE5E5",
+      max: 100,
+    },
+    {
+      icon: Award,
+      value: 12,
+      label: "Achievements",
+      iconColor: "#5856D6",
+      iconBgColor: "#EAEAFF",
+      max: 50,
+    },
+    {
+      icon: Calendar,
+      value: 28,
+      label: "Active Days",
+      iconColor: "#FF2D55",
+      iconBgColor: "#FFE5ED",
+      max: 30,
+    },
+  ];
 
   const chartData = {
     labels: ["Jan", "Feb", "Mar", "Apr", "May", "Jun"],
@@ -55,30 +106,43 @@ const Stats = () => {
         strokeWidth: 2,
       },
     ],
-  }
+  };
 
   const renderHeader = () => (
     <View style={styles.header}>
-      <TouchableOpacity style={styles.headerButton} onPress={() => navigation.goBack()}>
+      <TouchableOpacity
+        style={styles.headerButton}
+        onPress={() => navigation.goBack()}
+      >
         <ChevronLeft size={24} color={theme.text} />
       </TouchableOpacity>
-      <TouchableOpacity style={styles.headerButton} onPress={() => navigation.navigate("Setting")}>
+      <TouchableOpacity
+        style={styles.headerButton}
+        onPress={() => navigation.navigate("Setting")}
+      >
         <Settings size={24} color={theme.text} />
       </TouchableOpacity>
     </View>
-  )
+  );
 
   const renderProfileSection = () => (
     <View style={styles.profileSection}>
-      <Image source={require("../../../assets/avatars/memo_35.png")} style={styles.avatar} />
+      <Image
+        source={require("../../../assets/avatars/memo_35.png")}
+        style={styles.avatar}
+      />
       <Text style={[styles.name, { color: theme.text }]}>Navn</Text>
     </View>
-  )
+  );
 
   const renderTabs = () => (
     <View style={[styles.tabsContainer, { borderBottomColor: theme.border }]}>
       {TABS.map((tab) => (
-        <TouchableOpacity key={tab} onPress={() => setActiveTab(tab)} style={styles.tab}>
+        <TouchableOpacity
+          key={tab}
+          onPress={() => setActiveTab(tab)}
+          style={styles.tab}
+        >
           <Text
             style={[
               styles.tabText,
@@ -89,11 +153,15 @@ const Stats = () => {
           >
             {tab}
           </Text>
-          {activeTab === tab && <View style={[styles.tabUnderline, { backgroundColor: theme.primary }]} />}
+          {activeTab === tab && (
+            <View
+              style={[styles.tabUnderline, { backgroundColor: theme.primary }]}
+            />
+          )}
         </TouchableOpacity>
       ))}
     </View>
-  )
+  );
 
   const renderStatsContent = () => (
     <ScrollView
@@ -122,81 +190,59 @@ const Stats = () => {
               {() => <stat.icon size={24} color={stat.iconColor} />}
             </AnimatedCircularProgress>
             <View style={styles.statTextContainer}>
-              <Text style={[styles.statValue, { color: theme.text }]}>{stat.value}</Text>
-              <Text style={[styles.statLabel, { color: theme.textSecondary }]}>{stat.label}</Text>
+              <Text style={[styles.statValue, { color: theme.text }]}>
+                {stat.value}
+              </Text>
+              <Text style={[styles.statLabel, { color: theme.textSecondary }]}>
+                {stat.label}
+              </Text>
             </View>
           </TouchableOpacity>
         ))}
       </View>
-
-      <View style={[styles.chartContainer, { backgroundColor: theme.surface }]}>
-        <Text style={[styles.chartTitle, { color: theme.text }]}>Activity Overview</Text>
-        <LineChart
-          data={chartData}
-          width={Dimensions.get("window").width - 32}
-          height={220}
-          chartConfig={{
-            backgroundColor: theme.surface,
-            backgroundGradientFrom: theme.surface,
-            backgroundGradientTo: theme.surface,
-            decimalPlaces: 0,
-            color: (opacity = 1) => `rgba(134, 65, 244, ${opacity})`,
-            labelColor: (opacity = 1) => theme.textSecondary,
-            style: {
-              borderRadius: 16,
-            },
-            propsForDots: {
-              r: "6",
-              strokeWidth: "2",
-              stroke: "#ffa726",
-            },
-          }}
-          bezier
-          style={{
-            marginVertical: 8,
-            borderRadius: 16,
-          }}
-        />
-      </View>
-
-      <View style={[styles.recentActivitiesContainer, { backgroundColor: theme.surface }]}>
-        <Text style={[styles.sectionTitle, { color: theme.text }]}>Recent Activities</Text>
-        <View style={styles.noActivitiesContainer}>
-          <Text style={[styles.noActivitiesText, { color: theme.textSecondary }]}>You have no recent activities.</Text>
-          <TouchableOpacity style={[styles.startActivityButton, { backgroundColor: theme.primary }]}>
-            <Text style={[styles.startActivityButtonText, { color: theme.background }]}>Start an Activity</Text>
-          </TouchableOpacity>
-        </View>
-      </View>
     </ScrollView>
-  )
+  );
 
   const renderContent = () => {
     switch (activeTab) {
       case "STATS":
-        return renderStatsContent()
+        return renderStatsContent();
       case "ACHIEVEMENTS":
-        return <Achievements />
+        return <Achievements />;
       case "ACTIVITY":
-        return <Activity />
+        return <Activity />;
       default:
-        return null
+        return null;
     }
-  }
+  };
 
   const renderStatDetails = () => {
-    if (!selectedStat) return null
+    if (!selectedStat) return null;
 
     return (
-      <View style={[styles.statDetailsOverlay, { backgroundColor: "rgba(0,0,0,0.5)" }]}>
-        <View style={[styles.statDetailsContainer, { backgroundColor: theme.surface }]}>
+      <View
+        style={[
+          styles.statDetailsOverlay,
+          { backgroundColor: "rgba(0,0,0,0.5)" },
+        ]}
+      >
+        <View
+          style={[
+            styles.statDetailsContainer,
+            { backgroundColor: theme.surface },
+          ]}
+        >
           <View style={styles.statDetailsHeader}>
-            <Text style={[styles.statDetailsTitle, { color: theme.text }]}>{selectedStat.label}</Text>
+            <Text style={[styles.statDetailsTitle, { color: theme.text }]}>
+              {selectedStat.label}
+            </Text>
             <TouchableOpacity
               style={[styles.closeButton, { backgroundColor: theme.border }]}
               onPress={() => setSelectedStat(null)}
             >
-              <Text style={[styles.closeButtonText, { color: theme.text }]}>Close</Text>
+              <Text style={[styles.closeButtonText, { color: theme.text }]}>
+                Close
+              </Text>
             </TouchableOpacity>
           </View>
 
@@ -212,16 +258,36 @@ const Stats = () => {
             >
               {() => (
                 <View style={styles.progressContent}>
-                  <selectedStat.icon size={32} color={selectedStat.iconColor} style={styles.statIcon} />
-                  <Text style={[styles.statDetailsValue, { color: theme.text }]}>{selectedStat.value}</Text>
-                  <Text style={[styles.statDetailsLabel, { color: theme.textSecondary }]}>{selectedStat.label}</Text>
+                  <selectedStat.icon
+                    size={32}
+                    color={selectedStat.iconColor}
+                    style={styles.statIcon}
+                  />
+                  <Text
+                    style={[styles.statDetailsValue, { color: theme.text }]}
+                  >
+                    {selectedStat.value}
+                  </Text>
+                  <Text
+                    style={[
+                      styles.statDetailsLabel,
+                      { color: theme.textSecondary },
+                    ]}
+                  >
+                    {selectedStat.label}
+                  </Text>
                 </View>
               )}
             </AnimatedCircularProgress>
 
             <Text style={styles.achievementText}>
               You've achieved{" "}
-              <Text style={[styles.achievementPercent, { color: selectedStat.iconColor }]}>
+              <Text
+                style={[
+                  styles.achievementPercent,
+                  { color: selectedStat.iconColor },
+                ]}
+              >
                 {((selectedStat.value / selectedStat.max) * 100).toFixed(1)}%
               </Text>{" "}
               of your goal!
@@ -235,19 +301,21 @@ const Stats = () => {
           </View>
         </View>
       </View>
-    )
-  }
+    );
+  };
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]}>
+    <SafeAreaView
+      style={[styles.container, { backgroundColor: theme.background }]}
+    >
       {renderHeader()}
       {renderProfileSection()}
       {renderTabs()}
       <View style={styles.contentContainer}>{renderContent()}</View>
       {renderStatDetails()}
     </SafeAreaView>
-  )
-}
+  );
+};
 
 const styles = StyleSheet.create({
   container: {
@@ -343,54 +411,13 @@ const styles = StyleSheet.create({
     fontSize: 14,
     textAlign: "center",
   },
-  chartContainer: {
-    borderRadius: 16,
-    padding: 16,
-    margin: 16,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  chartTitle: {
-    fontSize: 18,
-    fontWeight: "600",
-    marginBottom: 16,
-  },
-  recentActivitiesContainer: {
-    borderRadius: 16,
-    padding: 16,
-    margin: 16,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
+
   sectionTitle: {
     fontSize: 18,
     fontWeight: "600",
     marginBottom: 16,
   },
-  noActivitiesContainer: {
-    alignItems: "center",
-    justifyContent: "center",
-    paddingVertical: 24,
-  },
-  noActivitiesText: {
-    fontSize: 16,
-    marginBottom: 16,
-  },
-  startActivityButton: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 8,
-  },
-  startActivityButtonText: {
-    fontSize: 16,
-    fontWeight: "600",
-  },
+
   statDetailsOverlay: {
     position: "absolute",
     top: 0,
@@ -478,7 +505,6 @@ const styles = StyleSheet.create({
   scrollContent: {
     paddingBottom: 32,
   },
-})
+});
 
-export default Stats
-
+export default Stats;
