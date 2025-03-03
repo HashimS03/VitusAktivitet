@@ -1,4 +1,4 @@
-const passport = require("passport");
+/*const passport = require("passport");
 const OIDCStrategy = require("passport-azure-ad").OIDCStrategy;
 require("dotenv").config();
 
@@ -30,3 +30,4 @@ passport.deserializeUser((obj, done) => {
 });
 
 module.exports = passport;
+*/
