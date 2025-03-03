@@ -405,7 +405,7 @@ export default function Dashboard() {
               <Text
                 style={[styles.dailyStepsLabel, { color: theme.textSecondary }]}
               >
-                DAILY STEPS (Goal: {dailyGoal})
+                Daglig skritt (Mål: {dailyGoal})
               </Text>
             </View>
             <TouchableOpacity
@@ -471,11 +471,11 @@ export default function Dashboard() {
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <Text style={[styles.sectionTitle, { color: theme.text }]}>
-              Active Events
+              Aktive hendelser
             </Text>
             <TouchableOpacity onPress={() => navigation.navigate("Events")}>
               <Text style={[styles.seeAllText, { color: accentColor }]}>
-                See All
+                Se alt
               </Text>
             </TouchableOpacity>
           </View>
@@ -500,7 +500,7 @@ export default function Dashboard() {
           >
             <View style={styles.statHeader}>
               <Text style={[styles.statTitle, { color: theme.text }]}>
-                History
+                Historie
               </Text>
               <ChevronRight size={20} color={theme.textSecondary} />
             </View>
@@ -516,7 +516,7 @@ export default function Dashboard() {
               <Text
                 style={[styles.streakLabel, { color: theme.textSecondary }]}
               >
-                days
+                Dager 
               </Text>
             </View>
           </TouchableOpacity>
@@ -529,7 +529,7 @@ export default function Dashboard() {
             >
               <View style={styles.statHeader}>
                 <Text style={[styles.statTitle, { color: theme.text }]}>
-                  Rewards
+                  Gjøremål
                 </Text>
                 <Award size={20} color={theme.textSecondary} />
               </View>
