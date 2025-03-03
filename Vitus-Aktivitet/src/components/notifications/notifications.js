@@ -1,56 +1,33 @@
-"use client"
+"use client";
 
-import React, { useState, useRef, useCallback } from "react"
-import { SafeAreaView, View, Text, FlatList, TouchableOpacity, StyleSheet, Animated } from "react-native"
-import { Ionicons } from "@expo/vector-icons"
-import { useTheme } from "../context/ThemeContext"
-import { useNavigation } from "@react-navigation/native"
+import React, { useState, useRef, useCallback, useEffect, useContext } from "react";
+import {
+  SafeAreaView,
+  View,
+  Text,
+  FlatList,
+  TouchableOpacity,
+  StyleSheet,
+  Animated,
+} from "react-native";
+import { Ionicons } from "@expo/vector-icons";
+import { useTheme } from "../context/ThemeContext";
+import { useNavigation } from "@react-navigation/native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { EventContext } from "../events/EventContext";
 
-const initialNotifications = [
-  {
-    id: "1",
-    title: "New Challenge Available!",
-    description: "Join the latest running challenge.",
-    icon: "trophy",
-    time: "2h ago",
-    unread: true,
-  },
-  {
-    id: "2",
-    title: "Leaderboard Update",
-    description: "You're now in the top 5! Keep going!",
-    icon: "podium",
-    time: "5h ago",
-    unread: true,
-  },
-  {
-    id: "3",
-    title: "Event Reminder",
-    description: "Don't forget about your upcoming event!",
-    icon: "calendar",
-    time: "1d ago",
-    unread: false,
-  },
-  {
-    id: "4",
-    title: "Achievement Unlocked",
-    description: "You've reached a new milestone!",
-    icon: "ribbon",
-    time: "2d ago",
-    unread: false,
-  },
-]
+const DAILY_STEP_GOAL = 7500;
 
 const NotificationItem = React.memo(({ item, isExpanded, toggleExpand, theme, animatedHeight, unreadAnim }) => {
   const borderLeftWidth = unreadAnim.interpolate({
     inputRange: [0, 1],
     outputRange: [0, 4],
-  })
+  });
 
   const dotOpacity = unreadAnim.interpolate({
     inputRange: [0, 1],
     outputRange: [0, 1],
-  })
+  });
 
   return (
     <Animated.View
@@ -83,59 +60,223 @@ const NotificationItem = React.memo(({ item, isExpanded, toggleExpand, theme, an
             overflow: "hidden",
           }}
         >
-          <Text style={[styles.notificationDescription, { color: theme.textSecondary }]}>{item.description}</Text>
+          <Text style={[styles.notificationDescription, { color: theme.textSecondary }]}>
+            {item.description}
+          </Text>
         </Animated.View>
       </TouchableOpacity>
     </Animated.View>
-  )
-})
+  );
+});
 
 export default function Notifications() {
-  const navigation = useNavigation()
-  const { theme } = useTheme()
-  const [notifications, setNotifications] = useState(initialNotifications)
-  const [expandedId, setExpandedId] = useState(null)
+  const navigation = useNavigation();
+  const { theme } = useTheme();
+  const { activeEvents } = useContext(EventContext);
+  const [notifications, setNotifications] = useState([]);
+  const [expandedId, setExpandedId] = useState(null);
 
-  const animatedHeights = useRef({}).current
-  const unreadAnims = useRef({}).current
+  const animatedHeights = useRef({}).current;
+  const unreadAnims = useRef({}).current;
 
-  // Initialize animated values
-  notifications.forEach((notification) => {
-    if (!animatedHeights[notification.id]) {
-      animatedHeights[notification.id] = new Animated.Value(0)
+  // Load notifications from AsyncStorage on mount
+  useEffect(() => {
+    const loadNotifications = async () => {
+      try {
+        const storedNotifications = await AsyncStorage.getItem("notifications");
+        const loadedNotifications = storedNotifications ? JSON.parse(storedNotifications) : [];
+        
+        loadedNotifications.forEach((n) => {
+          if (!animatedHeights[n.id]) animatedHeights[n.id] = new Animated.Value(0);
+          if (!unreadAnims[n.id]) unreadAnims[n.id] = new Animated.Value(n.unread ? 1 : 0);
+        });
+
+        setNotifications(loadedNotifications);
+      } catch (error) {
+        console.error("Error loading notifications:", error);
+      }
+    };
+    loadNotifications();
+  }, [animatedHeights, unreadAnims]);
+
+  // Function to add a new notification and save to AsyncStorage
+  const addNotification = useCallback(async (title, description, icon) => {
+    const id = Math.random().toString(36).substr(2, 9);
+    const time = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+    const timestamp = Date.now();
+    const newNotification = { id, title, description, icon, time, unread: true, timestamp };
+
+    if (!animatedHeights[id]) animatedHeights[id] = new Animated.Value(0);
+    if (!unreadAnims[id]) unreadAnims[id] = new Animated.Value(1);
+
+    try {
+      const storedNotifications = await AsyncStorage.getItem("notifications");
+      const currentNotifications = storedNotifications ? JSON.parse(storedNotifications) : [];
+      const updatedNotifications = [newNotification, ...currentNotifications];
+      await AsyncStorage.setItem("notifications", JSON.stringify(updatedNotifications));
+      setNotifications(updatedNotifications);
+    } catch (error) {
+      console.error("Error adding notification:", error);
     }
-    if (!unreadAnims[notification.id]) {
-      unreadAnims[notification.id] = new Animated.Value(notification.unread ? 1 : 0)
+  }, [animatedHeights, unreadAnims]);
+
+  // Function to filter out notifications older than 24 hours and save to AsyncStorage
+  const filterExpiredNotifications = useCallback(async () => {
+    const now = Date.now();
+    const twentyFourHours = 24 * 60 * 60 * 1000;
+    try {
+      const storedNotifications = await AsyncStorage.getItem("notifications");
+      const currentNotifications = storedNotifications ? JSON.parse(storedNotifications) : [];
+      const filteredNotifications = currentNotifications.filter((n) => now - n.timestamp < twentyFourHours);
+      
+      if (filteredNotifications.length !== currentNotifications.length) {
+        await AsyncStorage.setItem("notifications", JSON.stringify(filteredNotifications));
+        setNotifications(filteredNotifications);
+      }
+    } catch (error) {
+      console.error("Error filtering notifications:", error);
     }
-  })
+  }, []);
+
+  // Monitor daily goal completion
+  useEffect(() => {
+    const checkDailyGoal = async () => {
+      const stepCount = parseInt(await AsyncStorage.getItem("stepCount") || "0", 10);
+      const dailyGoal = parseInt(await AsyncStorage.getItem("dailyGoal") || DAILY_STEP_GOAL.toString(), 10);
+      const todayString = new Date().toISOString().split("T")[0];
+      const lastGoalDate = await AsyncStorage.getItem("lastGoalDate") || "";
+
+      if (stepCount >= dailyGoal && lastGoalDate !== todayString) {
+        await addNotification(
+          "Daily Goal Completed!",
+          `You've reached your goal of ${dailyGoal} steps!`,
+          "walk"
+        );
+        await AsyncStorage.setItem("lastGoalDate", todayString);
+      }
+    };
+
+    const interval = setInterval(() => {
+      checkDailyGoal();
+      filterExpiredNotifications();
+    }, 5000);
+    return () => clearInterval(interval);
+  }, [addNotification, filterExpiredNotifications]);
+
+  // Monitor new and completed events
+  useEffect(() => {
+    const checkEvents = async () => {
+      const notifiedEvents = JSON.parse(await AsyncStorage.getItem("notifiedEvents") || "[]");
+
+      activeEvents.forEach((event) => {
+        const startKey = `event-start-${event.id}`;
+        if (!notifiedEvents.includes(startKey)) {
+          addNotification(
+            "New Event Started!",
+            `Join the ${event.title} event now!`,
+            "calendar"
+          );
+          notifiedEvents.push(startKey);
+        }
+
+        const endKey = `event-end-${event.id}`;
+        if (event.progress === 1 && !notifiedEvents.includes(endKey)) {
+          addNotification(
+            "Event Completed!",
+            `You've finished ${event.title}!`,
+            "trophy"
+          );
+          notifiedEvents.push(endKey);
+        }
+      });
+
+      await AsyncStorage.setItem("notifiedEvents", JSON.stringify(notifiedEvents));
+    };
+
+    checkEvents();
+  }, [activeEvents, addNotification]);
+
+  // Monitor achievements
+  useEffect(() => {
+    const checkAchievements = async () => {
+      const stepCount = parseInt(await AsyncStorage.getItem("stepCount") || "0", 10);
+      const currentStreak = parseInt(await AsyncStorage.getItem("currentStreak") || "0", 10);
+      const notifiedMilestones = JSON.parse(await AsyncStorage.getItem("yearlyNotifiedMilestones") || "[]");
+      const notifiedStreaks = JSON.parse(await AsyncStorage.getItem("yearlyNotifiedStreaks") || "[]");
+
+      const milestones = [5000, 10000, 15000];
+      const streakMilestones = [5, 10, 15];
+
+      milestones.forEach((milestone) => {
+        if (stepCount >= milestone && !notifiedMilestones.includes(milestone)) {
+          addNotification(
+            "Achievement Unlocked!",
+            `You've reached ${milestone} steps!`,
+            "ribbon"
+          );
+          notifiedMilestones.push(milestone);
+        }
+      });
+
+      streakMilestones.forEach((milestone) => {
+        if (currentStreak >= milestone && !notifiedStreaks.includes(milestone)) {
+          addNotification(
+            "Streak Milestone!",
+            `You've hit a ${milestone}-day streak!`,
+            "fire"
+          );
+          notifiedStreaks.push(milestone);
+        }
+      });
+
+      await AsyncStorage.setItem("yearlyNotifiedMilestones", JSON.stringify(notifiedMilestones));
+      await AsyncStorage.setItem("yearlyNotifiedStreaks", JSON.stringify(notifiedStreaks));
+    };
+
+    const interval = setInterval(checkAchievements, 5000);
+    return () => clearInterval(interval);
+  }, [addNotification]);
+
+  // Clear all notifications and update AsyncStorage
+  const clearNotifications = async () => {
+    try {
+      await AsyncStorage.setItem("notifications", JSON.stringify([]));
+      setNotifications([]);
+    } catch (error) {
+      console.error("Error clearing notifications:", error);
+    }
+  };
 
   const toggleExpand = useCallback(
     (id) => {
-      // Handle expansion animation
       setExpandedId((prevId) => {
-        const newId = prevId === id ? null : id
+        const newId = prevId === id ? null : id;
         Animated.timing(animatedHeights[id], {
           toValue: newId === id ? 1 : 0,
           duration: 300,
           useNativeDriver: false,
-        }).start()
-        return newId
-      })
+        }).start();
+        return newId;
+      });
 
-      // Handle unread animation and state
-      const notification = notifications.find((n) => n.id === id)
+      const notification = notifications.find((n) => n.id === id);
       if (notification?.unread) {
         Animated.timing(unreadAnims[id], {
           toValue: 0,
           duration: 300,
           useNativeDriver: false,
-        }).start()
-
-        setNotifications((prev) => prev.map((n) => (n.id === id ? { ...n, unread: false } : n)))
+        }).start();
+        setNotifications((prev) => {
+          const updated = prev.map((n) => (n.id === id ? { ...n, unread: false } : n));
+          AsyncStorage.setItem("notifications", JSON.stringify(updated)).catch((error) =>
+            console.error("Error updating unread status:", error)
+          );
+          return updated;
+        });
       }
     },
     [animatedHeights, unreadAnims, notifications],
-  )
+  );
 
   const renderNotification = useCallback(
     ({ item }) => (
@@ -149,7 +290,7 @@ export default function Notifications() {
       />
     ),
     [expandedId, toggleExpand, theme, animatedHeights, unreadAnims],
-  )
+  );
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]}>
@@ -167,9 +308,22 @@ export default function Notifications() {
         keyExtractor={(item) => item.id}
         renderItem={renderNotification}
         contentContainerStyle={styles.listContainer}
+        ListEmptyComponent={
+          <Text style={[styles.emptyText, { color: theme.textSecondary }]}>
+            No notifications yet
+          </Text>
+        }
       />
+      {notifications.length > 0 && (
+        <TouchableOpacity
+          style={[styles.clearButton, { backgroundColor: theme.primary }]}
+          onPress={clearNotifications}
+        >
+          <Text style={styles.clearButtonText}>Fjern Varslinger</Text>
+        </TouchableOpacity>
+      )}
     </SafeAreaView>
-  )
+  );
 }
 
 const styles = StyleSheet.create({
@@ -200,6 +354,7 @@ const styles = StyleSheet.create({
   },
   listContainer: {
     paddingTop: 16,
+    paddingBottom: 80, // Increased padding to ensure space for fixed button
   },
   notificationCard: {
     marginHorizontal: 16,
@@ -249,5 +404,23 @@ const styles = StyleSheet.create({
     borderRadius: 4,
     marginLeft: 8,
   },
-})
-
+  emptyText: {
+    textAlign: "center",
+    marginTop: 20,
+    fontSize: 16,
+  },
+  clearButton: {
+    position: "absolute",
+    bottom: 20,
+    left: 30,
+    right: 30,
+    paddingVertical: 12,
+    borderRadius: 8,
+    alignItems: "center",
+  },
+  clearButtonText: {
+    color: "#FFFFFF",
+    fontSize: 16,
+    fontWeight: "600",
+  },
+});
