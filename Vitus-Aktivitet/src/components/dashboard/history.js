@@ -18,6 +18,7 @@ import { useTheme } from "../context/ThemeContext";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { PanResponder } from "react-native";
 
+// Constants
 const screenWidth = Dimensions.get("window").width;
 const chartWidth = screenWidth - 40;
 const chartHeight = 300;
@@ -79,14 +80,12 @@ const Chart = ({ data, period, theme }) => {
           position: (Number.parseInt(label) - 1) * spacing,
         }));
     }
-
     if (period === "day") {
       return [0, 6, 12, 18].map((hour) => ({
         value: hour.toString().padStart(2, "0"),
         position: (hour * spacing * 24) / data.values.length,
       }));
     }
-
     return data.labels.map((label, index) => ({
       value: label,
       position: index * spacing,
@@ -96,7 +95,6 @@ const Chart = ({ data, period, theme }) => {
   return (
     <View>
       <Svg width={chartWidth} height={chartHeight}>
-        {/* Fjernet vertikale grid-linjer (kun horisontale linjer beholdes) */}
         {[0, data.maxValue / 2, data.maxValue].map((value, index) => (
           <React.Fragment key={index}>
             <Line
@@ -125,13 +123,10 @@ const Chart = ({ data, period, theme }) => {
             </SvgText>
           </React.Fragment>
         ))}
-
-        {/* Bars */}
         {data.values.map((value, index) => {
           const barHeight = (value / data.maxValue) * (chartHeight - 80);
           const x = leftPadding + index * spacing;
           const y = chartHeight - 40 - barHeight;
-
           return (
             <Rect
               key={index}
@@ -144,8 +139,6 @@ const Chart = ({ data, period, theme }) => {
             />
           );
         })}
-
-        {/* X-axis labels */}
         {getXAxisLabels().map((label, index) => (
           <SvgText
             key={index}
@@ -205,7 +198,7 @@ const fetchStepHistory = async (period) => {
         const hourlySteps = Array(24).fill(0);
         if (todayData) {
           const currentHour = today.getHours();
-          hourlySteps[currentHour] = total; // Plasser totale skritt i gjeldende time
+          hourlySteps[currentHour] = total;
         }
         return {
           total,
@@ -313,19 +306,105 @@ const fetchStepHistory = async (period) => {
   }
 };
 
+const calculateStreaks = async () => {
+  const today = new Date();
+  const todayString = today.toISOString().split("T")[0];
+  const allKeys = await AsyncStorage.getAllKeys();
+  const stepKeys = allKeys.filter((key) => key.startsWith("stepHistory_"));
+  const stepData = await AsyncStorage.multiGet(stepKeys);
+  const dailyGoal = JSON.parse(await AsyncStorage.getItem("dailyGoal")) || 7500;
+
+  const stepsByDate = stepData
+    .map(([key, value]) => ({
+      date: key.replace("stepHistory_", ""),
+      steps: JSON.parse(value) || 0,
+    }))
+    .sort((a, b) => new Date(a.date) - new Date(b.date));
+
+  let currentStreak = 0;
+  let bestStreak = 0;
+  let lastDate = null;
+
+  const storedStreak = await AsyncStorage.getItem("currentStreak");
+  const storedLastDate = await AsyncStorage.getItem("lastCompletionDate");
+  const storedBestStreak = await AsyncStorage.getItem("bestStreak");
+
+  currentStreak = storedStreak ? parseInt(storedStreak) : 0;
+  bestStreak = storedBestStreak ? parseInt(storedBestStreak) : 0;
+  lastDate = storedLastDate ? new Date(storedLastDate) : null;
+
+  for (let i = 0; i < stepsByDate.length; i++) {
+    const { date, steps } = stepsByDate[i];
+    const currentDate = new Date(date);
+    const isGoalMet = steps >= dailyGoal;
+
+    if (lastDate) {
+      const diffTime = currentDate - lastDate;
+      const diffDays = diffTime / (1000 * 60 * 60 * 24);
+
+      if (diffDays === 1 && isGoalMet) {
+        currentStreak += 1;
+      } else if (diffDays > 1) {
+        currentStreak = isGoalMet ? 1 : 0;
+      }
+    } else if (isGoalMet) {
+      currentStreak = 1;
+    }
+
+    if (isGoalMet) {
+      lastDate = currentDate;
+    }
+
+    bestStreak = Math.max(bestStreak, currentStreak);
+  }
+
+  const todayData = stepsByDate.find((entry) => entry.date === todayString);
+  const todaySteps = todayData ? todayData.steps : 0;
+
+  if (lastDate) {
+    const diffTime = today - lastDate;
+    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+
+    if (diffDays === 1 && todaySteps >= dailyGoal) {
+      currentStreak += 1;
+      lastDate = today;
+    } else if (diffDays > 1) {
+      currentStreak = todaySteps >= dailyGoal ? 1 : 0;
+      lastDate = todaySteps >= dailyGoal ? today : null;
+    }
+  } else if (todaySteps >= dailyGoal) {
+    currentStreak = 1;
+    lastDate = today;
+  }
+
+  await AsyncStorage.setItem("currentStreak", currentStreak.toString());
+  await AsyncStorage.setItem("bestStreak", bestStreak.toString());
+  if (lastDate) {
+    await AsyncStorage.setItem(
+      "lastCompletionDate",
+      lastDate.toISOString().split("T")[0]
+    );
+  }
+
+  return { currentStreak, bestStreak };
+};
+
 const HistoryScreen = () => {
   const navigation = useNavigation();
   const [selectedPeriod, setSelectedPeriod] = useState("day");
   const [tooltipVisible, setTooltipVisible] = useState(false);
   const [tooltipData, setTooltipData] = useState(null);
   const [periodData, setPeriodData] = useState(null);
+  const [streaks, setStreaks] = useState({ currentStreak: 0, bestStreak: 0 });
   const tooltipPosition = useRef(new Animated.ValueXY()).current;
   const { theme } = useTheme();
 
   useEffect(() => {
     const loadData = async () => {
       const data = await fetchStepHistory(selectedPeriod);
+      const streakData = await calculateStreaks();
       setPeriodData(data);
+      setStreaks(streakData);
     };
     loadData();
   }, [selectedPeriod]);
@@ -501,7 +580,9 @@ const HistoryScreen = () => {
         </View>
         <View style={[styles.summaryItem, { backgroundColor: theme.surface }]}>
           <MaterialCommunityIcons name="fire" size={20} color={theme.primary} />
-          <Text style={[styles.summaryValue, { color: theme.text }]}>25</Text>
+          <Text style={[styles.summaryValue, { color: theme.text }]}>
+            {streaks.bestStreak}
+          </Text>
           <Text style={[styles.summaryLabel, { color: theme.text }]}>
             Best streak
           </Text>
