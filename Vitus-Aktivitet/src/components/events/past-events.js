@@ -22,9 +22,9 @@ const PastEvents = () => {
         />
 
         {/* No Events Message */}
-        <Text style={[styles.noEventTitle, { color: theme.text }]}>No Past Event</Text>
+        <Text style={[styles.noEventTitle, { color: theme.text }]}>Ingen tidligere hendelser</Text>
         <Text style={[styles.noEventSubtitle, { color: theme.textSecondary }]}>
-          Det er desverre ingen tidligere hendelser per nå...
+          Det er desverre ingen tidligere hendelser per nå. 
         </Text>
       </View>
     </SafeAreaView>
