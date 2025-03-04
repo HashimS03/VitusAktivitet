@@ -618,7 +618,7 @@ const NewEvent = ({ route }) => {
                 </TouchableOpacity>
               ))}
             </View>
-            {eventDetails.eventType === "i" && (
+            {eventDetails.eventType === "individual" && (
               <>
                 {renderInput(
                   "Antall deltakere",
