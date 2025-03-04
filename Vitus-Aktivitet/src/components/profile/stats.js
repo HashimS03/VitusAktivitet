@@ -58,7 +58,7 @@ const Stats = () => {
     {
       icon: BarChart2,
       value: 99,
-      label: "Leaderboard",
+      label: "Ledertavle",
       iconColor: "#007AFF",
       iconBgColor: "#E5F1FF",
       max: 100,
@@ -66,7 +66,7 @@ const Stats = () => {
     {
       icon: Check,
       value: 83,
-      label: "Completed Events",
+      label: "Utførte hendelser",
       iconColor: "#34C759",
       iconBgColor: "#E8F7EB",
       max: 100,
@@ -74,7 +74,7 @@ const Stats = () => {
     {
       icon: TrendingUp,
       value: 86,
-      label: "Daily goal",
+      label: "Daglige mål",
       iconColor: "#FF3B30",
       iconBgColor: "#FFE5E5",
       max: 100,
@@ -82,7 +82,7 @@ const Stats = () => {
     {
       icon: Award,
       value: 12,
-      label: "Achievements",
+      label: "Gjøremål",
       iconColor: "#5856D6",
       iconBgColor: "#EAEAFF",
       max: 50,
@@ -90,7 +90,7 @@ const Stats = () => {
     {
       icon: Calendar,
       value: 28,
-      label: "Active Days",
+      label: "Aktive dager",
       iconColor: "#FF2D55",
       iconBgColor: "#FFE5ED",
       max: 30,
@@ -241,7 +241,7 @@ const Stats = () => {
               onPress={() => setSelectedStat(null)}
             >
               <Text style={[styles.closeButtonText, { color: theme.text }]}>
-                Close
+                Lukk
               </Text>
             </TouchableOpacity>
           </View>
@@ -281,7 +281,7 @@ const Stats = () => {
             </AnimatedCircularProgress>
 
             <Text style={styles.achievementText}>
-              You've achieved{" "}
+              Du har nådd{" "}
               <Text
                 style={[
                   styles.achievementPercent,
@@ -290,12 +290,12 @@ const Stats = () => {
               >
                 {((selectedStat.value / selectedStat.max) * 100).toFixed(1)}%
               </Text>{" "}
-              of your goal!
+              av ditt mål!
             </Text>
 
             <View style={[styles.goalPill, { backgroundColor: theme.border }]}>
               <Text style={[styles.goalText, { color: theme.textSecondary }]}>
-                Goal: {selectedStat.max} {selectedStat.label}
+                Mål: {selectedStat.max} {selectedStat.label}
               </Text>
             </View>
           </View>

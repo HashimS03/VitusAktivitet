@@ -15,72 +15,72 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 
 // 🎖️ Trophy Data
 export const trophyData = {
-  "Step Master": {
+  "Skritt Mester": {
     id: "1",
-    name: "Step Master",
-    description: "Excel in daily steps",
+    name: "Skritt Mester",
+    description: "Kom videre med daglige skritt",
     levels: [
-      { level: 1, requirement: "5,000 steps in a day", goal: 5000, icon: "🥉" },
-      { level: 2, requirement: "10,000 steps in a day", goal: 10000, icon: "🥈" },
-      { level: 3, requirement: "15,000 steps in a day", goal: 15000, icon: "🥇" },
+      { level: 1, requirement: "5,000 skritt på en dag", goal: 5000, icon: "🥉" },
+      { level: 2, requirement: "10,000 skritt på en dag", goal: 10000, icon: "🥈" },
+      { level: 3, requirement: "15,000 skritt på en dag", goal: 15000, icon: "🥇" },
     ],
   },
-  "Event Enthusiast": {
+  "Hendelses Soldat": {
     id: "2",
-    name: "Event Enthusiast",
-    description: "Join the action",
+    name: "Hendelses Soldat",
+    description: "Bli med på aktiviteter",
     levels: [
-      { level: 1, requirement: "Participate in 1 event", goal: 1, icon: "🥉" },
-      { level: 2, requirement: "Participate in 5 events", goal: 5, icon: "🥈" },
-      { level: 3, requirement: "Participate in 10 events", goal: 10, icon: "🥇" },
+      { level: 1, requirement: "Deltatt på 1 hendelse", goal: 1, icon: "🥉" },
+      { level: 2, requirement: "Deltatt på 5 hendelse", goal: 5, icon: "🥈" },
+      { level: 3, requirement: "Deltatt på 10 hendelse", goal: 10, icon: "🥇" },
     ],
   },
-  "Streak Star": {
+  "Streak": {
     id: "3",
-    name: "Streak Star",
-    description: "Maintain your streaks",
+    name: "Streak",
+    description: "Hold streaken gående",
     levels: [
-      { level: 1, requirement: "5-day streak", goal: 5, icon: "🥉" },
-      { level: 2, requirement: "10-day streak", goal: 10, icon: "🥈" },
-      { level: 3, requirement: "15-day streak", goal: 15, icon: "🥇" },
+      { level: 1, requirement: "5-dagers streak", goal: 5, icon: "🥉" },
+      { level: 2, requirement: "10-dagers streak", goal: 10, icon: "🥈" },
+      { level: 3, requirement: "15-dagers streak", goal: 15, icon: "🥇" },
     ],
   },
-  "Event Champion": {
+  "Hendleses Konge": {
     id: "4",
-    name: "Event Champion",
-    description: "Complete events with flair",
+    name: "Hendleses Konge",
+    description: "Gjennomfør hendelser best",
     levels: [
-      { level: 1, requirement: "Complete 1 event", goal: 1, icon: "🥉" },
-      { level: 2, requirement: "Complete 3 events", goal: 3, icon: "🥈" },
-      { level: 3, requirement: "Complete 5 events", goal: 5, icon: "🥇" },
+      { level: 1, requirement: "Fullfør 1 hendelse", goal: 1, icon: "🥉" },
+      { level: 2, requirement: "Fullfør 3 hendelser", goal: 3, icon: "🥈" },
+      { level: 3, requirement: "Fullfør 5 hendelser", goal: 5, icon: "🥇" },
     ],
   },
-  "Leaderboard Legend": {
+  "Ledertavle Legende": {
     id: "5",
-    name: "Leaderboard Legend",
-    description: "Climb the ranks",
+    name: "Ledertavle Legende",
+    description: "klatre til topps",
     levels: [
-      { level: 1, requirement: "Top 10 in an event", goal: 10, icon: "🥉" },
-      { level: 2, requirement: "Top 5 in an event", goal: 5, icon: "🥈" },
-      { level: 3, requirement: "Top 1 in an event", goal: 1, icon: "🥇" },
+      { level: 1, requirement: "Top 10 i en hendelse", goal: 10, icon: "🥉" },
+      { level: 2, requirement: "Top 5 i en hendelse", goal: 5, icon: "🥈" },
+      { level: 3, requirement: "Top 1 i en hendelse", goal: 1, icon: "🥇" },
     ],
   },
-  "Step Titan": {
+  "Skritt Titan": {
     id: "6",
-    name: "Step Titan",
-    description: "Conquer total steps",
+    name: "Skritt Titan",
+    description: "Hersk over skrittene",
     levels: [
-      { level: 1, requirement: "50,000 total steps", goal: 50000, icon: "🥉" },
-      { level: 2, requirement: "100,000 total steps", goal: 100000, icon: "🥈" },
-      { level: 3, requirement: "250,000 total steps", goal: 250000, icon: "🥇" },
+      { level: 1, requirement: "50,000 totalt skritt", goal: 50000, icon: "🥉" },
+      { level: 2, requirement: "100,000 totalt skritt", goal: 100000, icon: "🥈" },
+      { level: 3, requirement: "250,000 totalt skritt", goal: 250000, icon: "🥇" },
     ],
   },
-  "Privacy Sleuth": {
+  "Personverns Detektiv": {
     id: "7",
-    name: "Privacy Sleuth",
-    description: "Uncover the privacy details",
+    name: "Personverns Detektiv",
+    description: "Utforsk personvernet",
     levels: [
-      { level: 1, requirement: "Scroll to the bottom of Privacy Policy", goal: 1, icon: "🥇" },
+      { level: 1, requirement: "Gå til bunnen av personvernet", goal: 1, icon: "🥇" },
     ],
   },
 };
@@ -104,37 +104,37 @@ const TrophyItem = ({ item, onPress, theme }) => {
 
         let level = 0;
         switch (item.name) {
-          case "Step Master":
+          case "Skritt Mester":
             if (stepCount >= 15000) level = 3;
             else if (stepCount >= 10000) level = 2;
             else if (stepCount >= 5000) level = 1;
             break;
-          case "Event Enthusiast":
+          case "Hendelses Soldat":
             if (participatedEvents.length >= 10) level = 3;
             else if (participatedEvents.length >= 5) level = 2;
             else if (participatedEvents.length >= 1) level = 1;
             break;
-          case "Streak Star":
+          case "Streak":
             if (currentStreak >= 15) level = 3;
             else if (currentStreak >= 10) level = 2;
             else if (currentStreak >= 5) level = 1;
             break;
-          case "Event Champion":
+          case "Hendleses Konge":
             if (completedEvents.length >= 5) level = 3;
             else if (completedEvents.length >= 3) level = 2;
             else if (completedEvents.length >= 1) level = 1;
             break;
-          case "Leaderboard Legend":
+          case "Ledertavle Legende":
             if (leaderboardRank <= 1) level = 3;
             else if (leaderboardRank <= 5) level = 2;
             else if (leaderboardRank <= 10) level = 1;
             break;
-          case "Step Titan":
+          case "Skritt Titan":
             if (totalSteps >= 250000) level = 3;
             else if (totalSteps >= 100000) level = 2;
             else if (totalSteps >= 50000) level = 1;
             break;
-          case "Privacy Sleuth":
+          case "Personverns Detektiv":
             if (privacyExplored) level = 1;
             break;
           default:
@@ -150,7 +150,7 @@ const TrophyItem = ({ item, onPress, theme }) => {
 
   const getTrophyColor = () => {
     if (unlockedLevel === 0) return theme.textSecondary; // Gray for uncompleted
-    if (unlockedLevel === 1 && item.name !== "Privacy Sleuth") return "#CD7F32"; // Bronze
+    if (unlockedLevel === 1 && item.name !== "Personverns Detektiv") return "#CD7F32"; // Bronze
     if (unlockedLevel === 2) return "#C0C0C0"; // Silver
     return "#FFD700"; // Gold
   };
