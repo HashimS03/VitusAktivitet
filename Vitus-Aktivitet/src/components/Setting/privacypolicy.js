@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useRef } from "react";
 import {
   View,
   Text,
@@ -9,26 +9,39 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
-import { useTheme } from "../context/ThemeContext"; // 🌙 Import Theme Support
+import { useTheme } from "../context/ThemeContext";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 const PrivacyPolicy = () => {
   const navigation = useNavigation();
-  const { theme } = useTheme(); // 🌙 Get Theme
+  const { theme } = useTheme();
+  const scrollViewRef = useRef(null);
+
+  const handleScroll = async (event) => {
+    const { layoutMeasurement, contentOffset, contentSize } = event.nativeEvent;
+    const isAtBottom = layoutMeasurement.height + contentOffset.y >= contentSize.height - 20; // 20px tolerance
+    if (isAtBottom) {
+      await AsyncStorage.setItem("privacyExplored", "true");
+    }
+  };
 
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
       {/* Header Section */}
       <View style={[styles.headerWrapper, { borderBottomColor: theme.border }]}>
-        {/* Back Button */}
         <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
           <Ionicons name="chevron-back" size={28} color={theme.text} />
         </TouchableOpacity>
-
-        {/* Header Title */}
         <Text style={[styles.header, { color: theme.text }]}>Personvern & Retningslinjer</Text>
       </View>
 
-      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        ref={scrollViewRef}
+        onScroll={handleScroll}
+        scrollEventThrottle={16}
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+      >
         <Text style={[styles.sectionTitle, { color: theme.text }]}>1. Innledning</Text>
         <Text style={[styles.paragraph, { color: theme.textSecondary }]}>
           Vi verdsetter ditt personvern og streber etter å beskytte dine personlige data.
@@ -86,7 +99,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     height: 60,
-    marginTop: Platform.OS === "ios" ? 60 : 40, // Adjust for status bar height
+    marginTop: Platform.OS === "ios" ? 60 : 40,
     position: "relative",
   },
   backButton: {

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback, useContext } from "react";
+import { useState, useEffect, useCallback, useContext, useRef } from "react";
 import { useRoute, useFocusEffect } from "@react-navigation/native";
 import {
   SafeAreaView,
@@ -14,26 +14,49 @@ import {
   Modal,
   FlatList,
   TextInput,
+  Animated,
 } from "react-native";
-import { Users, Bell, Award, ChevronRight } from "lucide-react-native";
+import { Users, Bell, Award, ChevronRight, X } from "lucide-react-native";
 import * as Progress from "react-native-progress";
-import Svg, { Circle, Defs, LinearGradient, Stop } from "react-native-svg";
+import Svg, {
+  Circle,
+  Defs,
+  LinearGradient,
+  Stop,
+  Rect,
+} from "react-native-svg";
 import StepCounter from "../stepcounter/stepcounter";
 import { useNavigation } from "@react-navigation/native";
 import ConfettiCannon from "react-native-confetti-cannon";
 import FloatingSymbols from "../../components/BackgroundAnimation/FloatingSymbols";
 import { useTheme } from "../context/ThemeContext";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
+import { Trophy } from "lucide-react-native";
 import Color from "color";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { EventContext } from "../events/EventContext"; // Import EventContext
+import { EventContext } from "../events/EventContext";
+import { trophyData } from "../profile/achievements";
 
 const SCREEN_WIDTH = Dimensions.get("window").width;
-const DAILY_STEP_GOAL = 7500; // Standard mål, men kan endres og lagres
+const SCREEN_HEIGHT = Dimensions.get("window").height;
+const DAILY_STEP_GOAL = 7500;
 const PROGRESS_RING_SIZE = 300;
 const PROGRESS_RING_THICKNESS = 30;
 
-// Custom Progress Circle with Gradient
+// Initialiser tutorial-status globalt (kun for utvikling)
+const initializeTutorialForDev = async () => {
+  try {
+    await AsyncStorage.removeItem("hasSeenTutorial");
+    await AsyncStorage.removeItem("tutorialStep");
+    console.log("Tutorial reset for development");
+  } catch (error) {
+    console.error("❌ Feil ved initialisering av tutorial for dev:", error);
+  }
+};
+
+// Kjør dette én gang ved appstart (kun i utvikling)
+initializeTutorialForDev();
+
 const CustomProgressCircle = ({ progress, accentColor }) => {
   const radius = (PROGRESS_RING_SIZE - PROGRESS_RING_THICKNESS) / 2;
   const circumference = radius * 2 * Math.PI;
@@ -49,7 +72,6 @@ const CustomProgressCircle = ({ progress, accentColor }) => {
           <Stop offset="1" stopColor={accentColor} stopOpacity="0.8" />
         </LinearGradient>
       </Defs>
-
       <Circle
         cx={PROGRESS_RING_SIZE / 2}
         cy={PROGRESS_RING_SIZE / 2}
@@ -76,43 +98,370 @@ const CustomProgressCircle = ({ progress, accentColor }) => {
   );
 };
 
-const TutorialTooltip = ({ visible, message, onNext, position }) => {
+const EnhancedTutorial = ({
+  visible,
+  currentStep,
+  totalSteps,
+  message,
+  onNext,
+  onBack,
+  onSkip,
+  highlightPosition,
+  theme,
+  accentColor,
+}) => {
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const scaleAnim = useRef(new Animated.Value(0.9)).current;
+  const pulseAnim = useRef(new Animated.Value(1)).current;
+
+  useEffect(() => {
+    if (visible) {
+      Animated.parallel([
+        Animated.timing(fadeAnim, {
+          toValue: 1,
+          duration: 300,
+          useNativeDriver: true,
+        }),
+        Animated.timing(scaleAnim, {
+          toValue: 1,
+          duration: 300,
+          useNativeDriver: true,
+        }),
+      ]).start();
+
+      Animated.loop(
+        Animated.sequence([
+          Animated.timing(pulseAnim, {
+            toValue: 1.05,
+            duration: 500,
+            useNativeDriver: true,
+          }),
+          Animated.timing(pulseAnim, {
+            toValue: 1,
+            duration: 500,
+            useNativeDriver: true,
+          }),
+        ])
+      ).start();
+    } else {
+      fadeAnim.setValue(0);
+      scaleAnim.setValue(0.9);
+      pulseAnim.setValue(1);
+    }
+  }, [visible, currentStep]);
+
+  if (!visible) return null;
+
+  const highlightWidth = highlightPosition.width || 100;
+  const highlightHeight = highlightPosition.height || 100;
+
+  const tooltipWidth = 280;
+  const tooltipHeight = 150;
+
+  let tooltipLeft =
+    highlightPosition.left + highlightWidth / 2 - tooltipWidth / 2;
+  let tooltipTop = highlightPosition.top + highlightHeight + 20;
+
+  if (tooltipLeft < 20) tooltipLeft = 20;
+  if (tooltipLeft + tooltipWidth > SCREEN_WIDTH - 20)
+    tooltipLeft = SCREEN_WIDTH - tooltipWidth - 20;
+
+  if (tooltipTop + tooltipHeight > SCREEN_HEIGHT - 150) {
+    tooltipTop = highlightPosition.top - tooltipHeight - 20;
+  }
+  if (tooltipTop < 50)
+    tooltipTop = highlightPosition.top + highlightHeight + 20;
+
   return (
-    <Modal transparent visible={visible} animationType="fade">
-      <View style={styles.tooltipOverlay}>
-        <View style={[styles.tooltip, position]}>
-          <Text style={styles.tooltipText}>{message}</Text>
-          <TouchableOpacity style={styles.nextButton} onPress={onNext}>
-            <Text style={styles.nextButtonText}>Next</Text>
+    <View style={styles.tutorialContainer}>
+      <Svg
+        height={SCREEN_HEIGHT}
+        width={SCREEN_WIDTH}
+        style={styles.highlightSvg}
+      >
+        <Defs>
+          <LinearGradient id="highlightGradient" x1="0" y1="0" x2="1" y2="1">
+            <Stop offset="0" stopColor={accentColor} stopOpacity="0.2" />
+            <Stop offset="1" stopColor={accentColor} stopOpacity="0.15" />
+          </LinearGradient>
+          <LinearGradient id="glowGradient" x1="0" y1="0" x2="1" y2="1">
+            <Stop offset="0" stopColor={accentColor} stopOpacity="0.25" />
+            <Stop offset="1" stopColor={accentColor} stopOpacity="0" />
+          </LinearGradient>
+        </Defs>
+        <Rect
+          x="0"
+          y="0"
+          width={SCREEN_WIDTH}
+          height={SCREEN_HEIGHT}
+          fill="rgba(0,0,0,0.75)"
+          zIndex={999}
+        />
+        <Rect
+          x={highlightPosition.left - 10}
+          y={highlightPosition.top - 10}
+          width={highlightWidth + 20}
+          height={highlightHeight + 20}
+          fill="transparent"
+          stroke="transparent"
+          strokeWidth={0}
+          zIndex={1001}
+        />
+      </Svg>
+
+      <Animated.View
+        style={[
+          styles.tutorialTooltip,
+          {
+            backgroundColor: theme.surface,
+            left: tooltipLeft,
+            top: tooltipTop,
+            opacity: fadeAnim,
+            transform: [{ scale: scaleAnim }],
+            elevation: 10,
+            zIndex: 1002,
+          },
+        ]}
+      >
+        <View style={styles.tooltipHeader}>
+          <Text style={[styles.stepIndicator, { color: accentColor }]}>
+            {currentStep + 1}/{totalSteps}
+          </Text>
+          <TouchableOpacity onPress={onSkip} style={styles.skipButton}>
+            <X size={18} color={theme.textSecondary} />
           </TouchableOpacity>
         </View>
-      </View>
-    </Modal>
+        <Text style={[styles.tutorialMessage, { color: theme.text }]}>
+          {message}
+        </Text>
+        <View style={styles.tooltipFooter}>
+          {currentStep > 0 && (
+            <TouchableOpacity
+              style={[
+                styles.tutorialButton,
+                { backgroundColor: theme.border, marginRight: 8 },
+              ]}
+              onPress={onBack}
+            >
+              <Text style={[styles.tutorialButtonText, { color: theme.text }]}>
+                Tilbake
+              </Text>
+            </TouchableOpacity>
+          )}
+          <TouchableOpacity
+            style={[styles.tutorialButton, { backgroundColor: accentColor }]}
+            onPress={onNext}
+          >
+            <Text style={styles.tutorialButtonText}>
+              {currentStep < totalSteps - 1 ? "Neste" : "Fullfør"}
+            </Text>
+          </TouchableOpacity>
+        </View>
+      </Animated.View>
+    </View>
   );
+};
+
+// Streak calculation function
+const updateStreaks = async (stepCount, dailyGoal) => {
+  const today = new Date();
+  const todayString = today.toISOString().split("T")[0];
+  const storedLastDate = await AsyncStorage.getItem("lastCompletionDate");
+  const storedStreak = await AsyncStorage.getItem("currentStreak");
+
+  let currentStreak = storedStreak ? parseInt(storedStreak) : 0;
+  let lastDate = storedLastDate ? new Date(storedLastDate) : null;
+
+  if (stepCount >= dailyGoal) {
+    if (lastDate) {
+      const diffTime = today - lastDate;
+      const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+
+      if (diffDays === 1) {
+        currentStreak += 1;
+      } else if (diffDays > 1) {
+        currentStreak = 1;
+      } else if (diffDays === 0 && currentStreak === 0) {
+        currentStreak = 1;
+      }
+    } else {
+      currentStreak = 1;
+    }
+    lastDate = today;
+  } else if (lastDate) {
+    const diffTime = today - lastDate;
+    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+    if (diffDays > 1) {
+      currentStreak = 0;
+    }
+  }
+
+  await AsyncStorage.setItem("currentStreak", currentStreak.toString());
+  if (lastDate) {
+    await AsyncStorage.setItem("lastCompletionDate", lastDate.toISOString().split("T")[0]);
+  }
+
+  return currentStreak;
 };
 
 export default function Dashboard() {
   const [stepCount, setStepCount] = useState(0);
-  const [streak, setStreak] = useState(25);
+  const [streak, setStreak] = useState(0);
   const navigation = useNavigation();
   const [showCelebration, setShowCelebration] = useState(false);
   const { theme, accentColor } = useTheme();
   const [showTutorial, setShowTutorial] = useState(false);
   const [tutorialStep, setTutorialStep] = useState(0);
   const [showGoalModal, setShowGoalModal] = useState(false);
-  const [dailyGoal, setDailyGoal] = useState(DAILY_STEP_GOAL); // Dynamisk daglig mål
+  const [dailyGoal, setDailyGoal] = useState(DAILY_STEP_GOAL);
   const [newGoal, setNewGoal] = useState("");
-
-  const { activeEvents } = useContext(EventContext); // Get active events from context
-
+  const { activeEvents } = useContext(EventContext);
   const route = useRoute();
+  const scrollViewRef = useRef(null);
 
-  // Reset kun skritt-relaterte data ved appstart
+  const TOTAL_TUTORIAL_STEPS = 8;
+
+  // Randomly select a trophy and its progress
+  const [randomTrophy, setRandomTrophy] = useState(null);
+  const [unlockedLevel, setUnlockedLevel] = useState(0);
+  const [progress, setProgress] = useState({ current: 0, nextGoal: 0 });
+
+  useEffect(() => {
+    const selectRandomTrophyAndLoadProgress = async () => {
+      const trophyKeys = Object.keys(trophyData);
+      const randomIndex = Math.floor(Math.random() * trophyKeys.length);
+      const selectedTrophy = trophyData[trophyKeys[randomIndex]];
+      setRandomTrophy(selectedTrophy);
+
+      try {
+        const stepCount = parseInt(await AsyncStorage.getItem("stepCount") || "0", 10);
+        const currentStreak = parseInt(await AsyncStorage.getItem("currentStreak") || "0", 10);
+        const totalSteps = parseInt(await AsyncStorage.getItem("totalSteps") || "0", 10);
+        const participatedEvents = JSON.parse(await AsyncStorage.getItem("participatedEvents") || "[]");
+        const completedEvents = JSON.parse(await AsyncStorage.getItem("completedEvents") || "[]");
+        const leaderboardRank = parseInt(await AsyncStorage.getItem("leaderboardRank") || "999", 10);
+        const privacyExplored = (await AsyncStorage.getItem("privacyExplored")) === "true";
+
+        let level = 0;
+        let currentProgress = 0;
+        let nextGoal = selectedTrophy.levels[0].goal;
+
+        switch (selectedTrophy.name) {
+          case "Step Master":
+            currentProgress = stepCount;
+            if (stepCount >= 15000) {
+              level = 3;
+              nextGoal = 15000;
+            } else if (stepCount >= 10000) {
+              level = 2;
+              nextGoal = 15000;
+            } else if (stepCount >= 5000) {
+              level = 1;
+              nextGoal = 10000;
+            } else {
+              nextGoal = 5000;
+            }
+            break;
+          case "Event Enthusiast":
+            currentProgress = participatedEvents.length;
+            if (participatedEvents.length >= 10) {
+              level = 3;
+              nextGoal = 10;
+            } else if (participatedEvents.length >= 5) {
+              level = 2;
+              nextGoal = 10;
+            } else if (participatedEvents.length >= 1) {
+              level = 1;
+              nextGoal = 5;
+            } else {
+              nextGoal = 1;
+            }
+            break;
+          case "Streak Star":
+            currentProgress = currentStreak;
+            if (currentStreak >= 15) {
+              level = 3;
+              nextGoal = 15;
+            } else if (currentStreak >= 10) {
+              level = 2;
+              nextGoal = 15;
+            } else if (currentStreak >= 5) {
+              level = 1;
+              nextGoal = 10;
+            } else {
+              nextGoal = 5;
+            }
+            break;
+          case "Event Champion":
+            currentProgress = completedEvents.length;
+            if (completedEvents.length >= 5) {
+              level = 3;
+              nextGoal = 5;
+            } else if (completedEvents.length >= 3) {
+              level = 2;
+              nextGoal = 5;
+            } else if (completedEvents.length >= 1) {
+              level = 1;
+              nextGoal = 3;
+            } else {
+              nextGoal = 1;
+            }
+            break;
+          case "Leaderboard Legend":
+            currentProgress = leaderboardRank <= 10 ? 11 - leaderboardRank : 0;
+            if (leaderboardRank <= 1) {
+              level = 3;
+              nextGoal = 10;
+            } else if (leaderboardRank <= 5) {
+              level = 2;
+              nextGoal = 5;
+            } else if (leaderboardRank <= 10) {
+              level = 1;
+              nextGoal = 5;
+            } else {
+              nextGoal = 10;
+            }
+            break;
+          case "Step Titan":
+            currentProgress = totalSteps;
+            if (totalSteps >= 250000) {
+              level = 3;
+              nextGoal = 250000;
+            } else if (totalSteps >= 100000) {
+              level = 2;
+              nextGoal = 250000;
+            } else if (totalSteps >= 50000) {
+              level = 1;
+              nextGoal = 100000;
+            } else {
+              nextGoal = 50000;
+            }
+            break;
+          case "Privacy Sleuth":
+            currentProgress = privacyExplored ? 1 : 0;
+            if (privacyExplored) {
+              level = 1;
+              nextGoal = 1;
+            } else {
+              nextGoal = 1;
+            }
+            break;
+          default:
+            level = 0;
+        }
+        setUnlockedLevel(level);
+        setProgress({ current: currentProgress, nextGoal });
+      } catch (error) {
+        console.error("Error loading trophy progress:", error);
+      }
+    };
+    selectRandomTrophyAndLoadProgress();
+  }, []);
+
   useEffect(() => {
     const resetStepData = async () => {
       try {
         console.log("🔄 Resetter skritt-relaterte data i AsyncStorage...");
-        // Fjern kun skritt-relaterte nøkkelverdier
         const allKeys = await AsyncStorage.getAllKeys();
         const stepKeys = allKeys.filter(
           (key) => key.startsWith("stepHistory_") || key === "stepCount"
@@ -120,33 +469,47 @@ export default function Dashboard() {
         if (stepKeys.length > 0) {
           await AsyncStorage.multiRemove(stepKeys);
         }
-        setStepCount(0); // Tilbakestiller stepCount til 0
+        setStepCount(0);
         console.log("✅ Skritt-data er nullstilt!");
       } catch (error) {
         console.error("❌ Feil ved nullstilling av skritt-data:", error);
       }
     };
-
     resetStepData();
-  }, []); // Kjører kun én gang ved appstart
+  }, []);
 
-  // Last inn både skritt og daglig mål ved oppstart (beholder dailyGoal)
   useEffect(() => {
     const loadData = async () => {
       try {
-        // Last inn lagret daglig mål (beholder eksisterende verdi hvis den finnes)
         const storedGoal = await AsyncStorage.getItem("dailyGoal");
-        const initialGoal = storedGoal
-          ? JSON.parse(storedGoal)
-          : DAILY_STEP_GOAL;
+        const initialGoal = storedGoal ? JSON.parse(storedGoal) : DAILY_STEP_GOAL;
         setDailyGoal(initialGoal);
         console.log("Loaded initial dailyGoal:", initialGoal);
 
-        // Last inn lagrede skritt (starter på 0 etter reset)
         const storedSteps = await AsyncStorage.getItem("stepCount");
-        const initialSteps = storedSteps ? JSON.parse(storedSteps) : 0;
+        const initialSteps = storedSteps ? parseInt(storedSteps) : 0;
         setStepCount(initialSteps);
         console.log("Loaded initial stepCount:", initialSteps);
+
+        const initialStreak = await updateStreaks(initialSteps, initialGoal);
+        setStreak(initialStreak);
+
+        const totalSteps = parseInt(await AsyncStorage.getItem("totalSteps") || "0", 10);
+        console.log("Loaded totalSteps:", totalSteps);
+
+        const hasSeenTutorial = await AsyncStorage.getItem("hasSeenTutorial");
+        const storedTutorialStep = await AsyncStorage.getItem("tutorialStep");
+
+        if (hasSeenTutorial === null) {
+          setShowTutorial(true);
+          const currentStep = storedTutorialStep
+            ? JSON.parse(storedTutorialStep)
+            : 0;
+          setTutorialStep(currentStep);
+        } else {
+          setShowTutorial(false);
+          setTutorialStep(0);
+        }
       } catch (error) {
         console.error("Error loading data:", error);
       }
@@ -162,45 +525,249 @@ export default function Dashboard() {
       const updateSteps = async () => {
         try {
           const storedSteps = await AsyncStorage.getItem("stepCount");
-          const previousSteps = storedSteps ? JSON.parse(storedSteps) : 0;
+          let previousSteps = storedSteps ? parseInt(storedSteps) : 0;
 
           if (route.params?.addedSteps) {
             console.log("🔥 Mottatt addedSteps:", route.params.addedSteps);
+            const newSteps = route.params.addedSteps; // Forventet å være 80
+            if (newSteps !== previousSteps) { // Unngå duplisering hvis verdien allerede er lagt til
+              const newStepCount = previousSteps + newSteps;
+              console.log("📊 Oppdatert stepCount:", newStepCount);
 
-            const newStepCount = previousSteps + route.params.addedSteps;
-            console.log("📊 Oppdatert stepCount:", newStepCount);
+              await AsyncStorage.setItem("stepCount", newStepCount.toString());
+              setStepCount(newStepCount);
 
-            // Lagre oppdatert total i stepCount
-            await AsyncStorage.setItem(
-              "stepCount",
-              JSON.stringify(newStepCount)
-            );
-            setStepCount(newStepCount);
+              const totalSteps = parseInt(await AsyncStorage.getItem("totalSteps") || "0", 10);
+              const newTotalSteps = totalSteps + newSteps;
+              await AsyncStorage.setItem("totalSteps", newTotalSteps.toString());
 
-            // Oppdater historikken med totale skritt (synkronisert med stepCount)
-            const today = new Date().toISOString().split("T")[0]; // Format: YYYY-MM-DD
-            const stepHistoryKey = `stepHistory_${today}`;
+              const today = new Date().toISOString().split("T")[0];
+              const stepHistoryKey = `stepHistory_${today}`;
+              await AsyncStorage.setItem(stepHistoryKey, newStepCount.toString());
+              console.log("📜 Updated history steps for today to total:", newStepCount);
 
-            // Sett historikken til å matche den nye totale stepCount
-            await AsyncStorage.setItem(
-              stepHistoryKey,
-              JSON.stringify(newStepCount)
-            );
-            console.log(
-              "📜 Updated history steps for today to total:",
-              newStepCount
-            );
+              const updatedStreak = await updateStreaks(newStepCount, dailyGoal);
+              setStreak(updatedStreak);
 
-            navigation.setParams({ addedSteps: null }); // Nullstill params
+              // Oppdater trofé-progresjon for den tilfeldige troféen
+              if (randomTrophy) {
+                let level = 0;
+                let currentProgress = 0;
+                let nextGoal = randomTrophy.levels[0].goal;
+
+                switch (randomTrophy.name) {
+                  case "Step Master":
+                    currentProgress = newStepCount;
+                    if (newStepCount >= 15000) {
+                      level = 3;
+                      nextGoal = 15000;
+                    } else if (newStepCount >= 10000) {
+                      level = 2;
+                      nextGoal = 15000;
+                    } else if (newStepCount >= 5000) {
+                      level = 1;
+                      nextGoal = 10000;
+                    } else {
+                      nextGoal = 5000;
+                    }
+                    break;
+                  case "Event Enthusiast":
+                    currentProgress = JSON.parse(await AsyncStorage.getItem("participatedEvents") || "[]").length;
+                    if (currentProgress >= 10) {
+                      level = 3;
+                      nextGoal = 10;
+                    } else if (currentProgress >= 5) {
+                      level = 2;
+                      nextGoal = 10;
+                    } else if (currentProgress >= 1) {
+                      level = 1;
+                      nextGoal = 5;
+                    } else {
+                      nextGoal = 1;
+                    }
+                    break;
+                  case "Streak Star":
+                    currentProgress = updatedStreak; // Bruk den oppdaterte streak-verdien
+                    if (currentProgress >= 15) {
+                      level = 3;
+                      nextGoal = 15;
+                    } else if (currentProgress >= 10) {
+                      level = 2;
+                      nextGoal = 15;
+                    } else if (currentProgress >= 5) {
+                      level = 1;
+                      nextGoal = 10;
+                    } else {
+                      nextGoal = 5;
+                    }
+                    break;
+                  case "Event Champion":
+                    currentProgress = JSON.parse(await AsyncStorage.getItem("completedEvents") || "[]").length;
+                    if (currentProgress >= 5) {
+                      level = 3;
+                      nextGoal = 5;
+                    } else if (currentProgress >= 3) {
+                      level = 2;
+                      nextGoal = 5;
+                    } else if (currentProgress >= 1) {
+                      level = 1;
+                      nextGoal = 3;
+                    } else {
+                      nextGoal = 1;
+                    }
+                    break;
+                  case "Leaderboard Legend":
+                    currentProgress = leaderboardRank <= 10 ? 11 - leaderboardRank : 0;
+                    if (leaderboardRank <= 1) {
+                      level = 3;
+                      nextGoal = 10;
+                    } else if (leaderboardRank <= 5) {
+                      level = 2;
+                      nextGoal = 5;
+                    } else if (leaderboardRank <= 10) {
+                      level = 1;
+                      nextGoal = 5;
+                    } else {
+                      nextGoal = 10;
+                    }
+                    break;
+                  case "Step Titan":
+                    currentProgress = totalSteps;
+                    if (currentProgress >= 250000) {
+                      level = 3;
+                      nextGoal = 250000;
+                    } else if (currentProgress >= 100000) {
+                      level = 2;
+                      nextGoal = 250000;
+                    } else if (currentProgress >= 50000) {
+                      level = 1;
+                      nextGoal = 100000;
+                    } else {
+                      nextGoal = 50000;
+                    }
+                    break;
+                  case "Privacy Sleuth":
+                    currentProgress = privacyExplored ? 1 : 0;
+                    if (privacyExplored) {
+                      level = 1;
+                      nextGoal = 1;
+                    } else {
+                      nextGoal = 1;
+                    }
+                    break;
+                  default:
+                    level = 0;
+                }
+                setUnlockedLevel(level);
+                setProgress({ current: currentProgress, nextGoal });
+              }
+
+              navigation.setParams({ addedSteps: null }); // Tøm parameteren etter bruk
+            }
           }
         } catch (error) {
           console.error("❌ Feil ved oppdatering av stepCount:", error);
         }
       };
-
       updateSteps();
-    }, [route.params])
+    }, [route.params, dailyGoal, randomTrophy])
   );
+
+  const joinEvent = async (eventId) => {
+    try {
+      const participatedEvents = JSON.parse(await AsyncStorage.getItem("participatedEvents") || "[]");
+      if (!participatedEvents.includes(eventId)) {
+        participatedEvents.push(eventId);
+        await AsyncStorage.setItem("participatedEvents", JSON.stringify(participatedEvents));
+      }
+      // Oppdater trofé-progresjon for Event-relaterte troféer
+      if (randomTrophy && ["Event Enthusiast", "Event Champion"].includes(randomTrophy.name)) {
+        const currentProgress = participatedEvents.length;
+        let level = 0;
+        let nextGoal = randomTrophy.levels[0].goal;
+
+        if (randomTrophy.name === "Event Enthusiast") {
+          if (currentProgress >= 10) {
+            level = 3;
+            nextGoal = 10;
+          } else if (currentProgress >= 5) {
+            level = 2;
+            nextGoal = 10;
+          } else if (currentProgress >= 1) {
+            level = 1;
+            nextGoal = 5;
+          } else {
+            nextGoal = 1;
+          }
+        } else if (randomTrophy.name === "Event Champion") {
+          const completedEvents = JSON.parse(await AsyncStorage.getItem("completedEvents") || "[]");
+          const completedCount = completedEvents.length;
+          if (completedCount >= 5) {
+            level = 3;
+            nextGoal = 5;
+          } else if (completedCount >= 3) {
+            level = 2;
+            nextGoal = 5;
+          } else if (completedCount >= 1) {
+            level = 1;
+            nextGoal = 3;
+          } else {
+            nextGoal = 1;
+          }
+        }
+        setUnlockedLevel(level);
+        setProgress({ current: currentProgress, nextGoal });
+      }
+    } catch (error) {
+      console.error("Error joining event:", error);
+    }
+  };
+
+  const completeEvent = async (eventId) => {
+    try {
+      const completedEvents = JSON.parse(await AsyncStorage.getItem("completedEvents") || "[]");
+      if (!completedEvents.includes(eventId)) {
+        completedEvents.push(eventId);
+        await AsyncStorage.setItem("completedEvents", JSON.stringify(completedEvents));
+      }
+      // Oppdater trofé-progresjon for Event-relaterte troféer
+      if (randomTrophy && ["Event Champion"].includes(randomTrophy.name)) {
+        const currentProgress = completedEvents.length;
+        let level = 0;
+        let nextGoal = randomTrophy.levels[0].goal;
+
+        if (randomTrophy.name === "Event Champion") {
+          if (currentProgress >= 5) {
+            level = 3;
+            nextGoal = 5;
+          } else if (currentProgress >= 3) {
+            level = 2;
+            nextGoal = 5;
+          } else if (currentProgress >= 1) {
+            level = 1;
+            nextGoal = 3;
+          } else {
+            nextGoal = 1;
+          }
+        }
+        setUnlockedLevel(level);
+        setProgress({ current: currentProgress, nextGoal });
+      }
+    } catch (error) {
+      console.error("Error completing event:", error);
+    }
+  };
+
+  useEffect(() => {
+    const checkEventCompletion = async () => {
+      activeEvents.forEach(async (event) => {
+        if (event.progress === 1) {
+          await completeEvent(event.id);
+        }
+      });
+    };
+    checkEventCompletion();
+  }, [activeEvents]);
 
   useEffect(() => {
     checkFirstTimeUser();
@@ -223,7 +790,7 @@ export default function Dashboard() {
         setShowTutorial(true);
         console.log("🎉 Førstegangsbruker! Viser tutorial...");
       } else {
-        setShowTutorial(false); // Forhindrer at tutorial vises på nytt etter reset
+        setShowTutorial(false);
       }
     } catch (error) {
       console.error("❌ Feil ved sjekking av første gangs bruker:", error);
@@ -231,83 +798,119 @@ export default function Dashboard() {
   };
 
   const handleNextTutorialStep = async () => {
-    if (tutorialStep < 6) {
-      setTutorialStep(tutorialStep + 1);
+    if (tutorialStep < TOTAL_TUTORIAL_STEPS - 1) {
+      const nextStep = tutorialStep + 1;
+      setTutorialStep(nextStep);
+      await AsyncStorage.setItem("tutorialStep", JSON.stringify(nextStep));
     } else {
       setShowTutorial(false);
-      try {
-        await AsyncStorage.setItem("hasSeenTutorial", "true");
-        console.log("Tutorial fullført! hasSeenTutorial er nå satt til 'true'");
-      } catch (error) {
-        console.error("Feil ved lagring av tutorial status:", error);
-      }
+      await AsyncStorage.setItem("hasSeenTutorial", "true");
+      await AsyncStorage.removeItem("tutorialStep");
+      await resetAppData(); // Nullstill all data når tutorialen er ferdig
     }
+  };
+
+  const handleBackTutorialStep = async () => {
+    if (tutorialStep > 0) {
+      const prevStep = tutorialStep - 1;
+      setTutorialStep(prevStep);
+      await AsyncStorage.setItem("tutorialStep", JSON.stringify(prevStep));
+    }
+  };
+
+  const handleSkipTutorial = async () => {
+    setShowTutorial(false);
+    await AsyncStorage.setItem("hasSeenTutorial", "true");
+    await AsyncStorage.removeItem("tutorialStep");
+    await resetAppData(); // Nullstill all data når tutorialen skippes
   };
 
   const getTutorialMessage = useCallback(() => {
     switch (tutorialStep) {
       case 0:
-        return "Welcome! This is your profile. Tap here to view your stats.";
+        return "👋 Velkommen! Trykk på profilikonet for å se dine statistikker. ";
       case 1:
-        return "Here you'll see your notifications.";
+        return "Her ser du varsler. Trykk på klokken for oppdateringer.";
       case 2:
-        return "This section shows your active events.";
+        return "Dette er skrittelleren din. Se dagens fremgang her.";
       case 3:
-        return "Track your daily steps and progress here!";
+        return "Endre ditt daglige mål ved å trykke på skritttallet.";
       case 4:
-        return "Here you can convert activities into steps!";
+        return "Konverter skritt fra aktiviteter ved å trykke på pluss-tegnet. ";
       case 5:
-        return "Check your step count history and highest streak!";
+        return "Dine aktive hendelser vises her. Delta for moro skyld!";
       case 6:
-        return "Check out your achievements and progress toward your next goal!";
+        return "Se din historikk og beste streak her.";
+      case 7:
+        return "Fullfør gjøremål for å låse opp belønninger!";
       default:
         return "";
     }
   }, [tutorialStep]);
 
-  const getTutorialPosition = useCallback(() => {
-    switch (tutorialStep) {
-      case 0:
-        return { top: 110, left: 40 }; // Adjusted for profile
-      case 1:
-        return { top: 110, right: 40 }; // Adjusted for notifications
-      case 2:
-        return { top: 400, left: 135 }; // Adjusted for active events
-      case 3:
-        return { top: 240, left: 25 }; // Adjusted for step tracking
-      case 4:
-        return { top: 310, left: 205 }; // Adjusted for the plus icon
-      case 5:
-        return { top: 540, left: 30 }; // Adjusted for History (Streak section)
-      case 6:
-        return { top: 515, left: 130 }; // Adjusted for Achievements (Level 2 section)
-      default:
-        return {};
-    }
+  const getTutorialHighlightPosition = useCallback(() => {
+    const positions = [
+      { left: 24, top: 16, width: 44, height: 44 }, // Profil
+      { left: SCREEN_WIDTH - 60, top: 16, width: 44, height: 44 }, // Varsler
+      { left: SCREEN_WIDTH / 2 - 150, top: 105, width: 300, height: 300 }, // Skritteller
+      { left: SCREEN_WIDTH / 2 - 50, top: 360, width: 100, height: 40 }, // Skritttall
+      { left: SCREEN_WIDTH / 2 - 22, top: 360, width: 44, height: 44 }, // Pluss-knapp
+      { left: 16, top: 400, width: SCREEN_WIDTH - 32, height: 120 }, // Aktive hendelser
+      { left: 16, top: 508, width: (SCREEN_WIDTH - 10) / 2, height: 100 }, // Historie
+      {
+        left: SCREEN_WIDTH / 2 + 8,
+        top: 508,
+        width: (SCREEN_WIDTH - 48) / 2,
+        height: 100,
+      }, // Gjøremål
+    ];
+    return positions[tutorialStep] || { left: 0, top: 0, width: 0, height: 0 };
   }, [tutorialStep]);
+
+  const resetAppData = async () => {
+    try {
+      const allKeys = await AsyncStorage.getAllKeys();
+      const keysToRemove = allKeys.filter(
+        (key) =>
+          key.startsWith("stepHistory_") ||
+          key === "stepCount" ||
+          key === "dailyGoal"
+      );
+      if (keysToRemove.length > 0) {
+        await AsyncStorage.multiRemove(keysToRemove);
+      }
+      setStepCount(0);
+      setDailyGoal(DAILY_STEP_GOAL);
+      setStreak(0); // Nullstill streak også om ønskelig
+      console.log("App data reset after tutorial completion");
+    } catch (error) {
+      console.error("❌ Feil ved nullstilling av app-data:", error);
+    }
+  };
 
   const handleHistoryPress = () => {
     navigation.navigate("History");
   };
 
   const handleSetDailyGoal = async () => {
-    const goal = parseInt(newGoal, 10);
+    const goal = Number.parseInt(newGoal, 10);
     if (!isNaN(goal) && goal > 0) {
-      try {
-        await AsyncStorage.setItem("dailyGoal", JSON.stringify(goal));
-        setDailyGoal(goal);
-        setShowGoalModal(false);
-        setNewGoal("");
-        console.log("Daily goal updated and saved:", goal);
-      } catch (error) {
-        console.error("Error saving daily goal:", error);
-      }
+      await AsyncStorage.setItem("dailyGoal", JSON.stringify(goal));
+      setDailyGoal(goal);
+      setShowGoalModal(false);
+      setNewGoal("");
     }
   };
 
   const renderEventItem = ({ item }) => (
     <TouchableOpacity
-      style={[styles.eventCard, { backgroundColor: theme.surface }]}
+      style={[
+        styles.eventCard,
+        {
+          backgroundColor: theme.surface,
+          zIndex: tutorialStep === 5 ? 1001 : 0,
+        },
+      ]}
       onPress={() =>
         navigation.navigate("Events", {
           screen: "ActiveEvent",
@@ -352,17 +955,27 @@ export default function Dashboard() {
   const renderEmptyEventCard = () => (
     <View style={[styles.eventCard, { backgroundColor: theme.surface }]}>
       <Text style={[styles.eventTitle, { color: theme.textSecondary }]}>
-        No Events Created
+        Ingen hendelser opprettet
       </Text>
     </View>
   );
+
+  const getTrophyColor = () => {
+    if (unlockedLevel === 0) return theme.textSecondary;
+    if (unlockedLevel === 1 && randomTrophy?.name !== "Privacy Sleuth") return "#CD7F32";
+    if (unlockedLevel === 2) return "#C0C0C0";
+    return "#FFD700";
+  };
 
   return (
     <SafeAreaView
       style={[styles.container, { backgroundColor: theme.background }]}
     >
       <FloatingSymbols />
-      <ScrollView contentContainerStyle={styles.scrollContent}>
+      <ScrollView
+        ref={scrollViewRef}
+        contentContainerStyle={styles.scrollContent}
+      >
         {showCelebration && (
           <ConfettiCannon
             count={200}
@@ -372,54 +985,84 @@ export default function Dashboard() {
         )}
         <View style={styles.header}>
           <TouchableOpacity
-            style={[styles.iconButton, { backgroundColor: theme.surface }]}
+            style={[
+              styles.iconButton,
+              {
+                backgroundColor: theme.surface,
+                zIndex: tutorialStep === 0 ? 1001 : 0,
+              },
+            ]}
             onPress={() => navigation.navigate("Stats")}
           >
             <Users size={24} color={theme.textSecondary} />
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={[styles.iconButton, { backgroundColor: theme.surface }]}
+            style={[
+              styles.iconButton,
+              {
+                backgroundColor: theme.surface,
+                zIndex: tutorialStep === 1 ? 1001 : 0,
+              },
+            ]}
             onPress={() => navigation.navigate("Notifications")}
           >
             <Bell size={24} color={theme.textSecondary} />
           </TouchableOpacity>
         </View>
 
-        <View style={styles.progressWrapper}>
-          <View style={styles.progressContainer}>
-            <CustomProgressCircle
-              progress={Math.min(stepCount / dailyGoal, 1)}
-              accentColor={accentColor}
+        <View
+          style={[
+            styles.progressContainer,
+            {
+              zIndex:
+                tutorialStep === 2 || tutorialStep === 3 || tutorialStep === 4
+                  ? 1001
+                  : 0,
+            },
+          ]}
+        >
+          <CustomProgressCircle
+            progress={Math.min(stepCount / dailyGoal, 1)}
+            accentColor={accentColor}
+          />
+          <View style={styles.progressContent}>
+            <Image
+              source={require("../../../assets/løper.png")}
+              style={styles.runnerIcon}
             />
-            <View style={styles.progressContent}>
-              <Image
-                source={require("../../../assets/løper.png")}
-                style={styles.runnerIcon}
-              />
-              <TouchableOpacity onPress={() => setShowGoalModal(true)}>
-                <Text style={[styles.stepsText, { color: accentColor }]}>
-                  {stepCount.toLocaleString()}
-                </Text>
-              </TouchableOpacity>
-              <Text
-                style={[styles.dailyStepsLabel, { color: theme.textSecondary }]}
-              >
-                Daglig skritt (Mål: {dailyGoal})
-              </Text>
-            </View>
             <TouchableOpacity
               style={[
-                styles.addButton,
-                { backgroundColor: theme.surface, borderColor: theme.border },
+                styles.stepsTouchable,
+                { zIndex: tutorialStep === 3 ? 1002 : 0 },
               ]}
-              onPress={() => navigation.navigate("ActivitySelect")}
+              onPress={() => setShowGoalModal(true)}
             >
-              <Text style={[styles.addButtonText, { color: accentColor }]}>
-                +
+              <Text style={[styles.stepsText, { color: accentColor }]}>
+                {stepCount.toLocaleString()}
               </Text>
             </TouchableOpacity>
+            <Text
+              style={[styles.dailyStepsLabel, { color: theme.textSecondary }]}
+            >
+              Daglig skritt (Mål: {dailyGoal})
+            </Text>
           </View>
+          <TouchableOpacity
+            style={[
+              styles.addButton,
+              {
+                backgroundColor: theme.surface,
+                borderColor: theme.border,
+                zIndex: tutorialStep === 4 ? 1002 : 0,
+              },
+            ]}
+            onPress={() => navigation.navigate("ActivitySelect")}
+          >
+            <Text style={[styles.addButtonText, { color: accentColor }]}>
+              +
+            </Text>
+          </TouchableOpacity>
         </View>
 
         <Modal transparent visible={showGoalModal} animationType="fade">
@@ -428,14 +1071,14 @@ export default function Dashboard() {
               style={[styles.modalContent, { backgroundColor: theme.surface }]}
             >
               <Text style={[styles.modalTitle, { color: theme.text }]}>
-                Set Daily Goal
+                Sett daglig mål
               </Text>
               <TextInput
                 style={[
                   styles.input,
                   { color: theme.text, borderColor: theme.border },
                 ]}
-                placeholder="Enter your daily goal"
+                placeholder="Skriv inn ditt daglige mål"
                 placeholderTextColor={theme.textSecondary}
                 keyboardType="numeric"
                 value={newGoal}
@@ -450,7 +1093,7 @@ export default function Dashboard() {
                   onPress={() => setShowGoalModal(false)}
                 >
                   <Text style={[styles.modalButtonText, { color: theme.text }]}>
-                    Cancel
+                    Avbryt
                   </Text>
                 </TouchableOpacity>
                 <TouchableOpacity
@@ -460,7 +1103,7 @@ export default function Dashboard() {
                   <Text
                     style={[styles.modalButtonText, { color: theme.surface }]}
                   >
-                    Save
+                    Lagre
                   </Text>
                 </TouchableOpacity>
               </View>
@@ -468,7 +1111,9 @@ export default function Dashboard() {
           </View>
         </Modal>
 
-        <View style={styles.section}>
+        <View
+          style={[styles.section, { zIndex: tutorialStep === 5 ? 1001 : 0 }]}
+        >
           <View style={styles.sectionHeader}>
             <Text style={[styles.sectionTitle, { color: theme.text }]}>
               Aktive hendelser
@@ -495,7 +1140,13 @@ export default function Dashboard() {
 
         <View style={styles.statsContainer}>
           <TouchableOpacity
-            style={[styles.statCard, { backgroundColor: theme.surface }]}
+            style={[
+              styles.statCard,
+              {
+                backgroundColor: theme.surface,
+                zIndex: tutorialStep === 6 ? 1001 : 0,
+              },
+            ]}
             onPress={handleHistoryPress}
           >
             <View style={styles.statHeader}>
@@ -516,59 +1167,65 @@ export default function Dashboard() {
               <Text
                 style={[styles.streakLabel, { color: theme.textSecondary }]}
               >
-                Dager 
+                Dager
               </Text>
             </View>
           </TouchableOpacity>
-          <View style={[styles.statCard, { backgroundColor: theme.surface }]}>
-            <TouchableOpacity
-              style={styles.cardContent}
-              onPress={() => {
-                navigation.navigate("Stats", { initialTab: "ACHIEVEMENTS" });
-              }}
-            >
-              <View style={styles.statHeader}>
-                <Text style={[styles.statTitle, { color: theme.text }]}>
-                  Gjøremål
-                </Text>
-                <Award size={20} color={theme.textSecondary} />
-              </View>
+          <TouchableOpacity
+            style={[
+              styles.statCard,
+              {
+                backgroundColor: theme.surface,
+                zIndex: tutorialStep === 7 ? 1001 : 0,
+              },
+            ]}
+            onPress={() =>
+              navigation.navigate("Stats", { initialTab: "ACHIEVEMENTS" })
+            }
+          >
+            <View style={styles.statHeader}>
+              <Text style={[styles.statTitle, { color: theme.text }]}>
+                Gjøremål
+              </Text>
+              <Award size={20} color={theme.textSecondary} />
+            </View>
+            {randomTrophy && (
               <View style={styles.rewardContent}>
-                <Text style={[styles.levelText, { color: theme.text }]}>
-                  Step Streaker
-                </Text>
-                <Text
-                  style={[styles.pointsText, { color: theme.textSecondary }]}
-                >
-                  1000/5000 Steps
-                </Text>
-                <View style={styles.levelProgress}>
-                  <View
-                    style={[
-                      styles.progressBarContainer,
-                      { backgroundColor: theme.border },
-                    ]}
-                  >
-                    <View
-                      style={[
-                        styles.progressBar,
-                        { backgroundColor: accentColor, width: "20%" },
-                      ]}
-                    />
-                  </View>
+                <View style={styles.trophyProgressHeader}>
+                  <Trophy size={20} color={getTrophyColor()} />
+                  <Text style={[styles.levelText, { color: theme.text }]}>{randomTrophy.name}</Text>
                 </View>
+                <Progress.Bar
+                  progress={progress.current / progress.nextGoal}
+                  width={null}
+                  color={accentColor}
+                  unfilledColor={theme.border}
+                  borderWidth={0}
+                  height={6}
+                  borderRadius={3}
+                  style={styles.levelProgress}
+                />
+                <Text style={[styles.progressText, { color: theme.textSecondary }]}>
+                  {progress.current}/{progress.nextGoal}
+                </Text>
               </View>
-            </TouchableOpacity>
-          </View>
+            )}
+          </TouchableOpacity>
         </View>
 
         <StepCounter setStepCount={setStepCount} />
 
-        <TutorialTooltip
+        <EnhancedTutorial
           visible={showTutorial}
+          currentStep={tutorialStep}
+          totalSteps={TOTAL_TUTORIAL_STEPS}
           message={getTutorialMessage()}
           onNext={handleNextTutorialStep}
-          position={getTutorialPosition()}
+          onBack={handleBackTutorialStep}
+          onSkip={handleSkipTutorial}
+          highlightPosition={getTutorialHighlightPosition()}
+          theme={theme}
+          accentColor={accentColor}
         />
       </ScrollView>
     </SafeAreaView>
@@ -588,9 +1245,6 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     alignItems: "center",
     padding: 16,
-  },
-  headerIcons: {
-    flexDirection: "row",
   },
   iconButton: {
     padding: 12,
@@ -627,6 +1281,9 @@ const styles = StyleSheet.create({
     fontSize: 14,
     marginTop: 4,
   },
+  stepsTouchable: {
+    zIndex: 0,
+  },
   section: {
     marginBottom: 20,
     paddingHorizontal: 16,
@@ -643,11 +1300,6 @@ const styles = StyleSheet.create({
   },
   seeAllText: {
     fontSize: 14,
-  },
-  eventList: {
-    paddingBottom: 16,
-    borderColor: "red", // Debugging
-    borderWidth: 2,
   },
   eventCard: {
     flexDirection: "row",
@@ -731,10 +1383,15 @@ const styles = StyleSheet.create({
   rewardContent: {
     alignItems: "flex-start",
   },
-  levelText: {
-    fontSize: 18,
-    fontWeight: "600",
+  trophyProgressHeader: {
+    flexDirection: "row",
+    alignItems: "center",
     marginBottom: 4,
+  },
+  levelText: {
+    fontSize: 14,
+    fontWeight: "600",
+    marginLeft: 8,
   },
   pointsText: {
     fontSize: 14,
@@ -742,15 +1399,7 @@ const styles = StyleSheet.create({
   },
   levelProgress: {
     width: "100%",
-  },
-  progressBarContainer: {
-    height: 8,
-    borderRadius: 4,
-    overflow: "hidden",
-  },
-  progressBar: {
-    height: "100%",
-    borderRadius: 4,
+    marginBottom: 8,
   },
   addButton: {
     position: "absolute",
@@ -767,30 +1416,63 @@ const styles = StyleSheet.create({
   addButtonText: {
     fontSize: 24,
   },
-  tooltipOverlay: {
-    flex: 1,
-    backgroundColor: "rgba(0, 0, 0, 0.5)",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  tooltip: {
-    backgroundColor: "white",
-    padding: 16,
-    borderRadius: 8,
-    maxWidth: 250,
+  tutorialContainer: {
     position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    zIndex: 1000,
   },
-  tooltipText: {
-    fontSize: 16,
+  highlightSvg: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    zIndex: 999,
+  },
+  tutorialTooltip: {
+    position: "absolute",
+    width: 280,
+    borderRadius: 12,
+    padding: 16,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 12,
+    zIndex: 1002,
+  },
+  tooltipHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
     marginBottom: 12,
   },
-  nextButton: {
-    alignSelf: "flex-end",
-    padding: 8,
-  },
-  nextButtonText: {
-    color: "#50C3AA",
+  stepIndicator: {
+    fontSize: 14,
     fontWeight: "bold",
+  },
+  skipButton: {
+    padding: 4,
+  },
+  tutorialMessage: {
+    fontSize: 16,
+    lineHeight: 22,
+    marginBottom: 16,
+  },
+  tooltipFooter: {
+    flexDirection: "row",
+    justifyContent: "flex-end",
+    alignItems: "center",
+  },
+  tutorialButton: {
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+  },
+  tutorialButtonText: {
+    color: "white",
+    fontWeight: "600",
+    fontSize: 14,
   },
   modalOverlay: {
     flex: 1,
