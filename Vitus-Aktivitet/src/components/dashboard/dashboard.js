@@ -27,7 +27,7 @@ import Svg, {
 } from "react-native-svg";
 import StepCounter from "../stepcounter/stepcounter";
 import { useNavigation } from "@react-navigation/native";
-import ConfettiCannon from "react-native-confetti-cannon";
+
 import FloatingSymbols from "../../components/BackgroundAnimation/FloatingSymbols";
 import { useTheme } from "../context/ThemeContext";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
@@ -311,7 +311,6 @@ export default function Dashboard() {
   const [stepCount, setStepCount] = useState(0);
   const [streak, setStreak] = useState(0);
   const navigation = useNavigation();
-  const [showCelebration, setShowCelebration] = useState(false);
   const { theme, accentColor } = useTheme();
   const [showTutorial, setShowTutorial] = useState(false);
   const [tutorialStep, setTutorialStep] = useState(0);
@@ -481,18 +480,26 @@ export default function Dashboard() {
   useEffect(() => {
     const resetStepData = async () => {
       try {
-        console.log("🔄 Resetter skritt-relaterte data i AsyncStorage...");
-        const allKeys = await AsyncStorage.getAllKeys();
-        const stepKeys = allKeys.filter(
-          (key) => key.startsWith("stepHistory_") || key === "stepCount"
+        console.log(
+          "🔄 Resetter skritt- og streak-relaterte data i AsyncStorage..."
         );
-        if (stepKeys.length > 0) {
-          await AsyncStorage.multiRemove(stepKeys);
+        const allKeys = await AsyncStorage.getAllKeys();
+        const keysToReset = allKeys.filter(
+          (key) =>
+            key.startsWith("stepHistory_") ||
+            key === "stepCount" ||
+            key === "currentStreak" || // Legg til streak
+            key === "lastCompletionDate" || // Legg til siste fullføringsdato
+            key === "bestStreak" // Legg til best streak
+        );
+        if (keysToReset.length > 0) {
+          await AsyncStorage.multiRemove(keysToReset);
         }
         setStepCount(0);
-        console.log("✅ Skritt-data er nullstilt!");
+        setStreak(0); // Sett streak til 0 i state også
+        console.log("✅ Skritt- og streak-data er nullstilt!");
       } catch (error) {
-        console.error("❌ Feil ved nullstilling av skritt-data:", error);
+        console.error("❌ Feil ved nullstilling av data:", error);
       }
     };
     resetStepData();
@@ -835,13 +842,6 @@ export default function Dashboard() {
     console.log("🚀 Appen kjører!");
   }, []);
 
-  useEffect(() => {
-    if (stepCount >= dailyGoal && !showCelebration) {
-      setShowCelebration(true);
-      setTimeout(() => setShowCelebration(false), 4000);
-    }
-  }, [stepCount, dailyGoal, showCelebration]);
-
   const checkFirstTimeUser = async () => {
     try {
       console.log("🔍 Sjekker hasSeenTutorial i AsyncStorage...");
@@ -1086,13 +1086,6 @@ export default function Dashboard() {
         ref={scrollViewRef}
         contentContainerStyle={styles.scrollContent}
       >
-        {showCelebration && (
-          <ConfettiCannon
-            count={200}
-            origin={{ x: SCREEN_WIDTH / 2, y: 0 }}
-            fadeOut={true}
-          />
-        )}
         <View style={styles.header}>
           <TouchableOpacity
             style={[

@@ -1,18 +1,14 @@
 import React from "react";
-import { 
-  View, 
-  Text,
-  Image, 
-  StyleSheet, 
-  SafeAreaView 
-} from "react-native";
+import { View, Text, Image, StyleSheet, SafeAreaView } from "react-native";
 import { useTheme } from "../context/ThemeContext"; // Import Theme Context
 
 const PastEvents = () => {
   const { theme } = useTheme();
 
   return (
-    <SafeAreaView style={[styles.safeArea, { backgroundColor: theme.background }]}>
+    <SafeAreaView
+      style={[styles.safeArea, { backgroundColor: theme.background }]}
+    >
       <View style={styles.content}>
         {/* No Events Illustration */}
         <Image
@@ -22,9 +18,11 @@ const PastEvents = () => {
         />
 
         {/* No Events Message */}
-        <Text style={[styles.noEventTitle, { color: theme.text }]}>Ingen tidligere hendelser</Text>
+        <Text style={[styles.noEventTitle, { color: theme.text }]}>
+          Ingen hendelser
+        </Text>
         <Text style={[styles.noEventSubtitle, { color: theme.textSecondary }]}>
-          Det er desverre ingen tidligere hendelser per nå. 
+          Det er desverre ingen tidligere hendelser per nå.
         </Text>
       </View>
     </SafeAreaView>
