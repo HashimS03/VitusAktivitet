@@ -257,8 +257,8 @@ const TrophyDetails = () => {
                 <View style={styles.levelTitleContainer}>
                   <Text style={[styles.levelTitle, { color: theme.text }]}>Level {level.level}</Text>
                   <Text style={[styles.medalType, { color: theme.textSecondary }]}>
-                    {level.level === 1 && trophy.name !== "Privacy Sleuth" ? "Bronze" : 
-                     level.level === 2 ? "Silver" : "Gold"}
+                    {level.level === 1 && trophy.name !== "Privacy Sleuth" ? "Bronsje" : 
+                     level.level === 2 ? "Sølv" : "Gull"}
                   </Text>
                 </View>
               </View>
