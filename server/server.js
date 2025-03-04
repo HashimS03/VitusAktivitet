@@ -1,48 +1,76 @@
 const express = require("express");
 const cors = require("cors");
-const passport = require("./auth"); // Import Azure AD authentication
 const session = require("express-session");
-const jwt = require("jsonwebtoken");
-const pool = require("./db");
+const { sql, poolPromise } = require("./db"); // Ensure database connection
 require("dotenv").config();
 
 const app = express();
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 4000;
 
 app.use(express.json());
 app.use(cors());
+// ✅ Fix: Use SESSION_SECRET instead of JWT_SECRET
 app.use(
   session({
-    secret: process.env.JWT_SECRET,
+    secret: process.env.SESSION_SECRET,
     resave: false,
     saveUninitialized: true,
   })
 );
-app.use(passport.initialize());
-app.use(passport.session());
 
-// 🔹 Azure Entra ID Login Route
-app.get("/auth/login", passport.authenticate("azuread-openidconnect"));
-
-// 🔹 Azure Entra ID Callback Route
-app.post(
-  "/auth/callback",
-  passport.authenticate("azuread-openidconnect", { failureRedirect: "/" }),
-  (req, res) => {
-    // Generate a JWT token for the user
-    const token = jwt.sign(req.user, process.env.JWT_SECRET, { expiresIn: "1h" });
-    res.json({ token, user: req.user });
-  }
-);
-
-// 🔹 Protected API Route
-app.get("/users", async (req, res) => {
+// 🔹 Route to Create an Event
+app.post("/events", async (req, res) => {
   try {
-    const users = await pool.query("SELECT * FROM users");
-    res.json(users.rows);
+    const {
+      title,
+      description,
+      activity,
+      goal,
+      start_date,
+      end_date,
+      location,
+      event_type,
+      total_participants,
+      team_count,
+      members_per_team,
+    } = req.body;
+
+    const pool = await poolPromise;
+    await pool.request()
+      .input("title", sql.NVarChar, title)
+      .input("description", sql.NVarChar, description)
+      .input("activity", sql.NVarChar, activity)
+      .input("goal", sql.Int, goal)
+      .input("start_date", sql.DateTime, start_date)
+      .input("end_date", sql.DateTime, end_date)
+      .input("location", sql.NVarChar, location)
+      .input("event_type", sql.NVarChar, event_type)
+      .input("total_participants", sql.Int, total_participants)
+      .input("team_count", sql.Int, team_count)
+      .input("members_per_team", sql.Int, members_per_team)
+      .query(`
+        INSERT INTO events 
+        (title, description, activity, goal, start_date, end_date, location, event_type, total_participants, team_count, members_per_team)
+        VALUES 
+        (@title, @description, @activity, @goal, @start_date, @end_date, @location, @event_type, @total_participants, @team_count, @members_per_team)
+      `);
+
+    res.status(201).json({ success: true, message: "Event created successfully" });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// 🔹 Route to Fetch All Events
+app.get("/events", async (req, res) => {
+  try {
+    const pool = await poolPromise;
+    const result = await pool.request().query("SELECT * FROM events");
+    res.json(result.recordset);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
+// Start Server
 app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));
