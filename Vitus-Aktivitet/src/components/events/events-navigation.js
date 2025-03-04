@@ -61,9 +61,9 @@ export default function EventsNavigation() {
             ]}
           />
           {[
-            { id: "upcoming", label: "UPCOMING" },
-            { id: "your", label: "YOUR EVENTS" },
-            { id: "past", label: "PAST EVENTS" },
+            { id: "upcoming", label: "KOMMENDE" },
+            { id: "your", label: "MINE" },
+            { id: "past", label: "TIDLIGERE" },
           ].map((tab) => (
             <TouchableOpacity
               key={tab.id}

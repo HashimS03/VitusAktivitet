@@ -6,7 +6,9 @@ const UpcomingEvents = () => {
   const { theme } = useTheme();
 
   return (
-    <SafeAreaView style={[styles.safeArea, { backgroundColor: theme.background }]}>
+    <SafeAreaView
+      style={[styles.safeArea, { backgroundColor: theme.background }]}
+    >
       <View style={styles.content}>
         {/* No Events Illustration */}
         <Image
@@ -16,9 +18,11 @@ const UpcomingEvents = () => {
         />
 
         {/* No Events Message */}
-        <Text style={[styles.noEventTitle, { color: theme.text }]}>No Upcoming Event</Text>
+        <Text style={[styles.noEventTitle, { color: theme.text }]}>
+          Ingen hendelser
+        </Text>
         <Text style={[styles.noEventSubtitle, { color: theme.textSecondary }]}>
-          Det er desverre ingen kommende hendelser per nå...
+          Ingen kommende hendelser. Hold utkikk for nye!
         </Text>
       </View>
     </SafeAreaView>

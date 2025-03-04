@@ -29,21 +29,17 @@ const YourEvents = () => {
   };
 
   const handleDeleteEvent = (eventId) => {
-    Alert.alert(
-      "Delete Event",
-      "Are you sure you want to delete this event?",
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Delete",
-          style: "destructive",
-          onPress: () => {
-            deleteEvent(eventId);
-            setMenuVisible(false);
-          },
+    Alert.alert("Delete Event", "Are you sure you want to delete this event?", [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Delete",
+        style: "destructive",
+        onPress: () => {
+          deleteEvent(eventId);
+          setMenuVisible(false);
         },
-      ]
-    );
+      },
+    ]);
   };
 
   const handleEditEvent = (event) => {
@@ -52,7 +48,9 @@ const YourEvents = () => {
   };
 
   const truncateText = (text, maxLength) => {
-    return text.length > maxLength ? text.substring(0, maxLength) + "..." : text;
+    return text.length > maxLength
+      ? text.substring(0, maxLength) + "..."
+      : text;
   };
 
   return (
@@ -77,7 +75,7 @@ const YourEvents = () => {
               color={theme.background}
             />
             <Text style={[styles.createEventText, { color: theme.background }]}>
-              Create Event
+              Opprett
             </Text>
           </TouchableOpacity>
 
@@ -91,14 +89,14 @@ const YourEvents = () => {
               color={theme.text}
             />
             <Text style={[styles.joinEventText, { color: theme.text }]}>
-              Join Event
+              Bli med
             </Text>
           </TouchableOpacity>
         </View>
 
         <View style={styles.sectionHeader}>
           <Text style={[styles.sectionTitle, { color: theme.text }]}>
-            Active Events
+            Aktive hendelser
           </Text>
         </View>
 
@@ -114,7 +112,7 @@ const YourEvents = () => {
               style={styles.emptyStateImage}
             />
             <Text style={[styles.emptyStateTitle, { color: theme.text }]}>
-              No Active Events
+              Ingen aktive hendelser
             </Text>
             <Text
               style={[
@@ -122,7 +120,7 @@ const YourEvents = () => {
                 { color: theme.textSecondary },
               ]}
             >
-              You don't have any active events at the moment.
+              Du har ingen aktive hendelser. Opprett eller bli med for å starte.
             </Text>
             <TouchableOpacity
               style={[
@@ -137,7 +135,7 @@ const YourEvents = () => {
                   { color: theme.background },
                 ]}
               >
-                Create an Event
+                Opprett hendelse
               </Text>
             </TouchableOpacity>
           </View>
@@ -195,7 +193,8 @@ const YourEvents = () => {
                       style={styles.progressBar}
                     />
                     <Text style={[styles.progressText, { color: theme.text }]}>
-                      {event.currentValue || 0} {unit} / {event.goalValue || 100} {unit}
+                      {event.currentValue || 0} {unit} /{" "}
+                      {event.goalValue || 100} {unit}
                     </Text>
                   </View>
                 </View>
@@ -235,11 +234,7 @@ const YourEvents = () => {
               style={styles.menuOption}
               onPress={() => handleDeleteEvent(selectedEvent.id)}
             >
-              <MaterialCommunityIcons
-                name="delete"
-                size={24}
-                color="#FF0000"
-              />
+              <MaterialCommunityIcons name="delete" size={24} color="#FF0000" />
               <Text style={[styles.menuOptionText, { color: "#FF0000" }]}>
                 Delete Event
               </Text>
