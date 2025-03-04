@@ -276,47 +276,104 @@ const NewEvent = ({ route }) => {
     }
   };
 
-  const createEvent = () => {
+  // Function to send event data to the backend
+  const sendEventToBackend = async (eventData) => {
+    try {
+      const response = await fetch("http://localhost:4000/events", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(eventData),
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to create event on the server");
+      }
+
+      const result = await response.json();
+      return result;
+    } catch (error) {
+      console.error("Error sending event to backend:", error);
+      Alert.alert("Feil", "Kunne ikke opprette hendelsen på serveren.");
+      throw error;
+    }
+  };
+
+  const createEvent = async () => {
     setShowConfirmModal(false);
-    const updatedEvent = {
-      ...eventDetails,
-      goalValue: Math.round(eventDetails.goalValue),
-      activityUnit: eventDetails.selectedActivity.unit,
+
+    // Combine startDate and startTime into a single DateTime
+    const startDateTime = new Date(eventDetails.startDate);
+    startDateTime.setHours(eventDetails.startTime.getHours());
+    startDateTime.setMinutes(eventDetails.startTime.getMinutes());
+
+    // Combine endDate and endTime into a single DateTime
+    const endDateTime = new Date(eventDetails.endDate);
+    endDateTime.setHours(eventDetails.endTime.getHours());
+    endDateTime.setMinutes(eventDetails.endTime.getMinutes());
+
+    const eventData = {
+      title: eventDetails.title,
+      description: eventDetails.description,
+      activity: eventDetails.selectedActivity?.name || "",
+      goal: Math.round(eventDetails.goalValue),
+      start_date: startDateTime.toISOString(),
+      end_date: endDateTime.toISOString(),
+      location: eventDetails.location,
+      event_type: eventDetails.eventType,
+      total_participants: Number(eventDetails.participantCount) || 0,
+      team_count: Number(eventDetails.teamCount) || 0,
+      members_per_team: Number(eventDetails.membersPerTeam) || 0,
     };
 
-    if (updatedEvent.eventType === "individual") {
-      updatedEvent.participants = Array.from(
-        { length: Number.parseInt(updatedEvent.participantCount) },
-        (_, i) => ({
-          id: `participant_${i + 1}`,
-          name: `Deltaker ${i + 1}`,
-        })
-      );
-    } else if (updatedEvent.eventType === "team") {
-      updatedEvent.teams = Array.from(
-        { length: Number.parseInt(updatedEvent.teamCount) },
-        (_, i) => ({
-          id: `team_${i + 1}`,
-          name: `Lag ${i + 1}`,
-          members: Array.from(
-            { length: Number.parseInt(updatedEvent.membersPerTeam) },
-            (_, j) => ({
-              id: `member_${i + 1}_${j + 1}`,
-              name: `Medlem ${j + 1}`,
-            })
-          ),
-        })
-      );
-    }
+    try {
+      // Send event to backend
+      await sendEventToBackend(eventData);
 
-    if (isEditing) {
-      updateEvent(updatedEvent);
-    } else {
-      addEvent(updatedEvent);
-    }
+      // Update local context (for immediate UI feedback)
+      const updatedEvent = {
+        ...eventDetails,
+        ...eventData, // Include backend-compatible fields
+        goalValue: eventData.goal,
+        activityUnit: eventDetails.selectedActivity.unit,
+      };
 
-    // Erstatter navigasjonsstakken i stedet for å legge til ny skjerm
-    navigation.replace("ActiveEvent", { eventId: updatedEvent.id });
+      if (updatedEvent.eventType === "individual") {
+        updatedEvent.participants = Array.from(
+          { length: Number.parseInt(updatedEvent.participantCount) },
+          (_, i) => ({
+            id: `participant_${i + 1}`,
+            name: `Deltaker ${i + 1}`,
+          })
+        );
+      } else if (updatedEvent.eventType === "team") {
+        updatedEvent.teams = Array.from(
+          { length: Number.parseInt(updatedEvent.teamCount) },
+          (_, i) => ({
+            id: `team_${i + 1}`,
+            name: `Lag ${i + 1}`,
+            members: Array.from(
+              { length: Number.parseInt(updatedEvent.membersPerTeam) },
+              (_, j) => ({
+                id: `member_${i + 1}_${j + 1}`,
+                name: `Medlem ${j + 1}`,
+              })
+            ),
+          })
+        );
+      }
+
+      if (isEditing) {
+        updateEvent(updatedEvent);
+      } else {
+        addEvent(updatedEvent);
+      }
+
+      navigation.replace("ActiveEvent", { eventId: updatedEvent.id });
+    } catch (error) {
+      // Error is already handled in sendEventToBackend
+    }
   };
 
   const handleCancel = () => {
@@ -561,11 +618,15 @@ const NewEvent = ({ route }) => {
                 </TouchableOpacity>
               ))}
             </View>
-            {renderInput(
-              "Antall deltakere",
-              eventDetails.participantCount,
-              (text) => updateEventDetails("participantCount", text),
-              "Skriv inn antall deltakere"
+            {eventDetails.eventType === "i" && (
+              <>
+                {renderInput(
+                  "Antall deltakere",
+                  eventDetails.participantCount,
+                  (text) => updateEventDetails("participantCount", text),
+                  "Skriv inn antall deltakere"
+                )}
+              </>
             )}
             {eventDetails.eventType === "team" && (
               <>
