@@ -605,7 +605,7 @@ const Leaderboard = () => {
     >
       <View style={styles.overlayContent}>
         <Text style={[styles.overlayTitle, { color: theme.text || "#FFFFFF" }]}>
-          Join the Leaderboard
+          Bli med på ledertavlen
         </Text>
         <Text
           style={[
@@ -613,7 +613,7 @@ const Leaderboard = () => {
             { color: theme.textSecondary || "#B0B0B0" },
           ]}
         >
-          Participate in the leaderboard to compare your progress with others!
+          Delta på ledertavlen for å sammenligne fremgangen din med andre!
         </Text>
         <TouchableOpacity
           style={[
@@ -622,7 +622,7 @@ const Leaderboard = () => {
           ]}
           onPress={handleJoinLeaderboard}
         >
-          <Text style={styles.overlayButtonText}>Join Leaderboard</Text>
+          <Text style={styles.overlayButtonText}>Bli med</Text>
         </TouchableOpacity>
       </View>
     </BlurView>
@@ -756,7 +756,7 @@ const Leaderboard = () => {
               <Text
                 style={[styles.alertTitle, { color: theme.text || "#FFFFFF" }]}
               >
-                Join Leaderboard
+                Bli med på ledertavlen
               </Text>
               <Text
                 style={[
@@ -764,8 +764,8 @@ const Leaderboard = () => {
                   { color: theme.textSecondary || "#B0B0B0" },
                 ]}
               >
-                Would you like to join the leaderboard and compare your progress
-                with others?
+                Ønsker du å bli med på ledertavlen og dele fremgangen din med
+                andre?
               </Text>
               <View style={styles.alertButtons}>
                 <TouchableOpacity
@@ -778,7 +778,7 @@ const Leaderboard = () => {
                       { color: accentColor || "#00C2A8" },
                     ]}
                   >
-                    Close
+                    Lukk
                   </Text>
                 </TouchableOpacity>
                 <View style={styles.alertButtonSeparator} />
@@ -792,7 +792,7 @@ const Leaderboard = () => {
                       { color: accentColor || "#00C2A8" },
                     ]}
                   >
-                    Join
+                    Bli med
                   </Text>
                 </TouchableOpacity>
               </View>
