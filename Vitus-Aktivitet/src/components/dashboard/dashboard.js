@@ -298,7 +298,10 @@ const updateStreaks = async (stepCount, dailyGoal) => {
 
   await AsyncStorage.setItem("currentStreak", currentStreak.toString());
   if (lastDate) {
-    await AsyncStorage.setItem("lastCompletionDate", lastDate.toISOString().split("T")[0]);
+    await AsyncStorage.setItem(
+      "lastCompletionDate",
+      lastDate.toISOString().split("T")[0]
+    );
   }
 
   return currentStreak;
@@ -334,13 +337,30 @@ export default function Dashboard() {
       setRandomTrophy(selectedTrophy);
 
       try {
-        const stepCount = parseInt(await AsyncStorage.getItem("stepCount") || "0", 10);
-        const currentStreak = parseInt(await AsyncStorage.getItem("currentStreak") || "0", 10);
-        const totalSteps = parseInt(await AsyncStorage.getItem("totalSteps") || "0", 10);
-        const participatedEvents = JSON.parse(await AsyncStorage.getItem("participatedEvents") || "[]");
-        const completedEvents = JSON.parse(await AsyncStorage.getItem("completedEvents") || "[]");
-        const leaderboardRank = parseInt(await AsyncStorage.getItem("leaderboardRank") || "999", 10);
-        const privacyExplored = (await AsyncStorage.getItem("privacyExplored")) === "true";
+        const stepCount = parseInt(
+          (await AsyncStorage.getItem("stepCount")) || "0",
+          10
+        );
+        const currentStreak = parseInt(
+          (await AsyncStorage.getItem("currentStreak")) || "0",
+          10
+        );
+        const totalSteps = parseInt(
+          (await AsyncStorage.getItem("totalSteps")) || "0",
+          10
+        );
+        const participatedEvents = JSON.parse(
+          (await AsyncStorage.getItem("participatedEvents")) || "[]"
+        );
+        const completedEvents = JSON.parse(
+          (await AsyncStorage.getItem("completedEvents")) || "[]"
+        );
+        const leaderboardRank = parseInt(
+          (await AsyncStorage.getItem("leaderboardRank")) || "999",
+          10
+        );
+        const privacyExplored =
+          (await AsyncStorage.getItem("privacyExplored")) === "true";
 
         let level = 0;
         let currentProgress = 0;
@@ -482,7 +502,9 @@ export default function Dashboard() {
     const loadData = async () => {
       try {
         const storedGoal = await AsyncStorage.getItem("dailyGoal");
-        const initialGoal = storedGoal ? JSON.parse(storedGoal) : DAILY_STEP_GOAL;
+        const initialGoal = storedGoal
+          ? JSON.parse(storedGoal)
+          : DAILY_STEP_GOAL;
         setDailyGoal(initialGoal);
         console.log("Loaded initial dailyGoal:", initialGoal);
 
@@ -494,7 +516,10 @@ export default function Dashboard() {
         const initialStreak = await updateStreaks(initialSteps, initialGoal);
         setStreak(initialStreak);
 
-        const totalSteps = parseInt(await AsyncStorage.getItem("totalSteps") || "0", 10);
+        const totalSteps = parseInt(
+          (await AsyncStorage.getItem("totalSteps")) || "0",
+          10
+        );
         console.log("Loaded totalSteps:", totalSteps);
 
         const hasSeenTutorial = await AsyncStorage.getItem("hasSeenTutorial");
@@ -530,23 +555,39 @@ export default function Dashboard() {
           if (route.params?.addedSteps) {
             console.log("🔥 Mottatt addedSteps:", route.params.addedSteps);
             const newSteps = route.params.addedSteps; // Forventet å være 80
-            if (newSteps !== previousSteps) { // Unngå duplisering hvis verdien allerede er lagt til
+            if (newSteps !== previousSteps) {
+              // Unngå duplisering hvis verdien allerede er lagt til
               const newStepCount = previousSteps + newSteps;
               console.log("📊 Oppdatert stepCount:", newStepCount);
 
               await AsyncStorage.setItem("stepCount", newStepCount.toString());
               setStepCount(newStepCount);
 
-              const totalSteps = parseInt(await AsyncStorage.getItem("totalSteps") || "0", 10);
+              const totalSteps = parseInt(
+                (await AsyncStorage.getItem("totalSteps")) || "0",
+                10
+              );
               const newTotalSteps = totalSteps + newSteps;
-              await AsyncStorage.setItem("totalSteps", newTotalSteps.toString());
+              await AsyncStorage.setItem(
+                "totalSteps",
+                newTotalSteps.toString()
+              );
 
               const today = new Date().toISOString().split("T")[0];
               const stepHistoryKey = `stepHistory_${today}`;
-              await AsyncStorage.setItem(stepHistoryKey, newStepCount.toString());
-              console.log("📜 Updated history steps for today to total:", newStepCount);
+              await AsyncStorage.setItem(
+                stepHistoryKey,
+                newStepCount.toString()
+              );
+              console.log(
+                "📜 Updated history steps for today to total:",
+                newStepCount
+              );
 
-              const updatedStreak = await updateStreaks(newStepCount, dailyGoal);
+              const updatedStreak = await updateStreaks(
+                newStepCount,
+                dailyGoal
+              );
               setStreak(updatedStreak);
 
               // Oppdater trofé-progresjon for den tilfeldige troféen
@@ -572,7 +613,9 @@ export default function Dashboard() {
                     }
                     break;
                   case "Event Enthusiast":
-                    currentProgress = JSON.parse(await AsyncStorage.getItem("participatedEvents") || "[]").length;
+                    currentProgress = JSON.parse(
+                      (await AsyncStorage.getItem("participatedEvents")) || "[]"
+                    ).length;
                     if (currentProgress >= 10) {
                       level = 3;
                       nextGoal = 10;
@@ -602,7 +645,9 @@ export default function Dashboard() {
                     }
                     break;
                   case "Event Champion":
-                    currentProgress = JSON.parse(await AsyncStorage.getItem("completedEvents") || "[]").length;
+                    currentProgress = JSON.parse(
+                      (await AsyncStorage.getItem("completedEvents")) || "[]"
+                    ).length;
                     if (currentProgress >= 5) {
                       level = 3;
                       nextGoal = 5;
@@ -617,7 +662,8 @@ export default function Dashboard() {
                     }
                     break;
                   case "Leaderboard Legend":
-                    currentProgress = leaderboardRank <= 10 ? 11 - leaderboardRank : 0;
+                    currentProgress =
+                      leaderboardRank <= 10 ? 11 - leaderboardRank : 0;
                     if (leaderboardRank <= 1) {
                       level = 3;
                       nextGoal = 10;
@@ -675,13 +721,21 @@ export default function Dashboard() {
 
   const joinEvent = async (eventId) => {
     try {
-      const participatedEvents = JSON.parse(await AsyncStorage.getItem("participatedEvents") || "[]");
+      const participatedEvents = JSON.parse(
+        (await AsyncStorage.getItem("participatedEvents")) || "[]"
+      );
       if (!participatedEvents.includes(eventId)) {
         participatedEvents.push(eventId);
-        await AsyncStorage.setItem("participatedEvents", JSON.stringify(participatedEvents));
+        await AsyncStorage.setItem(
+          "participatedEvents",
+          JSON.stringify(participatedEvents)
+        );
       }
       // Oppdater trofé-progresjon for Event-relaterte troféer
-      if (randomTrophy && ["Event Enthusiast", "Event Champion"].includes(randomTrophy.name)) {
+      if (
+        randomTrophy &&
+        ["Event Enthusiast", "Event Champion"].includes(randomTrophy.name)
+      ) {
         const currentProgress = participatedEvents.length;
         let level = 0;
         let nextGoal = randomTrophy.levels[0].goal;
@@ -700,7 +754,9 @@ export default function Dashboard() {
             nextGoal = 1;
           }
         } else if (randomTrophy.name === "Event Champion") {
-          const completedEvents = JSON.parse(await AsyncStorage.getItem("completedEvents") || "[]");
+          const completedEvents = JSON.parse(
+            (await AsyncStorage.getItem("completedEvents")) || "[]"
+          );
           const completedCount = completedEvents.length;
           if (completedCount >= 5) {
             level = 3;
@@ -725,10 +781,15 @@ export default function Dashboard() {
 
   const completeEvent = async (eventId) => {
     try {
-      const completedEvents = JSON.parse(await AsyncStorage.getItem("completedEvents") || "[]");
+      const completedEvents = JSON.parse(
+        (await AsyncStorage.getItem("completedEvents")) || "[]"
+      );
       if (!completedEvents.includes(eventId)) {
         completedEvents.push(eventId);
-        await AsyncStorage.setItem("completedEvents", JSON.stringify(completedEvents));
+        await AsyncStorage.setItem(
+          "completedEvents",
+          JSON.stringify(completedEvents)
+        );
       }
       // Oppdater trofé-progresjon for Event-relaterte troféer
       if (randomTrophy && ["Event Champion"].includes(randomTrophy.name)) {
@@ -828,21 +889,69 @@ export default function Dashboard() {
   const getTutorialMessage = useCallback(() => {
     switch (tutorialStep) {
       case 0:
-        return "👋 Velkommen! Trykk på profilikonet for å se dine statistikker. ";
+        return (
+          <>
+            <Text>👋 Velkommen! </Text>
+            <Text>Trykk på </Text>
+            <Text style={{ fontWeight: "bold" }}>profilikonet</Text>
+            <Text> for å se dine statistikker.</Text>
+          </>
+        );
       case 1:
-        return "Her ser du varsler. Trykk på klokken for oppdateringer.";
+        return (
+          <>
+            <Text>Her ser du </Text>
+            <Text style={{ fontWeight: "bold" }}>varsler</Text>
+            <Text>. Trykk på klokken</Text>
+            <Text> 🔔 for oppdateringer.</Text>
+          </>
+        );
       case 2:
-        return "Dette er skrittelleren din. Se dagens fremgang her.";
+        return (
+          <>
+            <Text>🚶‍♂️Dette er </Text>
+            <Text style={{ fontWeight: "bold" }}>skrittelleren</Text>
+            <Text> din. Se dagens fremgang.</Text>
+          </>
+        );
       case 3:
-        return "Endre ditt daglige mål ved å trykke på skritttallet.";
+        return (
+          <>
+            <Text>Endre ditt daglige mål 🎯 ved å trykke på </Text>
+            <Text style={{ fontWeight: "bold" }}>skritt-tallet.</Text>
+          </>
+        );
       case 4:
-        return "Konverter skritt fra aktiviteter ved å trykke på pluss-tegnet. ";
+        return (
+          <>
+            <Text>Konverter skritt fra aktiviteter ved å trykke på ➕ </Text>
+            <Text style={{ fontWeight: "bold" }}>pluss-tegnet.</Text>
+          </>
+        );
       case 5:
-        return "Dine aktive hendelser vises her. Delta for moro skyld!";
+        return (
+          <>
+            <Text>📅 Dine </Text>
+            <Text style={{ fontWeight: "bold" }}>aktive hendelser</Text>
+            <Text> vises her. Delta for moro skyld!</Text>
+          </>
+        );
       case 6:
-        return "Se din historikk og beste streak her.";
+        return (
+          <>
+            <Text>🌍 Se din </Text>
+            <Text style={{ fontWeight: "bold" }}>Skrittreise </Text>
+            <Text> her.</Text>
+          </>
+        );
       case 7:
-        return "Fullfør gjøremål for å låse opp belønninger!";
+        return (
+          <>
+            <Text>🏆 Fullfør gjøremål for å låse opp </Text>
+            <Text style={{ fontWeight: "bold" }}>belønninger</Text>
+            <Text>!</Text>
+          </>
+        );
       default:
         return "";
     }
@@ -856,7 +965,7 @@ export default function Dashboard() {
       { left: SCREEN_WIDTH / 2 - 50, top: 360, width: 100, height: 40 }, // Skritttall
       { left: SCREEN_WIDTH / 2 - 22, top: 360, width: 44, height: 44 }, // Pluss-knapp
       { left: 16, top: 400, width: SCREEN_WIDTH - 32, height: 120 }, // Aktive hendelser
-      { left: 16, top: 508, width: (SCREEN_WIDTH - 10) / 2, height: 100 }, // Historie
+      { left: 16, top: 508, width: (SCREEN_WIDTH - 10) / 2, height: 100 }, // Skrittreise
       {
         left: SCREEN_WIDTH / 2 + 8,
         top: 508,
@@ -962,7 +1071,8 @@ export default function Dashboard() {
 
   const getTrophyColor = () => {
     if (unlockedLevel === 0) return theme.textSecondary;
-    if (unlockedLevel === 1 && randomTrophy?.name !== "Privacy Sleuth") return "#CD7F32";
+    if (unlockedLevel === 1 && randomTrophy?.name !== "Privacy Sleuth")
+      return "#CD7F32";
     if (unlockedLevel === 2) return "#C0C0C0";
     return "#FFD700";
   };
@@ -1151,7 +1261,7 @@ export default function Dashboard() {
           >
             <View style={styles.statHeader}>
               <Text style={[styles.statTitle, { color: theme.text }]}>
-                Historie
+                Skrittreise
               </Text>
               <ChevronRight size={20} color={theme.textSecondary} />
             </View>
@@ -1193,7 +1303,9 @@ export default function Dashboard() {
               <View style={styles.rewardContent}>
                 <View style={styles.trophyProgressHeader}>
                   <Trophy size={20} color={getTrophyColor()} />
-                  <Text style={[styles.levelText, { color: theme.text }]}>{randomTrophy.name}</Text>
+                  <Text style={[styles.levelText, { color: theme.text }]}>
+                    {randomTrophy.name}
+                  </Text>
                 </View>
                 <Progress.Bar
                   progress={progress.current / progress.nextGoal}
@@ -1205,7 +1317,9 @@ export default function Dashboard() {
                   borderRadius={3}
                   style={styles.levelProgress}
                 />
-                <Text style={[styles.progressText, { color: theme.textSecondary }]}>
+                <Text
+                  style={[styles.progressText, { color: theme.textSecondary }]}
+                >
                   {progress.current}/{progress.nextGoal}
                 </Text>
               </View>
