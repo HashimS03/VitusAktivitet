@@ -3,3 +3,4 @@ Vitus-Aktivitet/node_modules
 .DS_Store
 Vitus-Aktivitet/.expo
 .expo
+server/.env
