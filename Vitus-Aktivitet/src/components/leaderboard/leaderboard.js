@@ -120,7 +120,7 @@ const Leaderboard = () => {
         id: "3",
         name: "Sarim",
         points: 1200,
-        department: "Finance",
+        department: "Finans",
         avatar: require("../../../assets/figure/sarim.png"),
         change: -1,
       },
