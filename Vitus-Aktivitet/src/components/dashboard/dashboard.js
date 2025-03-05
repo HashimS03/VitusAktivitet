@@ -947,9 +947,8 @@ export default function Dashboard() {
       case 7:
         return (
           <>
-            <Text>🏆 Fullfør gjøremål for å låse opp </Text>
-            <Text style={{ fontWeight: "bold" }}>belønninger</Text>
-            <Text>!</Text>
+            <Text>🏆 her finner du </Text>
+            <Text style={{ fontWeight: "bold" }}>milepæler</Text>
           </>
         );
       default:
@@ -962,16 +961,16 @@ export default function Dashboard() {
       { left: 24, top: 16, width: 44, height: 44 }, // Profil
       { left: SCREEN_WIDTH - 60, top: 16, width: 44, height: 44 }, // Varsler
       { left: SCREEN_WIDTH / 2 - 150, top: 105, width: 300, height: 300 }, // Skritteller
-      { left: SCREEN_WIDTH / 2 - 50, top: 360, width: 100, height: 40 }, // Skritttall
-      { left: SCREEN_WIDTH / 2 - 22, top: 360, width: 44, height: 44 }, // Pluss-knapp
+      { left: SCREEN_WIDTH / 2 - 150, top: 105, width: 300, height: 300 }, // Skritttall
+      { left: SCREEN_WIDTH / 2 - 150, top: 105, width: 300, height: 300 }, // Pluss-knapp
       { left: 16, top: 400, width: SCREEN_WIDTH - 32, height: 120 }, // Aktive hendelser
-      { left: 16, top: 508, width: (SCREEN_WIDTH - 10) / 2, height: 100 }, // Skrittreise
+      { left: 16, top: 320, width: (SCREEN_WIDTH - 10) / 2, height: 50 }, // Skrittreise
       {
-        left: SCREEN_WIDTH / 2 + 8,
-        top: 508,
-        width: (SCREEN_WIDTH - 48) / 2,
-        height: 100,
-      }, // Gjøremål
+        left: SCREEN_WIDTH - 16 - (SCREEN_WIDTH - 10) / 2, // Plasserer det symmetrisk på høyre side
+        top: 320,
+        width: (SCREEN_WIDTH - 10) / 2,
+        height: 50,
+      },
     ];
     return positions[tutorialStep] || { left: 0, top: 0, width: 0, height: 0 };
   }, [tutorialStep]);
@@ -1077,6 +1076,8 @@ export default function Dashboard() {
     return "#FFD700";
   };
 
+  // ... (resten av importene og koden forblir uendret frem til return-delen)
+
   return (
     <SafeAreaView
       style={[styles.container, { backgroundColor: theme.background }]}
@@ -1085,6 +1086,7 @@ export default function Dashboard() {
       <ScrollView
         ref={scrollViewRef}
         contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={true} // Vis scroll-indikator for å bekrefte at det fungerer
       >
         <View style={styles.header}>
           <TouchableOpacity
@@ -1234,7 +1236,6 @@ export default function Dashboard() {
               keyExtractor={(item) => item.id}
               horizontal
               showsHorizontalScrollIndicator={false}
-              contentContainerStyle={{ paddingBottom: 0, marginBottom: 0 }}
             />
           ) : (
             renderEmptyEventCard()
@@ -1344,8 +1345,8 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   scrollContent: {
-    flexGrow: 1,
-    paddingBottom: 20,
+    flexGrow: 1, // Lar innholdet vokse for å fylle ScrollView
+    paddingBottom: 100, // Gir ekstra plass i bunnen for å sikre at alt innhold er synlig
   },
   header: {
     flexDirection: "row",
