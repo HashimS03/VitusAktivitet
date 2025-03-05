@@ -35,7 +35,7 @@ const TrophyDetails = () => {
   const navigation = useNavigation();
   const route = useRoute();
   const { trophy } = route.params;
-  const { theme } = useTheme();
+  const { theme, isDarkMode } = useTheme(); // Added isDarkMode to handle light/dark mode
   const { activeEvents } = useContext(EventContext);
   const [unlockedLevel, setUnlockedLevel] = useState(0);
   const [progress, setProgress] = useState({ current: 0, nextGoal: 0 });
@@ -60,104 +60,52 @@ const TrophyDetails = () => {
         let nextGoal = trophyInfo.levels[0].goal;
 
         switch (trophy.name) {
-          case "Step Master":
+          case "Skritt Mester":
             currentProgress = stepCount;
-            if (stepCount >= 15000) {
-              level = 3;
-              nextGoal = 15000; // Max goal reached
-            } else if (stepCount >= 10000) {
-              level = 2;
-              nextGoal = 15000;
-            } else if (stepCount >= 5000) {
-              level = 1;
-              nextGoal = 10000;
-            } else {
-              nextGoal = 5000;
-            }
+            if (stepCount >= 15000) level = 3;
+            else if (stepCount >= 10000) level = 2;
+            else if (stepCount >= 5000) level = 1;
+            if (level < 3) nextGoal = trophyInfo.levels[level].goal || trophyInfo.levels[level + 1]?.goal || 15000;
             break;
-          case "Event Enthusiast":
+          case "Hendelses Soldat":
             currentProgress = participatedEvents.length;
-            if (participatedEvents.length >= 10) {
-              level = 3;
-              nextGoal = 10;
-            } else if (participatedEvents.length >= 5) {
-              level = 2;
-              nextGoal = 10;
-            } else if (participatedEvents.length >= 1) {
-              level = 1;
-              nextGoal = 5;
-            } else {
-              nextGoal = 1;
-            }
+            if (participatedEvents.length >= 10) level = 3;
+            else if (participatedEvents.length >= 5) level = 2;
+            else if (participatedEvents.length >= 1) level = 1;
+            if (level < 3) nextGoal = trophyInfo.levels[level].goal || trophyInfo.levels[level + 1]?.goal || 10;
             break;
-          case "Streak Star":
+          case "Streak":
             currentProgress = currentStreak;
-            if (currentStreak >= 15) {
-              level = 3;
-              nextGoal = 15;
-            } else if (currentStreak >= 10) {
-              level = 2;
-              nextGoal = 15;
-            } else if (currentStreak >= 5) {
-              level = 1;
-              nextGoal = 10;
-            } else {
-              nextGoal = 5;
-            }
+            if (currentStreak >= 15) level = 3;
+            else if (currentStreak >= 10) level = 2;
+            else if (currentStreak >= 5) level = 1;
+            if (level < 3) nextGoal = trophyInfo.levels[level].goal || trophyInfo.levels[level + 1]?.goal || 15;
             break;
-          case "Event Champion":
+          case "Hendleses Konge":
             currentProgress = completedEvents.length;
-            if (completedEvents.length >= 5) {
-              level = 3;
-              nextGoal = 5;
-            } else if (completedEvents.length >= 3) {
-              level = 2;
-              nextGoal = 5;
-            } else if (completedEvents.length >= 1) {
-              level = 1;
-              nextGoal = 3;
-            } else {
-              nextGoal = 1;
-            }
+            if (completedEvents.length >= 5) level = 3;
+            else if (completedEvents.length >= 3) level = 2;
+            else if (completedEvents.length >= 1) level = 1;
+            if (level < 3) nextGoal = trophyInfo.levels[level].goal || trophyInfo.levels[level + 1]?.goal || 5;
             break;
-          case "Leaderboard Legend":
-            currentProgress = leaderboardRank <= 10 ? 11 - leaderboardRank : 0; // Inverse rank for progress
-            if (leaderboardRank <= 1) {
-              level = 3;
-              nextGoal = 10; // Top 1 is max
-            } else if (leaderboardRank <= 5) {
-              level = 2;
-              nextGoal = 5;
-            } else if (leaderboardRank <= 10) {
-              level = 1;
-              nextGoal = 5;
-            } else {
-              nextGoal = 10;
-            }
+          case "Ledertavle Legende":
+            currentProgress = leaderboardRank <= 10 ? 11 - leaderboardRank : 0;
+            if (leaderboardRank <= 1) level = 3;
+            else if (leaderboardRank <= 5) level = 2;
+            else if (leaderboardRank <= 10) level = 1;
+            if (level < 3) nextGoal = trophyInfo.levels[level].goal || trophyInfo.levels[level + 1]?.goal || 1;
             break;
-          case "Step Titan":
+          case "Skritt Titan":
             currentProgress = totalSteps;
-            if (totalSteps >= 250000) {
-              level = 3;
-              nextGoal = 250000;
-            } else if (totalSteps >= 100000) {
-              level = 2;
-              nextGoal = 250000;
-            } else if (totalSteps >= 50000) {
-              level = 1;
-              nextGoal = 100000;
-            } else {
-              nextGoal = 50000;
-            }
+            if (totalSteps >= 250000) level = 3;
+            else if (totalSteps >= 100000) level = 2;
+            else if (totalSteps >= 50000) level = 1;
+            if (level < 3) nextGoal = trophyInfo.levels[level].goal || trophyInfo.levels[level + 1]?.goal || 250000;
             break;
-          case "Privacy Sleuth":
+          case "Personverns Detektiv":
             currentProgress = privacyExplored ? 1 : 0;
-            if (privacyExplored) {
-              level = 1;
-              nextGoal = 1;
-            } else {
-              nextGoal = 1;
-            }
+            if (privacyExplored) level = 1;
+            nextGoal = 1;
             break;
           default:
             level = 0;
@@ -192,9 +140,9 @@ const TrophyDetails = () => {
   });
 
   const getMedalColors = (level) => {
-    if (level === 1 && trophy.name !== "Privacy Sleuth") return MEDAL_COLORS.bronze;
+    if (level === 1 && trophy.name !== "Personverns Detektiv") return MEDAL_COLORS.bronze;
     if (level === 2) return MEDAL_COLORS.silver;
-    if (level === 1 && trophy.name === "Privacy Sleuth") return MEDAL_COLORS.gold;
+    if (level === 1 && trophy.name === "Personverns Detektiv") return MEDAL_COLORS.gold;
     return MEDAL_COLORS.gold;
   };
 
@@ -204,10 +152,14 @@ const TrophyDetails = () => {
   };
 
   const getTrophyColor = () => {
-    if (unlockedLevel === 0) return theme.textSecondary;
-    if (unlockedLevel === 1 && trophy.name !== "Privacy Sleuth") return "#CD7F32";
-    if (unlockedLevel === 2) return "#C0C0C0";
-    return "#FFD700";
+    return theme.textSecondary; // Keep the Trophy icon grey at all times
+  };
+
+  const getGradientColors = () => {
+    if (unlockedLevel === 0) return ["#4A4A4A", "#333333"]; // Grey gradient for uncompleted (matching dark theme)
+    if (unlockedLevel === 1 && trophy.name !== "Personverns Detektiv") return MEDAL_COLORS.bronze; // Bronze gradient
+    if (unlockedLevel === 2) return MEDAL_COLORS.silver; // Silver gradient
+    return MEDAL_COLORS.gold; // Gold gradient
   };
 
   return (
@@ -230,7 +182,7 @@ const TrophyDetails = () => {
             },
           ]}
         >
-          <LinearGradient colors={[theme.primary, theme.accent]} style={styles.trophyIconContainer}>
+          <LinearGradient colors={getGradientColors()} style={styles.trophyIconContainer}>
             <Trophy size={48} color={getTrophyColor()} />
           </LinearGradient>
           <Text style={[styles.trophyName, { color: theme.text }]}>{trophy.name}</Text>
@@ -257,7 +209,7 @@ const TrophyDetails = () => {
                 <View style={styles.levelTitleContainer}>
                   <Text style={[styles.levelTitle, { color: theme.text }]}>Level {level.level}</Text>
                   <Text style={[styles.medalType, { color: theme.textSecondary }]}>
-                    {level.level === 1 && trophy.name !== "Privacy Sleuth" ? "Bronsje" : 
+                    {level.level === 1 && trophy.name !== "Personverns Detektiv" ? "Bronsje" : 
                      level.level === 2 ? "Sølv" : "Gull"}
                   </Text>
                 </View>
@@ -265,7 +217,7 @@ const TrophyDetails = () => {
               <Text
                 style={[
                   styles.requirement,
-                  { color: index < unlockedLevel ? theme.textSecondary : theme.textTertiary },
+                  { color: isDarkMode ? "#FFFFFF" : "#000000" }, // White in dark mode, black in light mode
                 ]}
               >
                 {level.requirement}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useContext } from "react";
 import {
   View,
   Text,
@@ -9,104 +9,85 @@ import {
   TouchableOpacity,
   Image,
   Dimensions,
-  Animated,
-  Easing,
-  ScrollView, // Added ScrollView import
+  ScrollView,
 } from "react-native";
 import {
   ChevronLeft,
   Settings,
   Zap,
-  BarChart2,
   Check,
   TrendingUp,
-  Award,
-  Calendar,
 } from "lucide-react-native";
+import { MaterialCommunityIcons } from "@expo/vector-icons"; // Add this for the flame icon
 import { useNavigation, useRoute } from "@react-navigation/native";
 import { useTheme } from "../context/ThemeContext";
-import { AnimatedCircularProgress } from "react-native-circular-progress";
-import { LineChart } from "react-native-chart-kit";
-import Achievements from "./achievements"; // or import the desired redesign
-import Activity from "./activity"; // Import the Activity component
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { EventContext } from "../events/EventContext"; // Import EventContext
+import Achievements from "./achievements";
+import Activity from "./activity";
 
-const TABS = ["STATS", "GJØREMÅL", "LOGG"];
+const TABS = ["STATS", "GJØREMÅL"];
 
 const Stats = () => {
   const [activeTab, setActiveTab] = useState("STATS");
-  const [selectedStat, setSelectedStat] = useState(null);
+  const [totalSteps, setTotalSteps] = useState(0);
+  const [bestStreak, setBestStreak] = useState(0);
+  const [eventsParticipated, setEventsParticipated] = useState(0);
+  const [dailyGoalProgress, setDailyGoalProgress] = useState(0);
+  const [dailyGoal, setDailyGoal] = useState(7500); // Default daily goal
   const navigation = useNavigation();
   const route = useRoute();
   const { theme, accentColor } = useTheme();
-  const scrollY = useRef(new Animated.Value(0)).current;
+  const { activeEvents } = useContext(EventContext); // Access activeEvents from EventContext
 
   useEffect(() => {
-    if (route.params?.initialTab) {
+    if (route.params?.initialTab && TABS.includes(route.params.initialTab)) {
       setActiveTab(route.params.initialTab);
     }
+    loadStatsData();
   }, [route.params?.initialTab]);
 
-  const statsData = [
-    {
-      icon: Zap,
-      value: 7568,
-      label: "Poeng",
-      iconColor: "#FF9500",
-      iconBgColor: "#FFF5E6",
-      max: 10000,
-    },
-    {
-      icon: BarChart2,
-      value: 99,
-      label: "Ledertavle",
-      iconColor: "#007AFF",
-      iconBgColor: "#E5F1FF",
-      max: 100,
-    },
-    {
-      icon: Check,
-      value: 83,
-      label: "Utførte hendelser",
-      iconColor: "#34C759",
-      iconBgColor: "#E8F7EB",
-      max: 100,
-    },
-    {
-      icon: TrendingUp,
-      value: 86,
-      label: "Daglige mål",
-      iconColor: "#FF3B30",
-      iconBgColor: "#FFE5E5",
-      max: 100,
-    },
-    {
-      icon: Award,
-      value: 12,
-      label: "Gjøremål",
-      iconColor: "#5856D6",
-      iconBgColor: "#EAEAFF",
-      max: 50,
-    },
-    {
-      icon: Calendar,
-      value: 28,
-      label: "Aktive dager",
-      iconColor: "#FF2D55",
-      iconBgColor: "#FFE5ED",
-      max: 30,
-    },
-  ];
+  const loadStatsData = async () => {
+    try {
+      // Load total steps from stepHistory_
+      const allKeys = await AsyncStorage.getAllKeys();
+      const stepHistoryKeys = allKeys.filter((key) => key.startsWith("stepHistory_"));
+      let totalHistoricalSteps = 0;
+      for (const key of stepHistoryKeys) {
+        const steps = await AsyncStorage.getItem(key);
+        totalHistoricalSteps += steps ? parseInt(steps) : 0;
+      }
+      setTotalSteps(totalHistoricalSteps);
 
-  const chartData = {
-    labels: ["Jan", "Feb", "Mar", "Apr", "May", "Jun"],
-    datasets: [
-      {
-        data: [20, 45, 28, 80, 99, 43],
-        color: (opacity = 1) => `rgba(134, 65, 244, ${opacity})`,
-        strokeWidth: 2,
-      },
-    ],
+      // Load best streak (use currentStreak if bestStreak isn't tracked separately)
+      const currentStreak = await AsyncStorage.getItem("currentStreak");
+      const storedBestStreak = await AsyncStorage.getItem("bestStreak") || currentStreak || "0";
+      setBestStreak(parseInt(storedBestStreak) || 0);
+
+      // Load events participated
+      const participatedEvents = JSON.parse(
+        (await AsyncStorage.getItem("participatedEvents")) || "[]"
+      );
+      setEventsParticipated(participatedEvents.length);
+
+      // Load daily goal and progress
+      const storedGoal = await AsyncStorage.getItem("dailyGoal");
+      const goal = storedGoal ? JSON.parse(storedGoal) : 7500;
+      setDailyGoal(goal);
+
+      const stepCount = await AsyncStorage.getItem("stepCount");
+      const currentSteps = stepCount ? parseInt(stepCount) : 0;
+      setDailyGoalProgress(Math.min((currentSteps / goal) * 100, 100));
+    } catch (error) {
+      console.error("Error loading stats data:", error);
+    }
   };
+
+  // Update stats when screen is focused
+  useEffect(() => {
+    const subscription = navigation.addListener('focus', loadStatsData);
+    return subscription;
+  }, [navigation]);
 
   const renderHeader = () => (
     <View style={styles.header}>
@@ -141,13 +122,14 @@ const Stats = () => {
         <TouchableOpacity
           key={tab}
           onPress={() => setActiveTab(tab)}
-          style={styles.tab}
+          style={[styles.tab, { flex: 1 }]} // Each tab takes half the width
         >
           <Text
             style={[
               styles.tabText,
               {
-                color: activeTab === tab ? theme.primary : theme.textSecondary,
+                color: activeTab === tab ? accentColor : theme.textSecondary,
+                textAlign: "center", // Center text horizontally
               },
             ]}
           >
@@ -155,13 +137,49 @@ const Stats = () => {
           </Text>
           {activeTab === tab && (
             <View
-              style={[styles.tabUnderline, { backgroundColor: theme.primary }]}
+              style={[styles.tabUnderline, { backgroundColor: accentColor }]}
             />
           )}
         </TouchableOpacity>
       ))}
     </View>
   );
+
+  const statsCards = [
+    {
+      icon: Zap,
+      value: totalSteps.toLocaleString(),
+      label: "Total Skritt",
+      iconColor: "#FF9500", // Orange
+      iconBgColor: "#FFF5E6",
+      progress: null,
+    },
+    {
+      icon: MaterialCommunityIcons, // Use MaterialCommunityIcons for flame
+      iconName: "fire", // Flame icon name
+      value: bestStreak,
+      label: "Best Streak",
+      iconColor: "#007AFF", // Blue
+      iconBgColor: "#E5F1FF",
+      progress: null,
+    },
+    {
+      icon: Check,
+      value: eventsParticipated,
+      label: "Hendelser Deltatt",
+      iconColor: "#34C759", // Green
+      iconBgColor: "#E8F7EB",
+      progress: null,
+    },
+    {
+      icon: TrendingUp,
+      value: `${Math.round(dailyGoalProgress)}%`,
+      label: "Daglig Mål",
+      iconColor: "#FF3B30", // Red
+      iconBgColor: "#FFE5E5",
+      progress: dailyGoalProgress,
+    },
+  ];
 
   const renderStatsContent = () => (
     <ScrollView
@@ -170,35 +188,75 @@ const Stats = () => {
       contentContainerStyle={styles.scrollContent}
     >
       <View style={styles.statsContainer}>
-        {statsData.map((stat, index) => (
+        {statsCards.map((card, index) => (
           <TouchableOpacity
             key={index}
             style={[styles.statCard, { backgroundColor: theme.surface }]}
-            onPress={() => setSelectedStat(stat)}
+            onPress={() => console.log(`${card.label} pressed`)} // Optional: Add navigation or action
           >
-            <AnimatedCircularProgress
-              size={80}
-              width={8}
-              fill={(stat.value / stat.max) * 100}
-              tintColor={stat.iconColor}
-              backgroundColor={stat.iconBgColor}
-              rotation={0}
-              lineCap="round"
-              duration={1000}
-              easing={Easing.out(Easing.ease)}
-            >
-              {() => <stat.icon size={24} color={stat.iconColor} />}
-            </AnimatedCircularProgress>
-            <View style={styles.statTextContainer}>
-              <Text style={[styles.statValue, { color: theme.text }]}>
-                {stat.value}
-              </Text>
-              <Text style={[styles.statLabel, { color: theme.textSecondary }]}>
-                {stat.label}
-              </Text>
+            <View style={styles.cardContent}>
+              <View style={[styles.iconContainer, { backgroundColor: card.iconBgColor }]}>
+                {card.icon === MaterialCommunityIcons ? (
+                  <card.icon name={card.iconName} size={24} color={card.iconColor} />
+                ) : (
+                  <card.icon size={24} color={card.iconColor} />
+                )}
+              </View>
+              <View style={styles.textContainer}>
+                <Text style={[styles.statValue, { color: theme.text }]}>{card.value}</Text>
+                <Text style={[styles.statLabel, { color: theme.textSecondary }]}>{card.label}</Text>
+              </View>
             </View>
+            {card.progress !== null && (
+              <View style={styles.progressBarContainer}>
+                <View style={[styles.progressBar, { backgroundColor: theme.border }]}>
+                  <View
+                    style={[styles.progressFill, { backgroundColor: card.iconColor, width: `${card.progress}%` }]}
+                  />
+                </View>
+              </View>
+            )}
           </TouchableOpacity>
         ))}
+      </View>
+      <View style={styles.eventsSection}>
+        <View style={styles.eventsHeader}>
+          <Text style={[styles.sectionTitle, { color: theme.text }]}>Nylige hendelser</Text>
+          {activeEvents.length > 3 && (
+            <TouchableOpacity
+              onPress={() => navigation.navigate("Events")}
+              style={styles.seeAllButton}
+            >
+              <Text style={[styles.seeAllText, { color: accentColor }]}>Se alt</Text>
+            </TouchableOpacity>
+          )}
+        </View>
+        {activeEvents.length > 0 ? (
+          activeEvents.slice(0, 3).map((event, index) => (
+            <View key={index} style={[styles.eventCard, { backgroundColor: theme.surface }]}>
+              <View style={styles.eventContent}>
+                <Image source={require("../../../assets/trophy_icon.png")} style={styles.eventIcon} />
+                <View style={styles.eventTextContainer}>
+                  <Text style={[styles.eventTitle, { color: theme.text }]}>{event.title}</Text>
+                  <View style={[styles.progressBar, { backgroundColor: theme.border }]}>
+                    <View
+                      style={[styles.progressFill, { backgroundColor: accentColor, width: `${(event.progress || 0) * 100}%` }]}
+                    />
+                  </View>
+                  <Text style={[styles.eventProgress, { color: theme.textSecondary }]}>
+                    Complete {Math.round((event.progress || 0) * 100)}%
+                  </Text>
+                </View>
+              </View>
+            </View>
+          ))
+        ) : (
+          <View style={[styles.emptyEventCard, { backgroundColor: theme.surface }]}>
+            <Text style={[styles.emptyEventText, { color: theme.textSecondary }]}>
+              Ingen hendelser opprettet
+            </Text>
+          </View>
+        )}
       </View>
     </ScrollView>
   );
@@ -209,110 +267,17 @@ const Stats = () => {
         return renderStatsContent();
       case "GJØREMÅL":
         return <Achievements />;
-      case "LOGG":
-        return <Activity />;
       default:
         return null;
     }
   };
 
-  const renderStatDetails = () => {
-    if (!selectedStat) return null;
-
-    return (
-      <View
-        style={[
-          styles.statDetailsOverlay,
-          { backgroundColor: "rgba(0,0,0,0.5)" },
-        ]}
-      >
-        <View
-          style={[
-            styles.statDetailsContainer,
-            { backgroundColor: theme.surface },
-          ]}
-        >
-          <View style={styles.statDetailsHeader}>
-            <Text style={[styles.statDetailsTitle, { color: theme.text }]}>
-              {selectedStat.label}
-            </Text>
-            <TouchableOpacity
-              style={[styles.closeButton, { backgroundColor: theme.border }]}
-              onPress={() => setSelectedStat(null)}
-            >
-              <Text style={[styles.closeButtonText, { color: theme.text }]}>
-                Lukk
-              </Text>
-            </TouchableOpacity>
-          </View>
-
-          <View style={styles.statDetailsContent}>
-            <AnimatedCircularProgress
-              size={200}
-              width={12}
-              fill={(selectedStat.value / selectedStat.max) * 100}
-              tintColor={selectedStat.iconColor}
-              backgroundColor={`${selectedStat.iconColor}20`}
-              rotation={0}
-              lineCap="round"
-            >
-              {() => (
-                <View style={styles.progressContent}>
-                  <selectedStat.icon
-                    size={32}
-                    color={selectedStat.iconColor}
-                    style={styles.statIcon}
-                  />
-                  <Text
-                    style={[styles.statDetailsValue, { color: theme.text }]}
-                  >
-                    {selectedStat.value}
-                  </Text>
-                  <Text
-                    style={[
-                      styles.statDetailsLabel,
-                      { color: theme.textSecondary },
-                    ]}
-                  >
-                    {selectedStat.label}
-                  </Text>
-                </View>
-              )}
-            </AnimatedCircularProgress>
-
-            <Text style={styles.achievementText}>
-              Du har nådd{" "}
-              <Text
-                style={[
-                  styles.achievementPercent,
-                  { color: selectedStat.iconColor },
-                ]}
-              >
-                {((selectedStat.value / selectedStat.max) * 100).toFixed(1)}%
-              </Text>{" "}
-              av ditt mål!
-            </Text>
-
-            <View style={[styles.goalPill, { backgroundColor: theme.border }]}>
-              <Text style={[styles.goalText, { color: theme.textSecondary }]}>
-                Mål: {selectedStat.max} {selectedStat.label}
-              </Text>
-            </View>
-          </View>
-        </View>
-      </View>
-    );
-  };
-
   return (
-    <SafeAreaView
-      style={[styles.container, { backgroundColor: theme.background }]}
-    >
+    <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]}>
       {renderHeader()}
       {renderProfileSection()}
       {renderTabs()}
       <View style={styles.contentContainer}>{renderContent()}</View>
-      {renderStatDetails()}
     </SafeAreaView>
   );
 };
@@ -331,7 +296,6 @@ const styles = StyleSheet.create({
   },
   headerButton: {
     padding: 8,
-    marginTop: 4,
   },
   scrollView: {
     flex: 1,
@@ -357,16 +321,16 @@ const styles = StyleSheet.create({
   },
   tabsContainer: {
     flexDirection: "row",
-    justifyContent: "space-around",
+    justifyContent: "space-between", // Ensure tabs are evenly spaced
     paddingHorizontal: 16,
     marginBottom: 24,
     borderBottomWidth: 1,
-    borderBottomColor: "rgba(0,0,0,0.1)",
   },
   tab: {
+    flex: 1, // Each tab takes half the width
     paddingVertical: 12,
-    paddingHorizontal: 16,
-    position: "relative",
+    paddingHorizontal: 0, // Remove horizontal padding to fit exactly
+    alignItems: "center", // Center the content horizontally
   },
   tabText: {
     fontSize: 16,
@@ -386,121 +350,118 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     paddingHorizontal: 16,
     gap: 16,
+    paddingBottom: 16,
   },
   statCard: {
     width: Dimensions.get("window").width / 2 - 24,
-    borderRadius: 16,
+    borderRadius: 20,
     padding: 16,
-    alignItems: "center",
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 3,
   },
-  statTextContainer: {
+  cardContent: {
+    flexDirection: "row",
     alignItems: "center",
-    marginTop: 12,
+    gap: 12,
+  },
+  iconContainer: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  textContainer: {
+    flex: 1,
   },
   statValue: {
     fontSize: 24,
     fontWeight: "bold",
-    marginBottom: 4,
   },
   statLabel: {
     fontSize: 14,
-    textAlign: "center",
+    opacity: 0.7,
   },
-
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: "600",
-    marginBottom: 16,
+  progressBarContainer: {
+    marginTop: 12,
   },
-
-  statDetailsOverlay: {
-    position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    justifyContent: "flex-end",
+  progressBar: {
+    height: 6,
+    borderRadius: 3,
   },
-
-  statDetailsContainer: {
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    padding: 24,
+  progressFill: {
+    height: "100%",
+    borderRadius: 3,
   },
-
-  statDetailsHeader: {
+  eventsSection: {
+    paddingHorizontal: 16,
+    marginTop: 16,
+  },
+  eventsHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: 32,
+    marginBottom: 12,
   },
-
-  statDetailsTitle: {
-    fontSize: 24,
+  sectionTitle: {
+    fontSize: 18,
     fontWeight: "600",
   },
-
-  closeButton: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
+  seeAllButton: {
+    padding: 8,
   },
-
-  closeButtonText: {
-    fontSize: 16,
+  seeAllText: {
+    fontSize: 14,
     fontWeight: "500",
   },
-
-  statDetailsContent: {
+  eventCard: {
+    borderRadius: 20,
+    padding: 16,
+    marginBottom: 12,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  eventContent: {
+    flexDirection: "row",
     alignItems: "center",
-    paddingBottom: 24,
+    gap: 12,
   },
-
-  progressContent: {
-    alignItems: "center",
-    justifyContent: "center",
+  eventIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 8,
   },
-
-  statIcon: {
-    marginBottom: 8,
+  eventTextContainer: {
+    flex: 1,
   },
-
-  statDetailsValue: {
-    fontSize: 48,
-    fontWeight: "bold",
-    marginVertical: 4,
-  },
-
-  statDetailsLabel: {
+  eventTitle: {
     fontSize: 16,
+    fontWeight: "600",
+    marginBottom: 4,
+  },
+  eventProgress: {
+    fontSize: 14,
     opacity: 0.7,
   },
-
-  achievementText: {
-    fontSize: 20,
-    textAlign: "center",
-    marginTop: 32,
-    marginBottom: 24,
-  },
-
-  achievementPercent: {
-    fontWeight: "600",
-  },
-
-  goalPill: {
-    paddingHorizontal: 20,
-    paddingVertical: 10,
+  emptyEventCard: {
     borderRadius: 20,
+    padding: 16,
+    marginBottom: 12,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
   },
-
-  goalText: {
+  emptyEventText: {
     fontSize: 16,
-    fontWeight: "500",
+    textAlign: "center",
   },
   scrollContent: {
     paddingBottom: 32,
