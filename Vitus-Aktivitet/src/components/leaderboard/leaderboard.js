@@ -40,7 +40,7 @@ const AnimatedFlatList = Animated.createAnimatedComponent(FlatList);
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 
-const SEGMENT_OPTIONS = ["Daily", "Weekly", "Monthly", "All Time"];
+const SEGMENT_OPTIONS = ["Daglig", "Ukentlig", "Månedlig", "All Tid"];
 
 const Leaderboard = () => {
   const scrollY = useRef(new Animated.Value(0)).current;
@@ -306,7 +306,7 @@ const Leaderboard = () => {
               { color: theme.textSecondary || "#B0B0B0" },
             ]}
           >
-            Goal: {item.goalValue} {item.selectedActivity?.unit || "km"}
+            Mål: {item.goalValue} {item.selectedActivity?.unit || "km"}
           </Text>
         </View>
       </TouchableOpacity>
@@ -350,11 +350,7 @@ const Leaderboard = () => {
                       },
                     ]}
                   >
-                    {leaderboardType === "General"
-                      ? "General"
-                      : selectedEvent
-                      ? selectedEvent.title
-                      : "Events"}
+                    {leaderboardType === "General" ? "Generell" : selectedEvent ? selectedEvent.title : "Hendelser"}
                   </Text>
                   <ChevronDown
                     size={16}
@@ -373,7 +369,7 @@ const Leaderboard = () => {
                         { color: accentColor || "#00C2A8" },
                       ]}
                     >
-                      Back to Events
+                      Tilbake til Hendelser
                     </Text>
                   </TouchableOpacity>
                 )}
@@ -445,7 +441,7 @@ const Leaderboard = () => {
                     styles.searchInput,
                     { color: theme.text || "#FFFFFF" },
                   ]}
-                  placeholder="Search..."
+                  placeholder="Søk..."
                   placeholderTextColor={theme.textSecondary || "#B0B0B0"}
                   value={searchQuery}
                   onChangeText={setSearchQuery}
@@ -535,9 +531,9 @@ const Leaderboard = () => {
           ]}
         >
           <Text style={[styles.modalTitle, { color: theme.text || "#FFFFFF" }]}>
-            Filter Options
+            Filtervalg
           </Text>
-          {["All", "IT", "HR", "Finance"].map((option) => (
+          {["Alle", "IT", "HR", "Finans"].map((option) => (
             <TouchableOpacity
               key={option}
               style={[
@@ -569,29 +565,7 @@ const Leaderboard = () => {
               </Text>
             </TouchableOpacity>
           ))}
-          <View style={styles.themeToggleContainer}>
-            <Text
-              style={[
-                styles.themeToggleText,
-                { color: theme.text || "#FFFFFF" },
-              ]}
-            >
-              Dark Mode
-            </Text>
-            <Switch
-              value={isDarkMode}
-              onValueChange={toggleTheme}
-              trackColor={{
-                false: theme.surfaceVariant || "#424242",
-                true: accentColor || "#00C2A8",
-              }}
-              thumbColor={
-                isDarkMode
-                  ? theme.background || "#1E1E1E"
-                  : theme.text || "#FFFFFF"
-              }
-            />
-          </View>
+          
         </View>
       </View>
     </Modal>
@@ -713,7 +687,7 @@ const Leaderboard = () => {
                       },
                     ]}
                   >
-                    {option} Leaderboard
+                    {option === "General" ? "Generell" : "Hendelse"} Ledertavle
                   </Text>
                 </TouchableOpacity>
               ))}
