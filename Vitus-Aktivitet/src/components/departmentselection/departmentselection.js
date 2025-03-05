@@ -81,20 +81,26 @@ export default function DepartmentSelection({ navigation, onComplete }) {
             <TouchableOpacity
               key={department}
               style={[
-                styles.departmentItem,
-                selectedDepartment === department && styles.selectedDepartment,
+                styles.departmentCard,
+                selectedDepartment === department && styles.selectedDepartmentCard,
               ]}
               onPress={() => handleSelect(department)}
             >
-              <Text
-                style={[
-                  styles.departmentText,
-                  selectedDepartment === department &&
-                    styles.selectedDepartmentText,
-                ]}
-              >
-                {department}
-              </Text>
+              <View style={styles.departmentContent}>
+                <Text
+                  style={[
+                    styles.departmentText,
+                    selectedDepartment === department && styles.selectedDepartmentText,
+                  ]}
+                >
+                  {department}
+                </Text>
+                {selectedDepartment === department && (
+                  <View style={styles.checkmark}>
+                    <Text style={styles.checkmarkIcon}>✓</Text>
+                  </View>
+                )}
+              </View>
             </TouchableOpacity>
           ))}
         </ScrollView>
@@ -184,24 +190,53 @@ const styles = StyleSheet.create({
   },
   departmentList: {
     flex: 1,
+    paddingBottom: 20,
   },
-  departmentItem: {
-    paddingVertical: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: "#F5F5F5",
+  departmentCard: {
+    backgroundColor: "#FFF",
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 12,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
+    borderWidth: 1,
+    borderColor: "#F5F5F5",
   },
-  selectedDepartment: {
+  selectedDepartmentCard: {
     backgroundColor: "#E5F7F6",
-    marginHorizontal: -2,
-    paddingHorizontal: 24,
+    borderColor: TEAL_COLOR,
+    shadowOpacity: 0.2,
+    elevation: 4,
+  },
+  departmentContent: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
   },
   departmentText: {
     fontSize: 16,
     color: "#666",
+    fontWeight: "500",
   },
   selectedDepartmentText: {
     color: TEAL_COLOR,
     fontWeight: "600",
+  },
+  checkmark: {
+    backgroundColor: TEAL_COLOR,
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  checkmarkIcon: {
+    color: "#FFF",
+    fontSize: 16,
+    fontWeight: "bold",
   },
   footer: {
     flexDirection: "row",
