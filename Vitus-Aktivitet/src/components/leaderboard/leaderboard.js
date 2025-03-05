@@ -45,7 +45,7 @@ const SEGMENT_OPTIONS = ["Daglig", "Ukentlig", "Månedlig", "All Tid"];
 const Leaderboard = () => {
   const scrollY = useRef(new Animated.Value(0)).current;
   const [selectedSegment, setSelectedSegment] = useState("Daily");
-  const [filterOption, setFilterOption] = useState("All");
+  const [filterOption, setFilterOption] = useState("Alle");
   const [showSearch, setShowSearch] = useState(false);
   const [showFilterModal, setShowFilterModal] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
@@ -174,7 +174,7 @@ const Leaderboard = () => {
       return generalLeaderboardData
         .filter(
           (item) =>
-            (filterOption === "All" || item.department === filterOption) &&
+            (filterOption === "Alle" || item.department === filterOption) &&
             (searchQuery === "" ||
               item.name.toLowerCase().includes(searchQuery.toLowerCase()))
         )
@@ -183,7 +183,7 @@ const Leaderboard = () => {
       return (eventLeaderboardData[selectedEvent.id] || [])
         .filter(
           (item) =>
-            (filterOption === "All" || item.department === filterOption) &&
+            (filterOption === "Alle" || item.department === filterOption) &&
             (searchQuery === "" ||
               item.name.toLowerCase().includes(searchQuery.toLowerCase()))
         )
