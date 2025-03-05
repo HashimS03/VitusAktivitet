@@ -12,6 +12,7 @@ import { useNavigation } from "@react-navigation/native";
 import { useTheme } from "../context/ThemeContext";
 import { Trophy } from "lucide-react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { LinearGradient } from "expo-linear-gradient"; // Import LinearGradient for gradients
 
 // 🎖️ Trophy Data
 export const trophyData = {
@@ -58,7 +59,7 @@ export const trophyData = {
   "Ledertavle Legende": {
     id: "5",
     name: "Ledertavle Legende",
-    description: "klatre til topps",
+    description: "Klatre til topps",
     levels: [
       { level: 1, requirement: "Top 10 i en hendelse", goal: 10, icon: "🥉" },
       { level: 2, requirement: "Top 5 i en hendelse", goal: 5, icon: "🥈" },
@@ -149,10 +150,14 @@ const TrophyItem = ({ item, onPress, theme }) => {
   }, [item.name]);
 
   const getTrophyColor = () => {
-    if (unlockedLevel === 0) return theme.textSecondary; // Gray for uncompleted
-    if (unlockedLevel === 1 && item.name !== "Personverns Detektiv") return "#CD7F32"; // Bronze
-    if (unlockedLevel === 2) return "#C0C0C0"; // Silver
-    return "#FFD700"; // Gold
+    return theme.textSecondary; // Keep the Trophy icon grey at all times
+  };
+
+  const getGradientColors = () => {
+    if (unlockedLevel === 0) return ["#4A4A4A", "#333333"]; // Grey gradient for uncompleted (matching dark theme)
+    if (unlockedLevel === 1 && item.name !== "Personverns Detektiv") return ["#CD7F32", "#8B4513"]; // Bronze gradient
+    if (unlockedLevel === 2) return ["#C0C0C0", "#808080"]; // Silver gradient
+    return ["#FFD700", "#DAA520"]; // Gold gradient
   };
 
   return (
@@ -160,9 +165,12 @@ const TrophyItem = ({ item, onPress, theme }) => {
       style={[styles.trophyItem, { backgroundColor: theme.surface }]}
       onPress={onPress}
     >
-      <View style={[styles.trophyIconContainer, { backgroundColor: theme.background }]}>
+      <LinearGradient
+        colors={getGradientColors()}
+        style={[styles.trophyIconContainer]}
+      >
         <Trophy size={24} color={getTrophyColor()} />
-      </View>
+      </LinearGradient>
       <View style={styles.trophyInfo}>
         <Text style={[styles.trophyName, { color: theme.text }]}>{item.name}</Text>
         <Text style={[styles.trophyDescription, { color: theme.textSecondary }]}>
