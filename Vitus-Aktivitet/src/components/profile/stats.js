@@ -26,21 +26,22 @@ import {
 import { useNavigation, useRoute } from "@react-navigation/native";
 import { useTheme } from "../context/ThemeContext";
 import { AnimatedCircularProgress } from "react-native-circular-progress";
+import { LineChart } from "react-native-chart-kit";
 import Achievements from "./achievements"; // or import the desired redesign
 import Activity from "./activity"; // Import the Activity component
 
-const TABS = ["GJØREMÅL", "LOGG"];
+const TABS = ["STATS", "GJØREMÅL", "LOGG"];
 
 const Stats = () => {
-  const [activeTab, setActiveTab] = useState("GJØREMÅL"); // Default to GJØREMÅL
-  const [selectedStat, setSelectedStat] = useState(null); // Re-added selectedStat state
+  const [activeTab, setActiveTab] = useState("STATS");
+  const [selectedStat, setSelectedStat] = useState(null);
   const navigation = useNavigation();
   const route = useRoute();
   const { theme, accentColor } = useTheme();
   const scrollY = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
-    if (route.params?.initialTab && TABS.includes(route.params.initialTab)) {
+    if (route.params?.initialTab) {
       setActiveTab(route.params.initialTab);
     }
   }, [route.params?.initialTab]);
@@ -136,35 +137,29 @@ const Stats = () => {
 
   const renderTabs = () => (
     <View style={[styles.tabsContainer, { borderBottomColor: theme.border }]}>
-      <View style={styles.tabsWrapper}>
-        {TABS.map((tab) => (
-          <TouchableOpacity
-            key={tab}
-            onPress={() => setActiveTab(tab)}
-            style={styles.tab}
+      {TABS.map((tab) => (
+        <TouchableOpacity
+          key={tab}
+          onPress={() => setActiveTab(tab)}
+          style={styles.tab}
+        >
+          <Text
+            style={[
+              styles.tabText,
+              {
+                color: activeTab === tab ? theme.primary : theme.textSecondary,
+              },
+            ]}
           >
-            <Text
-              style={[
-                styles.tabText,
-                {
-                  color:
-                    activeTab === tab ? theme.primary : theme.textSecondary,
-                },
-              ]}
-            >
-              {tab}
-            </Text>
-            {activeTab === tab && (
-              <View
-                style={[
-                  styles.tabUnderline,
-                  { backgroundColor: theme.primary },
-                ]}
-              />
-            )}
-          </TouchableOpacity>
-        ))}
-      </View>
+            {tab}
+          </Text>
+          {activeTab === tab && (
+            <View
+              style={[styles.tabUnderline, { backgroundColor: theme.primary }]}
+            />
+          )}
+        </TouchableOpacity>
+      ))}
     </View>
   );
 
@@ -210,6 +205,8 @@ const Stats = () => {
 
   const renderContent = () => {
     switch (activeTab) {
+      case "STATS":
+        return renderStatsContent();
       case "GJØREMÅL":
         return <Achievements />;
       case "LOGG":
@@ -359,17 +356,12 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   tabsContainer: {
-    paddingVertical: 12,
+    flexDirection: "row",
+    justifyContent: "space-around",
     paddingHorizontal: 16,
     marginBottom: 24,
     borderBottomWidth: 1,
     borderBottomColor: "rgba(0,0,0,0.1)",
-  },
-  tabsWrapper: {
-    flexDirection: "row",
-    justifyContent: "center",
-    alignItems: "center",
-    gap: 24,
   },
   tab: {
     paddingVertical: 12,
@@ -377,7 +369,7 @@ const styles = StyleSheet.create({
     position: "relative",
   },
   tabText: {
-    fontSize: 17,
+    fontSize: 16,
     fontWeight: "500",
     textTransform: "uppercase",
   },
