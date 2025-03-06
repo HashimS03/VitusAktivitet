@@ -488,15 +488,15 @@ export default function Dashboard() {
           (key) =>
             key.startsWith("stepHistory_") ||
             key === "stepCount" ||
-            key === "currentStreak" || // Legg til streak
-            key === "lastCompletionDate" || // Legg til siste fullføringsdato
-            key === "bestStreak" // Legg til best streak
+            key === "currentStreak" ||
+            key === "lastCompletionDate" ||
+            key === "bestStreak"
         );
         if (keysToReset.length > 0) {
           await AsyncStorage.multiRemove(keysToReset);
         }
         setStepCount(0);
-        setStreak(0); // Sett streak til 0 i state også
+        setStreak(0);
         console.log("✅ Skritt- og streak-data er nullstilt!");
       } catch (error) {
         console.error("❌ Feil ved nullstilling av data:", error);
@@ -559,164 +559,162 @@ export default function Dashboard() {
           const storedSteps = await AsyncStorage.getItem("stepCount");
           let previousSteps = storedSteps ? parseInt(storedSteps) : 0;
 
-          if (route.params?.addedSteps) {
+          if (
+            route.params?.addedSteps &&
+            typeof route.params.addedSteps === "number"
+          ) {
             console.log("🔥 Mottatt addedSteps:", route.params.addedSteps);
-            const newSteps = route.params.addedSteps; // Forventet å være 80
-            if (newSteps !== previousSteps) {
-              // Unngå duplisering hvis verdien allerede er lagt til
-              const newStepCount = previousSteps + newSteps;
-              console.log("📊 Oppdatert stepCount:", newStepCount);
+            const newSteps = route.params.addedSteps;
+            const newStepCount = previousSteps + newSteps;
+            console.log("📊 Oppdatert stepCount:", newStepCount);
 
-              await AsyncStorage.setItem("stepCount", newStepCount.toString());
-              setStepCount(newStepCount);
+            await AsyncStorage.setItem("stepCount", newStepCount.toString());
+            setStepCount(newStepCount);
 
-              const totalSteps = parseInt(
-                (await AsyncStorage.getItem("totalSteps")) || "0",
-                10
-              );
-              const newTotalSteps = totalSteps + newSteps;
-              await AsyncStorage.setItem(
-                "totalSteps",
-                newTotalSteps.toString()
-              );
+            const totalSteps = parseInt(
+              (await AsyncStorage.getItem("totalSteps")) || "0",
+              10
+            );
+            const newTotalSteps = totalSteps + newSteps;
+            await AsyncStorage.setItem("totalSteps", newTotalSteps.toString());
 
-              const today = new Date().toISOString().split("T")[0];
-              const stepHistoryKey = `stepHistory_${today}`;
-              await AsyncStorage.setItem(
-                stepHistoryKey,
-                newStepCount.toString()
-              );
-              console.log(
-                "📜 Updated history steps for today to total:",
-                newStepCount
-              );
+            const today = new Date().toISOString().split("T")[0];
+            const stepHistoryKey = `stepHistory_${today}`;
+            await AsyncStorage.setItem(stepHistoryKey, newStepCount.toString());
+            console.log(
+              "📜 Updated history steps for today to total:",
+              newStepCount
+            );
 
-              const updatedStreak = await updateStreaks(
-                newStepCount,
-                dailyGoal
-              );
-              setStreak(updatedStreak);
+            const updatedStreak = await updateStreaks(newStepCount, dailyGoal);
+            setStreak(updatedStreak);
 
-              // Oppdater trofé-progresjon for den tilfeldige troféen
-              if (randomTrophy) {
-                let level = 0;
-                let currentProgress = 0;
-                let nextGoal = randomTrophy.levels[0].goal;
+            // Oppdater trofé-progresjon for den tilfeldige troféen
+            if (randomTrophy) {
+              let level = 0;
+              let currentProgress = 0;
+              let nextGoal = randomTrophy.levels[0].goal;
 
-                switch (randomTrophy.name) {
-                  case "Step Master":
-                    currentProgress = newStepCount;
-                    if (newStepCount >= 15000) {
-                      level = 3;
-                      nextGoal = 15000;
-                    } else if (newStepCount >= 10000) {
-                      level = 2;
-                      nextGoal = 15000;
-                    } else if (newStepCount >= 5000) {
-                      level = 1;
-                      nextGoal = 10000;
-                    } else {
-                      nextGoal = 5000;
-                    }
-                    break;
-                  case "Event Enthusiast":
-                    currentProgress = JSON.parse(
-                      (await AsyncStorage.getItem("participatedEvents")) || "[]"
-                    ).length;
-                    if (currentProgress >= 10) {
-                      level = 3;
-                      nextGoal = 10;
-                    } else if (currentProgress >= 5) {
-                      level = 2;
-                      nextGoal = 10;
-                    } else if (currentProgress >= 1) {
-                      level = 1;
-                      nextGoal = 5;
-                    } else {
-                      nextGoal = 1;
-                    }
-                    break;
-                  case "Streak Star":
-                    currentProgress = updatedStreak; // Bruk den oppdaterte streak-verdien
-                    if (currentProgress >= 15) {
-                      level = 3;
-                      nextGoal = 15;
-                    } else if (currentProgress >= 10) {
-                      level = 2;
-                      nextGoal = 15;
-                    } else if (currentProgress >= 5) {
-                      level = 1;
-                      nextGoal = 10;
-                    } else {
-                      nextGoal = 5;
-                    }
-                    break;
-                  case "Event Champion":
-                    currentProgress = JSON.parse(
-                      (await AsyncStorage.getItem("completedEvents")) || "[]"
-                    ).length;
-                    if (currentProgress >= 5) {
-                      level = 3;
-                      nextGoal = 5;
-                    } else if (currentProgress >= 3) {
-                      level = 2;
-                      nextGoal = 5;
-                    } else if (currentProgress >= 1) {
-                      level = 1;
-                      nextGoal = 3;
-                    } else {
-                      nextGoal = 1;
-                    }
-                    break;
-                  case "Leaderboard Legend":
-                    currentProgress =
-                      leaderboardRank <= 10 ? 11 - leaderboardRank : 0;
-                    if (leaderboardRank <= 1) {
-                      level = 3;
-                      nextGoal = 10;
-                    } else if (leaderboardRank <= 5) {
-                      level = 2;
-                      nextGoal = 5;
-                    } else if (leaderboardRank <= 10) {
-                      level = 1;
-                      nextGoal = 5;
-                    } else {
-                      nextGoal = 10;
-                    }
-                    break;
-                  case "Step Titan":
-                    currentProgress = totalSteps;
-                    if (currentProgress >= 250000) {
-                      level = 3;
-                      nextGoal = 250000;
-                    } else if (currentProgress >= 100000) {
-                      level = 2;
-                      nextGoal = 250000;
-                    } else if (currentProgress >= 50000) {
-                      level = 1;
-                      nextGoal = 100000;
-                    } else {
-                      nextGoal = 50000;
-                    }
-                    break;
-                  case "Privacy Sleuth":
-                    currentProgress = privacyExplored ? 1 : 0;
-                    if (privacyExplored) {
-                      level = 1;
-                      nextGoal = 1;
-                    } else {
-                      nextGoal = 1;
-                    }
-                    break;
-                  default:
-                    level = 0;
-                }
-                setUnlockedLevel(level);
-                setProgress({ current: currentProgress, nextGoal });
+              switch (randomTrophy.name) {
+                case "Step Master":
+                  currentProgress = newStepCount;
+                  if (newStepCount >= 15000) {
+                    level = 3;
+                    nextGoal = 15000;
+                  } else if (newStepCount >= 10000) {
+                    level = 2;
+                    nextGoal = 15000;
+                  } else if (newStepCount >= 5000) {
+                    level = 1;
+                    nextGoal = 10000;
+                  } else {
+                    nextGoal = 5000;
+                  }
+                  break;
+                case "Event Enthusiast":
+                  currentProgress = JSON.parse(
+                    (await AsyncStorage.getItem("participatedEvents")) || "[]"
+                  ).length;
+                  if (currentProgress >= 10) {
+                    level = 3;
+                    nextGoal = 10;
+                  } else if (currentProgress >= 5) {
+                    level = 2;
+                    nextGoal = 10;
+                  } else if (currentProgress >= 1) {
+                    level = 1;
+                    nextGoal = 5;
+                  } else {
+                    nextGoal = 1;
+                  }
+                  break;
+                case "Streak Star":
+                  currentProgress = updatedStreak;
+                  if (currentProgress >= 15) {
+                    level = 3;
+                    nextGoal = 15;
+                  } else if (currentProgress >= 10) {
+                    level = 2;
+                    nextGoal = 15;
+                  } else if (currentProgress >= 5) {
+                    level = 1;
+                    nextGoal = 10;
+                  } else {
+                    nextGoal = 5;
+                  }
+                  break;
+                case "Event Champion":
+                  currentProgress = JSON.parse(
+                    (await AsyncStorage.getItem("completedEvents")) || "[]"
+                  ).length;
+                  if (currentProgress >= 5) {
+                    level = 3;
+                    nextGoal = 5;
+                  } else if (currentProgress >= 3) {
+                    level = 2;
+                    nextGoal = 5;
+                  } else if (currentProgress >= 1) {
+                    level = 1;
+                    nextGoal = 3;
+                  } else {
+                    nextGoal = 1;
+                  }
+                  break;
+                case "Leaderboard Legend":
+                  const leaderboardRank = parseInt(
+                    (await AsyncStorage.getItem("leaderboardRank")) || "999",
+                    10
+                  );
+                  currentProgress =
+                    leaderboardRank <= 10 ? 11 - leaderboardRank : 0;
+                  if (leaderboardRank <= 1) {
+                    level = 3;
+                    nextGoal = 10;
+                  } else if (leaderboardRank <= 5) {
+                    level = 2;
+                    nextGoal = 5;
+                  } else if (leaderboardRank <= 10) {
+                    level = 1;
+                    nextGoal = 5;
+                  } else {
+                    nextGoal = 10;
+                  }
+                  break;
+                case "Step Titan":
+                  currentProgress = newTotalSteps;
+                  if (newTotalSteps >= 250000) {
+                    level = 3;
+                    nextGoal = 250000;
+                  } else if (newTotalSteps >= 100000) {
+                    level = 2;
+                    nextGoal = 250000;
+                  } else if (newTotalSteps >= 50000) {
+                    level = 1;
+                    nextGoal = 100000;
+                  } else {
+                    nextGoal = 50000;
+                  }
+                  break;
+                case "Privacy Sleuth":
+                  currentProgress =
+                    (await AsyncStorage.getItem("privacyExplored")) === "true"
+                      ? 1
+                      : 0;
+                  if (currentProgress) {
+                    level = 1;
+                    nextGoal = 1;
+                  } else {
+                    nextGoal = 1;
+                  }
+                  break;
+                default:
+                  level = 0;
               }
-
-              navigation.setParams({ addedSteps: null }); // Tøm parameteren etter bruk
+              setUnlockedLevel(level);
+              setProgress({ current: currentProgress, nextGoal });
             }
+
+            navigation.setParams({ addedSteps: null }); // Tøm parameteren etter bruk
           }
         } catch (error) {
           console.error("❌ Feil ved oppdatering av stepCount:", error);
@@ -738,7 +736,6 @@ export default function Dashboard() {
           JSON.stringify(participatedEvents)
         );
       }
-      // Oppdater trofé-progresjon for Event-relaterte troféer
       if (
         randomTrophy &&
         ["Event Enthusiast", "Event Champion"].includes(randomTrophy.name)
@@ -798,7 +795,6 @@ export default function Dashboard() {
           JSON.stringify(completedEvents)
         );
       }
-      // Oppdater trofé-progresjon for Event-relaterte troféer
       if (randomTrophy && ["Event Champion"].includes(randomTrophy.name)) {
         const currentProgress = completedEvents.length;
         let level = 0;
@@ -867,7 +863,7 @@ export default function Dashboard() {
       setShowTutorial(false);
       await AsyncStorage.setItem("hasSeenTutorial", "true");
       await AsyncStorage.removeItem("tutorialStep");
-      await resetAppData(); // Nullstill all data når tutorialen er ferdig
+      await resetAppData();
     }
   };
 
@@ -883,7 +879,7 @@ export default function Dashboard() {
     setShowTutorial(false);
     await AsyncStorage.setItem("hasSeenTutorial", "true");
     await AsyncStorage.removeItem("tutorialStep");
-    await resetAppData(); // Nullstill all data når tutorialen skippes
+    await resetAppData();
   };
 
   const getTutorialMessage = useCallback(() => {
@@ -966,7 +962,7 @@ export default function Dashboard() {
       { left: 16, top: 400, width: SCREEN_WIDTH - 32, height: 120 }, // Aktive hendelser
       { left: 16, top: 320, width: (SCREEN_WIDTH - 10) / 2, height: 50 }, // Skrittreise
       {
-        left: SCREEN_WIDTH - 16 - (SCREEN_WIDTH - 10) / 2, // Plasserer det symmetrisk på høyre side
+        left: SCREEN_WIDTH - 16 - (SCREEN_WIDTH - 10) / 2,
         top: 320,
         width: (SCREEN_WIDTH - 10) / 2,
         height: 50,
@@ -989,7 +985,7 @@ export default function Dashboard() {
       }
       setStepCount(0);
       setDailyGoal(DAILY_STEP_GOAL);
-      setStreak(0); // Nullstill streak også om ønskelig
+      setStreak(0);
       console.log("App data reset after tutorial completion");
     } catch (error) {
       console.error("❌ Feil ved nullstilling av app-data:", error);
@@ -1076,8 +1072,6 @@ export default function Dashboard() {
     return "#FFD700";
   };
 
-  // ... (resten av importene og koden forblir uendret frem til return-delen)
-
   return (
     <SafeAreaView
       style={[styles.container, { backgroundColor: theme.background }]}
@@ -1086,7 +1080,7 @@ export default function Dashboard() {
       <ScrollView
         ref={scrollViewRef}
         contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={true} // Vis scroll-indikator for å bekrefte at det fungerer
+        showsVerticalScrollIndicator={true}
       >
         <View style={styles.header}>
           <TouchableOpacity
@@ -1345,8 +1339,8 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   scrollContent: {
-    flexGrow: 1, // Lar innholdet vokse for å fylle ScrollView
-    paddingBottom: 100, // Gir ekstra plass i bunnen for å sikre at alt innhold er synlig
+    flexGrow: 1,
+    paddingBottom: 100,
   },
   header: {
     flexDirection: "row",
