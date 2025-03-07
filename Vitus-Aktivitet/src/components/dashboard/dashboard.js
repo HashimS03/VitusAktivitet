@@ -1023,7 +1023,7 @@ export default function Dashboard() {
       }
     >
       <Image
-        source={require("../../../assets/trophy_icon.png")}
+        source={require("../../../assets/Vitus_Strong.png")}
         style={styles.eventImage}
       />
       <View style={styles.eventContent}>
@@ -1283,7 +1283,7 @@ export default function Dashboard() {
           >
             <View style={styles.statHeader}>
               <Text style={[styles.statTitle, { color: theme.text }]}>
-                Gjøremål
+                Milepæler
               </Text>
               <Award size={20} color={theme.textSecondary} />
             </View>
