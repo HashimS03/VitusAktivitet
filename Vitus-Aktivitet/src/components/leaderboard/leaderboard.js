@@ -8,7 +8,7 @@ import {
   useEffect,
   useContext,
 } from "react";
-import { Platform } from "react-native"; // Added Platform import
+import { Platform } from "react-native";
 import {
   SafeAreaView,
   View,
@@ -216,7 +216,7 @@ const Leaderboard = () => {
         style={[
           styles.leaderboardItem,
           {
-            backgroundColor: theme.surface || "#424242", // Solid dark gray for dark mode
+            backgroundColor: theme.surface || "#424242",
             transform: [
               {
                 translateX: searchAnimation.interpolate({
@@ -228,7 +228,6 @@ const Leaderboard = () => {
           },
         ]}
       >
-        {/* Removed LinearGradient, using solid background */}
         <View style={styles.rankContainer}>
           <Text style={[styles.rankText, { color: theme.text || "#FFFFFF" }]}>
             {index + 1}
@@ -288,10 +287,9 @@ const Leaderboard = () => {
         style={[
           styles.eventItem,
           { backgroundColor: theme.surface || "#424242" },
-        ]} // Solid dark gray for dark mode
+        ]}
         onPress={() => setSelectedEvent(item)}
       >
-        {/* Removed LinearGradient, using solid background */}
         <Image
           source={require("../../../assets/trophy_icon.png")}
           style={styles.eventImage}
@@ -350,7 +348,11 @@ const Leaderboard = () => {
                       },
                     ]}
                   >
-                    {leaderboardType === "General" ? "Generell" : selectedEvent ? selectedEvent.title : "Hendelser"}
+                    {leaderboardType === "General"
+                      ? "Generell"
+                      : selectedEvent
+                      ? selectedEvent.title
+                      : "Hendelser"}
                   </Text>
                   <ChevronDown
                     size={16}
@@ -378,7 +380,7 @@ const Leaderboard = () => {
                 <TouchableOpacity
                   style={[
                     styles.iconButton,
-                    { backgroundColor: theme.surfaceVariant }, // Restored theme-dependent background
+                    { backgroundColor: theme.surfaceVariant },
                   ]}
                   onPress={toggleSearch}
                 >
@@ -387,7 +389,7 @@ const Leaderboard = () => {
                 <TouchableOpacity
                   style={[
                     styles.filterButton,
-                    { backgroundColor: theme.surfaceVariant }, // Restored theme-dependent background
+                    { backgroundColor: theme.surfaceVariant },
                   ]}
                   onPress={() => setShowFilterModal(true)}
                 >
@@ -432,7 +434,7 @@ const Leaderboard = () => {
               <View
                 style={[
                   styles.searchInputContainer,
-                  { backgroundColor: theme.surfaceVariant }, // Restored theme-dependent background
+                  { backgroundColor: theme.surfaceVariant },
                 ]}
               >
                 <Search size={20} color={theme.textSecondary || "#B0B0B0"} />
@@ -518,10 +520,7 @@ const Leaderboard = () => {
           />
         ) : (
           <View
-            style={[
-              StyleSheet.absoluteFill,
-              { backgroundColor: "rgba(0, 0, 0, 0.5)" },
-            ]}
+            style={[StyleSheet.absoluteFill, { backgroundColor: "#FFFFFF" }]} // White screen for Android
           />
         )}
         <View
@@ -565,18 +564,24 @@ const Leaderboard = () => {
               </Text>
             </TouchableOpacity>
           ))}
-          
         </View>
       </View>
     </Modal>
   );
 
   const renderFirstTimeOverlay = () => (
-    <BlurView
-      intensity={80}
-      style={StyleSheet.absoluteFillObject}
-      tint={isDarkMode ? "dark" : "light"}
-    >
+    <View style={StyleSheet.absoluteFillObject}>
+      {Platform.OS === "ios" ? (
+        <BlurView
+          intensity={80}
+          style={StyleSheet.absoluteFill}
+          tint={isDarkMode ? "dark" : "light"}
+        />
+      ) : (
+        <View
+          style={[StyleSheet.absoluteFill, { backgroundColor: "#FFFFFF" }]} // White screen for Android
+        />
+      )}
       <View style={styles.overlayContent}>
         <Text style={[styles.overlayTitle, { color: theme.text || "#FFFFFF" }]}>
           Bli med på ledertavlen
@@ -599,7 +604,7 @@ const Leaderboard = () => {
           <Text style={styles.overlayButtonText}>Bli med</Text>
         </TouchableOpacity>
       </View>
-    </BlurView>
+    </View>
   );
 
   return (
@@ -607,7 +612,7 @@ const Leaderboard = () => {
       style={[
         styles.container,
         { backgroundColor: theme.background || "#1E1E1E" },
-      ]} // Dark background for dark mode
+      ]}
     >
       {renderHeader()}
       <AnimatedFlatList
@@ -642,7 +647,7 @@ const Leaderboard = () => {
               style={[
                 styles.dropdownContainer,
                 {
-                  backgroundColor: theme.surface || "#2D2D2D", // Dark gray background like the modal
+                  backgroundColor: theme.surface || "#2D2D2D",
                   borderRadius: 12,
                   shadowColor: "#000",
                   shadowOffset: { width: 0, height: 2 },
@@ -650,7 +655,7 @@ const Leaderboard = () => {
                   shadowRadius: 8,
                   elevation: 5,
                   position: "absolute",
-                  top: 80, // Adjusted to appear lower (increased from 60)
+                  top: 80,
                   left: 20,
                   right: 20,
                   maxWidth: 250,
@@ -698,11 +703,19 @@ const Leaderboard = () => {
       {renderFilterModal()}
       {isFirstTime && renderFirstTimeOverlay()}
       {!isFirstTime && !hasJoinedLeaderboard && (
-        <BlurView
-          intensity={80}
-          style={StyleSheet.absoluteFill}
-          tint={isDarkMode ? "dark" : "light"}
-        />
+        <View style={StyleSheet.absoluteFill}>
+          {Platform.OS === "ios" ? (
+            <BlurView
+              intensity={80}
+              style={StyleSheet.absoluteFill}
+              tint={isDarkMode ? "dark" : "light"}
+            />
+          ) : (
+            <View
+              style={[StyleSheet.absoluteFill, { backgroundColor: "#FFFFFF" }]} // White screen for Android
+            />
+          )}
+        </View>
       )}
       {showJoinAlert && (
         <View style={styles.alertOverlay}>
@@ -714,10 +727,7 @@ const Leaderboard = () => {
             />
           ) : (
             <View
-              style={[
-                StyleSheet.absoluteFill,
-                { backgroundColor: "rgba(0, 0, 0, 0.4)" },
-              ]}
+              style={[StyleSheet.absoluteFill, { backgroundColor: "#FFFFFF" }]} // White screen for Android
             />
           )}
           <View
@@ -823,7 +833,7 @@ const styles = StyleSheet.create({
   },
   dropdownContainer: {
     position: "absolute",
-    top: 80, // Adjusted to appear lower (increased from 60)
+    top: 80,
     left: 20,
     right: 20,
     maxWidth: 250,
