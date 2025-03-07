@@ -321,7 +321,7 @@ const ActiveEvent = ({ route }) => {
 
         {/* Event Banner */}
         <Image
-          source={require("../../../assets/event-illustration.png")}
+          source={require("../../../assets/Vitus_Happy.png")}
           style={styles.eventBanner}
         />
 
@@ -626,7 +626,8 @@ const styles = StyleSheet.create({
   eventBanner: {
     width: "100%",
     height: 200,
-    resizeMode: "cover",
+
+    resizeMode: "contain", // Beholder proporsjonene til bildet
   },
   eventInfoContainer: {
     padding: 16,

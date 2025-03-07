@@ -15,11 +15,15 @@ import { useNavigation } from "@react-navigation/native";
 import { useTheme } from "../context/ThemeContext";
 import { EventContext } from "../events/EventContext";
 import * as Progress from "react-native-progress";
+// Valgfritt: Uncomment neste linje hvis du installerer react-native-safe-area-context
+// import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 const YourEvents = () => {
   const navigation = useNavigation();
   const { theme } = useTheme();
   const { activeEvents, deleteEvent, updateEvent } = useContext(EventContext);
+  // Valgfritt: Uncomment neste linje for dynamisk padding
+  // const insets = useSafeAreaInsets();
 
   const [selectedEvent, setSelectedEvent] = useState(null);
   const [isMenuVisible, setMenuVisible] = useState(false);
@@ -59,7 +63,15 @@ const YourEvents = () => {
     >
       <ScrollView
         style={styles.container}
-        contentContainerStyle={styles.contentContainer}
+        contentContainerStyle={{
+          ...styles.contentContainer,
+          flexGrow: 1,
+          paddingBottom: 100, // Fast padding for å sikre plass under siste kort
+          // Valgfritt: Uncomment neste linje og kommenter ut linjen over hvis du bruker safe-area-context
+          // paddingBottom: insets.bottom + 20, // Dynamisk padding basert på bunnavigasjon + ekstra plass
+        }}
+        showsVerticalScrollIndicator={true}
+        scrollEventThrottle={16}
       >
         <View style={styles.actionButtons}>
           <TouchableOpacity
@@ -108,7 +120,7 @@ const YourEvents = () => {
             ]}
           >
             <Image
-              source={require("../../../assets/CalenderClock.png")}
+              source={require("../../../assets/Vitus_Happy.png")}
               style={styles.emptyStateImage}
             />
             <Text style={[styles.emptyStateTitle, { color: theme.text }]}>
@@ -147,13 +159,14 @@ const YourEvents = () => {
               <TouchableOpacity
                 key={index}
                 style={[styles.eventCard, { backgroundColor: theme.surface }]}
+                activeOpacity={0.7}
                 onPress={() =>
                   navigation.navigate("ActiveEvent", { eventId: event.id })
                 }
               >
                 <View style={styles.eventContent}>
                   <Image
-                    source={require("../../../assets/trophy_icon.png")}
+                    source={require("../../../assets/Vitus_Strong.png")}
                     style={styles.eventImage}
                   />
                   <View style={styles.eventDetails}>
@@ -232,7 +245,7 @@ const YourEvents = () => {
             </TouchableOpacity>
             <TouchableOpacity
               style={styles.menuOption}
-              onPress={() => handleDeleteEvent(selectedEvent.id)}
+              onPress={() => handleDeleteEvent(selectedEvent?.id)}
             >
               <MaterialCommunityIcons name="delete" size={24} color="#FF0000" />
               <Text style={[styles.menuOptionText, { color: "#FF0000" }]}>
@@ -265,6 +278,7 @@ const styles = StyleSheet.create({
   },
   contentContainer: {
     paddingTop: 0,
+    flexGrow: 1,
   },
   actionButtons: {
     flexDirection: "row",
@@ -319,9 +333,10 @@ const styles = StyleSheet.create({
     marginHorizontal: 4,
   },
   emptyStateImage: {
-    width: 80,
-    height: 80,
+    width: 100,
+    height: 100,
     marginBottom: 16,
+    sizeMode: "contain",
   },
   emptyStateTitle: {
     fontSize: 24,

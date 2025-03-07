@@ -21,14 +21,29 @@ export const trophyData = {
     name: "Skritt Mester",
     description: "Kom videre med daglige skritt",
     levels: [
-      { level: 1, requirement: "5,000 skritt på en dag", goal: 5000, icon: "🥉" },
-      { level: 2, requirement: "10,000 skritt på en dag", goal: 10000, icon: "🥈" },
-      { level: 3, requirement: "15,000 skritt på en dag", goal: 15000, icon: "🥇" },
+      {
+        level: 1,
+        requirement: "5,000 skritt på en dag",
+        goal: 5000,
+        icon: "🥉",
+      },
+      {
+        level: 2,
+        requirement: "10,000 skritt på en dag",
+        goal: 10000,
+        icon: "🥈",
+      },
+      {
+        level: 3,
+        requirement: "15,000 skritt på en dag",
+        goal: 15000,
+        icon: "🥇",
+      },
     ],
   },
-  "Hendelses Soldat": {
+  "Elsker hendelser": {
     id: "2",
-    name: "Hendelses Soldat",
+    name: "Elsker hendelser",
     description: "Bli med på aktiviteter",
     levels: [
       { level: 1, requirement: "Deltatt på 1 hendelse", goal: 1, icon: "🥉" },
@@ -36,7 +51,7 @@ export const trophyData = {
       { level: 3, requirement: "Deltatt på 10 hendelse", goal: 10, icon: "🥇" },
     ],
   },
-  "Streak": {
+  Streak: {
     id: "3",
     name: "Streak",
     description: "Hold streaken gående",
@@ -71,9 +86,24 @@ export const trophyData = {
     name: "Skritt Titan",
     description: "Hersk over skrittene",
     levels: [
-      { level: 1, requirement: "50,000 totalt skritt", goal: 50000, icon: "🥉" },
-      { level: 2, requirement: "100,000 totalt skritt", goal: 100000, icon: "🥈" },
-      { level: 3, requirement: "250,000 totalt skritt", goal: 250000, icon: "🥇" },
+      {
+        level: 1,
+        requirement: "50,000 totalt skritt",
+        goal: 50000,
+        icon: "🥉",
+      },
+      {
+        level: 2,
+        requirement: "100,000 totalt skritt",
+        goal: 100000,
+        icon: "🥈",
+      },
+      {
+        level: 3,
+        requirement: "250,000 totalt skritt",
+        goal: 250000,
+        icon: "🥇",
+      },
     ],
   },
   "Personverns Detektiv": {
@@ -81,7 +111,12 @@ export const trophyData = {
     name: "Personverns Detektiv",
     description: "Utforsk personvernet",
     levels: [
-      { level: 1, requirement: "Gå til bunnen av personvernet", goal: 1, icon: "🥇" },
+      {
+        level: 1,
+        requirement: "Gå til bunnen av personvernet",
+        goal: 1,
+        icon: "🥇",
+      },
     ],
   },
 };
@@ -95,13 +130,30 @@ const TrophyItem = ({ item, onPress, theme }) => {
   React.useEffect(() => {
     const loadProgress = async () => {
       try {
-        const stepCount = parseInt(await AsyncStorage.getItem("stepCount") || "0", 10);
-        const currentStreak = parseInt(await AsyncStorage.getItem("currentStreak") || "0", 10);
-        const totalSteps = parseInt(await AsyncStorage.getItem("totalSteps") || "0", 10);
-        const participatedEvents = JSON.parse(await AsyncStorage.getItem("participatedEvents") || "[]");
-        const completedEvents = JSON.parse(await AsyncStorage.getItem("completedEvents") || "[]");
-        const leaderboardRank = parseInt(await AsyncStorage.getItem("leaderboardRank") || "999", 10);
-        const privacyExplored = (await AsyncStorage.getItem("privacyExplored")) === "true";
+        const stepCount = parseInt(
+          (await AsyncStorage.getItem("stepCount")) || "0",
+          10
+        );
+        const currentStreak = parseInt(
+          (await AsyncStorage.getItem("currentStreak")) || "0",
+          10
+        );
+        const totalSteps = parseInt(
+          (await AsyncStorage.getItem("totalSteps")) || "0",
+          10
+        );
+        const participatedEvents = JSON.parse(
+          (await AsyncStorage.getItem("participatedEvents")) || "[]"
+        );
+        const completedEvents = JSON.parse(
+          (await AsyncStorage.getItem("completedEvents")) || "[]"
+        );
+        const leaderboardRank = parseInt(
+          (await AsyncStorage.getItem("leaderboardRank")) || "999",
+          10
+        );
+        const privacyExplored =
+          (await AsyncStorage.getItem("privacyExplored")) === "true";
 
         let level = 0;
         switch (item.name) {
@@ -110,7 +162,7 @@ const TrophyItem = ({ item, onPress, theme }) => {
             else if (stepCount >= 10000) level = 2;
             else if (stepCount >= 5000) level = 1;
             break;
-          case "Hendelses Soldat":
+          case "Elsker hendelser":
             if (participatedEvents.length >= 10) level = 3;
             else if (participatedEvents.length >= 5) level = 2;
             else if (participatedEvents.length >= 1) level = 1;
@@ -155,7 +207,8 @@ const TrophyItem = ({ item, onPress, theme }) => {
 
   const getGradientColors = () => {
     if (unlockedLevel === 0) return ["#4A4A4A", "#333333"]; // Grey gradient for uncompleted (matching dark theme)
-    if (unlockedLevel === 1 && item.name !== "Personverns Detektiv") return ["#CD7F32", "#8B4513"]; // Bronze gradient
+    if (unlockedLevel === 1 && item.name !== "Personverns Detektiv")
+      return ["#CD7F32", "#8B4513"]; // Bronze gradient
     if (unlockedLevel === 2) return ["#C0C0C0", "#808080"]; // Silver gradient
     return ["#FFD700", "#DAA520"]; // Gold gradient
   };
@@ -172,8 +225,12 @@ const TrophyItem = ({ item, onPress, theme }) => {
         <Trophy size={24} color={getTrophyColor()} />
       </LinearGradient>
       <View style={styles.trophyInfo}>
-        <Text style={[styles.trophyName, { color: theme.text }]}>{item.name}</Text>
-        <Text style={[styles.trophyDescription, { color: theme.textSecondary }]}>
+        <Text style={[styles.trophyName, { color: theme.text }]}>
+          {item.name}
+        </Text>
+        <Text
+          style={[styles.trophyDescription, { color: theme.textSecondary }]}
+        >
           {item.description}
         </Text>
       </View>
@@ -187,14 +244,18 @@ const Achievements = () => {
   const navigation = useNavigation();
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]}>
+    <SafeAreaView
+      style={[styles.container, { backgroundColor: theme.background }]}
+    >
       <StatusBar barStyle={theme.dark ? "light-content" : "dark-content"} />
       <FlatList
         data={trophies}
         renderItem={({ item }) => (
           <TrophyItem
             item={item}
-            onPress={() => navigation.navigate("TrophyDetails", { trophy: item })}
+            onPress={() =>
+              navigation.navigate("TrophyDetails", { trophy: item })
+            }
             theme={theme}
           />
         )}

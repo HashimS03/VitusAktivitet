@@ -26,7 +26,7 @@ import { EventContext } from "../events/EventContext"; // Import EventContext
 import Achievements from "./achievements";
 import Activity from "./activity";
 
-const TABS = ["STATS", "GJØREMÅL"];
+const TABS = ["STATS", "MILEPÆLER"];
 
 const Stats = () => {
   const [activeTab, setActiveTab] = useState("STATS");
@@ -51,7 +51,9 @@ const Stats = () => {
     try {
       // Load total steps from stepHistory_
       const allKeys = await AsyncStorage.getAllKeys();
-      const stepHistoryKeys = allKeys.filter((key) => key.startsWith("stepHistory_"));
+      const stepHistoryKeys = allKeys.filter((key) =>
+        key.startsWith("stepHistory_")
+      );
       let totalHistoricalSteps = 0;
       for (const key of stepHistoryKeys) {
         const steps = await AsyncStorage.getItem(key);
@@ -61,7 +63,8 @@ const Stats = () => {
 
       // Load best streak (use currentStreak if bestStreak isn't tracked separately)
       const currentStreak = await AsyncStorage.getItem("currentStreak");
-      const storedBestStreak = await AsyncStorage.getItem("bestStreak") || currentStreak || "0";
+      const storedBestStreak =
+        (await AsyncStorage.getItem("bestStreak")) || currentStreak || "0";
       setBestStreak(parseInt(storedBestStreak) || 0);
 
       // Load events participated
@@ -85,7 +88,7 @@ const Stats = () => {
 
   // Update stats when screen is focused
   useEffect(() => {
-    const subscription = navigation.addListener('focus', loadStatsData);
+    const subscription = navigation.addListener("focus", loadStatsData);
     return subscription;
   }, [navigation]);
 
@@ -195,23 +198,49 @@ const Stats = () => {
             onPress={() => console.log(`${card.label} pressed`)} // Optional: Add navigation or action
           >
             <View style={styles.cardContent}>
-              <View style={[styles.iconContainer, { backgroundColor: card.iconBgColor }]}>
+              <View
+                style={[
+                  styles.iconContainer,
+                  { backgroundColor: card.iconBgColor },
+                ]}
+              >
                 {card.icon === MaterialCommunityIcons ? (
-                  <card.icon name={card.iconName} size={24} color={card.iconColor} />
+                  <card.icon
+                    name={card.iconName}
+                    size={24}
+                    color={card.iconColor}
+                  />
                 ) : (
                   <card.icon size={24} color={card.iconColor} />
                 )}
               </View>
               <View style={styles.textContainer}>
-                <Text style={[styles.statValue, { color: theme.text }]}>{card.value}</Text>
-                <Text style={[styles.statLabel, { color: theme.textSecondary }]}>{card.label}</Text>
+                <Text style={[styles.statValue, { color: theme.text }]}>
+                  {card.value}
+                </Text>
+                <Text
+                  style={[styles.statLabel, { color: theme.textSecondary }]}
+                >
+                  {card.label}
+                </Text>
               </View>
             </View>
             {card.progress !== null && (
               <View style={styles.progressBarContainer}>
-                <View style={[styles.progressBar, { backgroundColor: theme.border }]}>
+                <View
+                  style={[
+                    styles.progressBar,
+                    { backgroundColor: theme.border },
+                  ]}
+                >
                   <View
-                    style={[styles.progressFill, { backgroundColor: card.iconColor, width: `${card.progress}%` }]}
+                    style={[
+                      styles.progressFill,
+                      {
+                        backgroundColor: card.iconColor,
+                        width: `${card.progress}%`,
+                      },
+                    ]}
                   />
                 </View>
               </View>
@@ -221,29 +250,57 @@ const Stats = () => {
       </View>
       <View style={styles.eventsSection}>
         <View style={styles.eventsHeader}>
-          <Text style={[styles.sectionTitle, { color: theme.text }]}>Nylige hendelser</Text>
+          <Text style={[styles.sectionTitle, { color: theme.text }]}>
+            Nylige hendelser
+          </Text>
           {activeEvents.length > 3 && (
             <TouchableOpacity
               onPress={() => navigation.navigate("Events")}
               style={styles.seeAllButton}
             >
-              <Text style={[styles.seeAllText, { color: accentColor }]}>Se alt</Text>
+              <Text style={[styles.seeAllText, { color: accentColor }]}>
+                Se alt
+              </Text>
             </TouchableOpacity>
           )}
         </View>
         {activeEvents.length > 0 ? (
           activeEvents.slice(0, 3).map((event, index) => (
-            <View key={index} style={[styles.eventCard, { backgroundColor: theme.surface }]}>
+            <View
+              key={index}
+              style={[styles.eventCard, { backgroundColor: theme.surface }]}
+            >
               <View style={styles.eventContent}>
-                <Image source={require("../../../assets/trophy_icon.png")} style={styles.eventIcon} />
+                <Image
+                  source={require("../../../assets/trophy_icon.png")}
+                  style={styles.eventIcon}
+                />
                 <View style={styles.eventTextContainer}>
-                  <Text style={[styles.eventTitle, { color: theme.text }]}>{event.title}</Text>
-                  <View style={[styles.progressBar, { backgroundColor: theme.border }]}>
+                  <Text style={[styles.eventTitle, { color: theme.text }]}>
+                    {event.title}
+                  </Text>
+                  <View
+                    style={[
+                      styles.progressBar,
+                      { backgroundColor: theme.border },
+                    ]}
+                  >
                     <View
-                      style={[styles.progressFill, { backgroundColor: accentColor, width: `${(event.progress || 0) * 100}%` }]}
+                      style={[
+                        styles.progressFill,
+                        {
+                          backgroundColor: accentColor,
+                          width: `${(event.progress || 0) * 100}%`,
+                        },
+                      ]}
                     />
                   </View>
-                  <Text style={[styles.eventProgress, { color: theme.textSecondary }]}>
+                  <Text
+                    style={[
+                      styles.eventProgress,
+                      { color: theme.textSecondary },
+                    ]}
+                  >
                     Complete {Math.round((event.progress || 0) * 100)}%
                   </Text>
                 </View>
@@ -251,8 +308,12 @@ const Stats = () => {
             </View>
           ))
         ) : (
-          <View style={[styles.emptyEventCard, { backgroundColor: theme.surface }]}>
-            <Text style={[styles.emptyEventText, { color: theme.textSecondary }]}>
+          <View
+            style={[styles.emptyEventCard, { backgroundColor: theme.surface }]}
+          >
+            <Text
+              style={[styles.emptyEventText, { color: theme.textSecondary }]}
+            >
               Ingen hendelser opprettet
             </Text>
           </View>
@@ -265,7 +326,7 @@ const Stats = () => {
     switch (activeTab) {
       case "STATS":
         return renderStatsContent();
-      case "GJØREMÅL":
+      case "MILEPÆLER":
         return <Achievements />;
       default:
         return null;
@@ -273,7 +334,9 @@ const Stats = () => {
   };
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]}>
+    <SafeAreaView
+      style={[styles.container, { backgroundColor: theme.background }]}
+    >
       {renderHeader()}
       {renderProfileSection()}
       {renderTabs()}

@@ -329,7 +329,7 @@ const NewEvent = ({ route }) => {
 
     try {
       // Send event to backend
-      await sendEventToBackend(eventData);
+      //await sendEventToBackend(eventData); //denne kobler til databasen
 
       // Update local context (for immediate UI feedback)
       const updatedEvent = {
