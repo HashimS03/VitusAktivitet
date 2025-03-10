@@ -110,16 +110,17 @@ const NewEvent = ({ route }) => {
     existingEvent
       ? {
           ...existingEvent,
-          startDate: new Date(existingEvent.startDate),
-          endDate: new Date(existingEvent.endDate),
-          startTime: new Date(existingEvent.startTime),
-          endTime: new Date(existingEvent.endTime),
+          startDate: new Date(existingEvent.start_date),
+          endDate: new Date(existingEvent.end_date),
+          startTime: new Date(existingEvent.start_date),
+          endTime: new Date(existingEvent.end_date),
         }
       : {
           id: Math.random().toString(),
           title: "",
           description: "",
           goalValue: 50,
+          currentValue: 0, // Initialize currentValue
           selectedActivity: null,
           startDate: new Date(),
           endDate: new Date(),
@@ -286,25 +287,27 @@ const NewEvent = ({ route }) => {
     endDateTime.setMinutes(eventDetails.endTime.getMinutes());
 
     const eventData = {
+      id: eventDetails.id,
       title: eventDetails.title,
       description: eventDetails.description,
       activity: eventDetails.selectedActivity?.name || "",
-      goal: Math.round(eventDetails.goalValue),
+      goalValue: Math.round(eventDetails.goalValue),
+      currentValue: eventDetails.currentValue || 0,
       start_date: startDateTime.toISOString(),
       end_date: endDateTime.toISOString(),
       location: eventDetails.location,
-      event_type: eventDetails.eventType,
+      eventType: eventDetails.eventType,
       total_participants: Number(eventDetails.participantCount) || 0,
       team_count: Number(eventDetails.teamCount) || 0,
       members_per_team: Number(eventDetails.membersPerTeam) || 0,
+      selectedActivity: eventDetails.selectedActivity,
+      activityUnit: eventDetails.selectedActivity.unit,
     };
 
     try {
       const updatedEvent = {
         ...eventDetails,
         ...eventData,
-        goalValue: eventData.goal,
-        activityUnit: eventDetails.selectedActivity.unit,
       };
 
       if (updatedEvent.eventType === "individual") {
@@ -623,9 +626,7 @@ const NewEvent = ({ route }) => {
     <SafeAreaView
       style={[styles.safeArea, { backgroundColor: theme.background }]}
     >
-      {/* Main container with flex to separate content and footer */}
       <View style={styles.mainContainer}>
-        {/* Wrap only the content in KeyboardAvoidingView */}
         <KeyboardAvoidingView
           behavior={Platform.OS === "ios" ? "padding" : "height"}
           style={styles.contentContainer}
@@ -678,7 +679,6 @@ const NewEvent = ({ route }) => {
           </Animated.ScrollView>
         </KeyboardAvoidingView>
 
-        {/* Footer outside of KeyboardAvoidingView */}
         <View style={styles.footer}>
           <TouchableOpacity
             style={[styles.footerButton, { backgroundColor: theme.primary }]}
@@ -734,7 +734,6 @@ const NewEvent = ({ route }) => {
         </View>
       </View>
 
-      {/* Modals remain the same */}
       <Modal visible={showCancelModal} animationType="fade" transparent={true}>
         <BlurView intensity={100} style={styles.modalContainer}>
           <View
@@ -899,7 +898,7 @@ const styles = StyleSheet.create({
     flexDirection: "column",
   },
   contentContainer: {
-    flex: 1, // Takes up the available space, leaving room for the footer
+    flex: 1,
   },
   header: {
     height: 100,
@@ -930,7 +929,7 @@ const styles = StyleSheet.create({
   stepScrollContent: {
     flexGrow: 1,
     padding: 16,
-    paddingBottom: 16, // Add padding to ensure content isn't hidden under footer
+    paddingBottom: 16,
   },
   stepContainer: {
     flex: 1,
@@ -1033,7 +1032,7 @@ const styles = StyleSheet.create({
     padding: 16,
     borderTopWidth: 1,
     borderTopColor: "rgba(0, 0, 0, 0.1)",
-    backgroundColor: "transparent", // Ensure the footer doesn't inherit background issues
+    backgroundColor: "transparent",
   },
   footerButton: {
     flex: 1,
