@@ -1,5 +1,3 @@
-"use client";
-
 import { useState, useEffect, useRef, useContext } from "react";
 import {
   View,
@@ -276,39 +274,13 @@ const NewEvent = ({ route }) => {
     }
   };
 
-  // Function to send event data to the backend
-  const sendEventToBackend = async (eventData) => {
-    try {
-      const response = await fetch("http://localhost:4000/events", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(eventData),
-      });
-
-      if (!response.ok) {
-        throw new Error("Failed to create event on the server");
-      }
-
-      const result = await response.json();
-      return result;
-    } catch (error) {
-      console.error("Error sending event to backend:", error);
-      Alert.alert("Feil", "Kunne ikke opprette hendelsen på serveren.");
-      throw error;
-    }
-  };
-
   const createEvent = async () => {
     setShowConfirmModal(false);
 
-    // Combine startDate and startTime into a single DateTime
     const startDateTime = new Date(eventDetails.startDate);
     startDateTime.setHours(eventDetails.startTime.getHours());
     startDateTime.setMinutes(eventDetails.startTime.getMinutes());
 
-    // Combine endDate and endTime into a single DateTime
     const endDateTime = new Date(eventDetails.endDate);
     endDateTime.setHours(eventDetails.endTime.getHours());
     endDateTime.setMinutes(eventDetails.endTime.getMinutes());
@@ -328,13 +300,9 @@ const NewEvent = ({ route }) => {
     };
 
     try {
-      // Send event to backend
-      //await sendEventToBackend(eventData); //denne kobler til databasen
-
-      // Update local context (for immediate UI feedback)
       const updatedEvent = {
         ...eventDetails,
-        ...eventData, // Include backend-compatible fields
+        ...eventData,
         goalValue: eventData.goal,
         activityUnit: eventDetails.selectedActivity.unit,
       };
@@ -372,7 +340,7 @@ const NewEvent = ({ route }) => {
 
       navigation.replace("ActiveEvent", { eventId: updatedEvent.id });
     } catch (error) {
-      // Error is already handled in sendEventToBackend
+      Alert.alert("Feil", "Kunne ikke opprette hendelsen.");
     }
   };
 
@@ -655,57 +623,62 @@ const NewEvent = ({ route }) => {
     <SafeAreaView
       style={[styles.safeArea, { backgroundColor: theme.background }]}
     >
-      <KeyboardAvoidingView
-        behavior={Platform.OS === "ios" ? "padding" : "height"}
-        style={styles.container}
-        keyboardVerticalOffset={Platform.OS === "ios" ? 64 : 0}
-      >
-        <LinearGradient
-          colors={[theme.primary, theme.background]}
-          style={styles.header}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
+      {/* Main container with flex to separate content and footer */}
+      <View style={styles.mainContainer}>
+        {/* Wrap only the content in KeyboardAvoidingView */}
+        <KeyboardAvoidingView
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
+          style={styles.contentContainer}
+          keyboardVerticalOffset={Platform.OS === "ios" ? 64 : 0}
         >
-          <Text style={styles.headerTitle}>
-            {isEditing ? "Rediger hendelse" : "Ny hendelse"}
-          </Text>
-          <Animated.View
-            style={[
-              styles.progressBar,
+          <LinearGradient
+            colors={[theme.primary, theme.background]}
+            style={styles.header}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+          >
+            <Text style={styles.headerTitle}>
+              {isEditing ? "Rediger hendelse" : "Ny hendelse"}
+            </Text>
+            <Animated.View
+              style={[
+                styles.progressBar,
+                {
+                  width: progressAnimation.interpolate({
+                    inputRange: [0, 1],
+                    outputRange: ["0%", "100%"],
+                  }),
+                },
+              ]}
+            />
+          </LinearGradient>
+
+          <Animated.ScrollView
+            ref={scrollViewRef}
+            style={styles.scrollContainer}
+            contentContainerStyle={styles.scrollContent}
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            scrollEnabled={false}
+            scrollEventThrottle={16}
+            onScroll={Animated.event(
+              [{ nativeEvent: { contentOffset: { x: stepAnimation } } }],
               {
-                width: progressAnimation.interpolate({
-                  inputRange: [0, 1],
-                  outputRange: ["0%", "100%"],
-                }),
-              },
-            ]}
-          />
-        </LinearGradient>
+                useNativeDriver: true,
+              }
+            )}
+          >
+            {[0, 1, 2, 3].map((step) => (
+              <View key={step} style={[styles.stepWrapper, { width }]}>
+                <ScrollView contentContainerStyle={styles.stepScrollContent}>
+                  {renderStep(step)}
+                </ScrollView>
+              </View>
+            ))}
+          </Animated.ScrollView>
+        </KeyboardAvoidingView>
 
-        <Animated.ScrollView
-          ref={scrollViewRef}
-          style={styles.scrollContainer}
-          contentContainerStyle={styles.scrollContent}
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          scrollEnabled={false}
-          scrollEventThrottle={16}
-          onScroll={Animated.event(
-            [{ nativeEvent: { contentOffset: { x: stepAnimation } } }],
-            {
-              useNativeDriver: true,
-            }
-          )}
-        >
-          {[0, 1, 2, 3].map((step) => (
-            <View key={step} style={[styles.stepWrapper, { width }]}>
-              <ScrollView contentContainerStyle={styles.stepScrollContent}>
-                {renderStep(step)}
-              </ScrollView>
-            </View>
-          ))}
-        </Animated.ScrollView>
-
+        {/* Footer outside of KeyboardAvoidingView */}
         <View style={styles.footer}>
           <TouchableOpacity
             style={[styles.footerButton, { backgroundColor: theme.primary }]}
@@ -754,13 +727,14 @@ const NewEvent = ({ route }) => {
               <Text
                 style={[styles.footerButtonText, { color: theme.background }]}
               >
-                {isEditing ? "Oppdater hendelse" : "Opprett hendelse"}
+                {isEditing ? "Oppdater hendelse" : "Opprett"}
               </Text>
             </TouchableOpacity>
           )}
         </View>
-      </KeyboardAvoidingView>
+      </View>
 
+      {/* Modals remain the same */}
       <Modal visible={showCancelModal} animationType="fade" transparent={true}>
         <BlurView intensity={100} style={styles.modalContainer}>
           <View
@@ -920,8 +894,12 @@ const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
   },
-  container: {
+  mainContainer: {
     flex: 1,
+    flexDirection: "column",
+  },
+  contentContainer: {
+    flex: 1, // Takes up the available space, leaving room for the footer
   },
   header: {
     height: 100,
@@ -952,6 +930,7 @@ const styles = StyleSheet.create({
   stepScrollContent: {
     flexGrow: 1,
     padding: 16,
+    paddingBottom: 16, // Add padding to ensure content isn't hidden under footer
   },
   stepContainer: {
     flex: 1,
@@ -1054,6 +1033,7 @@ const styles = StyleSheet.create({
     padding: 16,
     borderTopWidth: 1,
     borderTopColor: "rgba(0, 0, 0, 0.1)",
+    backgroundColor: "transparent", // Ensure the footer doesn't inherit background issues
   },
   footerButton: {
     flex: 1,
