@@ -17,6 +17,27 @@ export const EventProvider = ({ children }) => {
         const storedEvents = await AsyncStorage.getItem(STORAGE_KEY);
         if (storedEvents) {
           setEvents(JSON.parse(storedEvents));
+        } else {
+          // Initial test data (optional)
+          const initialEvents = [
+            {
+              id: "1",
+              title: "Event 1",
+              start_date: "2025-03-01T00:00:00Z",
+              end_date: "2025-03-05T00:00:00Z",
+              goalValue: 100,
+              currentValue: 50,
+            },
+            {
+              id: "2",
+              title: "Event 2",
+              start_date: "2025-03-06T00:00:00Z",
+              end_date: "2025-03-10T00:00:00Z",
+              goalValue: 200,
+              currentValue: 150,
+            },
+          ];
+          setEvents(initialEvents);
         }
       } catch (error) {
         console.error("Failed to load events:", error);
@@ -132,7 +153,6 @@ export const EventProvider = ({ children }) => {
 
       if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) return;
 
-      // Only consider future times
       if (startDate > nowUTC && (!nextEventTime || startDate < nextEventTime)) {
         nextEventTime = startDate;
       }
@@ -150,11 +170,9 @@ export const EventProvider = ({ children }) => {
       );
       return setTimeout(() => {
         categorizeEvents();
-        // Schedule the next one immediately after
         scheduleNextCategorization();
       }, delay);
     } else {
-      // Fallback: check every minute if no upcoming events
       console.log("No upcoming events, falling back to 1-minute interval");
       return setInterval(() => {
         categorizeEvents();
@@ -164,14 +182,11 @@ export const EventProvider = ({ children }) => {
 
   // Add a new event
   const addEvent = (newEvent) => {
-    setEvents((prevEvents) => {
-      const updatedEvents = [
-        ...prevEvents,
-        { ...newEvent, id: Date.now().toString() },
-      ];
-      console.log("Added event:", newEvent);
-      return updatedEvents;
-    });
+    setEvents((prevEvents) => [
+      ...prevEvents,
+      { ...newEvent, id: Date.now().toString() },
+    ]);
+    console.log("Added event:", newEvent);
   };
 
   // Update an existing event
@@ -212,13 +227,9 @@ export const EventProvider = ({ children }) => {
 
   // Manage dynamic scheduling of categorization
   useEffect(() => {
-    // Initial categorization
     categorizeEvents();
-
-    // Start scheduling
     let timer = scheduleNextCategorization();
 
-    // Cleanup on unmount
     return () => {
       if (typeof timer === "number") {
         clearTimeout(timer);

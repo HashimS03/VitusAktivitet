@@ -23,6 +23,7 @@ import {
   TextInput,
   Modal,
   Switch,
+  Alert,
 } from "react-native";
 import {
   TrendingUp,
@@ -35,6 +36,8 @@ import { useTheme } from "../context/ThemeContext";
 import { EventContext } from "../events/EventContext";
 import { BlurView } from "expo-blur";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { Swipeable } from "react-native-gesture-handler"; // Riktig import
+import { GestureHandlerRootView } from "react-native-gesture-handler";
 
 const AnimatedFlatList = Animated.createAnimatedComponent(FlatList);
 
@@ -42,7 +45,7 @@ const { width: SCREEN_WIDTH } = Dimensions.get("window");
 
 const SEGMENT_OPTIONS = ["Daglig", "Ukentlig", "Månedlig", "All Tid"];
 
-const Leaderboard = () => {
+const Leaderboard = ({ route }) => {
   const scrollY = useRef(new Animated.Value(0)).current;
   const [selectedSegment, setSelectedSegment] = useState("Daily");
   const [filterOption, setFilterOption] = useState("Alle");
@@ -50,9 +53,14 @@ const Leaderboard = () => {
   const [showFilterModal, setShowFilterModal] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const { theme, isDarkMode, toggleTheme, accentColor } = useTheme();
-  const { activeEvents } = useContext(EventContext);
+  const { activeEvents, pastEvents, deleteEvent } = useContext(EventContext); // Bruk deleteEvent i stedet for removePastEvent
   const [leaderboardType, setLeaderboardType] = useState("General");
-  const [selectedEvent, setSelectedEvent] = useState(null);
+  const [selectedEvent, setSelectedEvent] = useState(
+    route.params?.eventId
+      ? activeEvents.find((event) => event.id === route.params.eventId) ||
+          pastEvents.find((event) => event.id === route.params.eventId)
+      : null
+  );
   const [showLeaderboardTypeDropdown, setShowLeaderboardTypeDropdown] =
     useState(false);
   const [isFirstTime, setIsFirstTime] = useState(true);
@@ -145,13 +153,17 @@ const Leaderboard = () => {
   );
 
   const eventLeaderboardData = useMemo(() => {
+    const allEvents = [...activeEvents, ...pastEvents];
     const leaderboardData = {};
-    activeEvents.forEach((event) => {
+    allEvents.forEach((event) => {
+      const isEventFinished = new Date(event.end_date) < new Date();
       leaderboardData[event.id] = [
         {
           id: "1",
           name: "User 1",
-          points: event.currentValue || 0,
+          points: isEventFinished
+            ? event.currentValue || 0
+            : event.currentValue || 0,
           department: "Participant",
           avatar: require("../../../assets/figure/avatar3.jpg"),
           change: 0,
@@ -159,7 +171,9 @@ const Leaderboard = () => {
         {
           id: "2",
           name: "User 2",
-          points: Math.floor((event.currentValue || 0) * 0.8),
+          points: isEventFinished
+            ? Math.floor((event.currentValue || 0) * 0.8)
+            : Math.floor((event.currentValue || 0) * 0.8),
           department: "Participant",
           avatar: require("../../../assets/figure/avatar4.jpeg"),
           change: 1,
@@ -167,7 +181,7 @@ const Leaderboard = () => {
       ];
     });
     return leaderboardData;
-  }, [activeEvents]);
+  }, [activeEvents, pastEvents]);
 
   const filteredData = useMemo(() => {
     if (leaderboardType === "General") {
@@ -188,8 +202,14 @@ const Leaderboard = () => {
               item.name.toLowerCase().includes(searchQuery.toLowerCase()))
         )
         .sort((a, b) => b.points - a.points);
+    } else {
+      return [
+        { type: "header", title: "Aktive hendelser" },
+        ...activeEvents.map((event) => ({ type: "event", ...event })),
+        { type: "header", title: "Utgåtte:" },
+        ...pastEvents.map((event) => ({ type: "event", ...event })),
+      ];
     }
-    return activeEvents;
   }, [
     filterOption,
     searchQuery,
@@ -198,6 +218,7 @@ const Leaderboard = () => {
     generalLeaderboardData,
     eventLeaderboardData,
     activeEvents,
+    pastEvents,
   ]);
 
   const toggleSearch = useCallback(() => {
@@ -282,35 +303,202 @@ const Leaderboard = () => {
   );
 
   const renderEventItem = useCallback(
-    ({ item }) => (
-      <TouchableOpacity
-        style={[
-          styles.eventItem,
-          { backgroundColor: theme.surface || "#424242" },
-        ]}
-        onPress={() => setSelectedEvent(item)}
-      >
-        <Image
-          source={require("../../../assets/trophy_icon.png")}
-          style={styles.eventImage}
-        />
-        <View style={styles.eventInfo}>
-          <Text style={[styles.eventName, { color: theme.text || "#FFFFFF" }]}>
-            {item.title}
-          </Text>
+    ({ item }) => {
+      const isEventFinished = new Date(item.end_date) < new Date();
+
+      const renderRightActions = (progress, dragX) => {
+        const trans = dragX.interpolate({
+          inputRange: [0, 80],
+          outputRange: [0, 80],
+          extrapolate: "clamp",
+        });
+        return (
+          <TouchableOpacity
+            style={[
+              styles.swipeButton,
+              { backgroundColor: theme.error || "#EF5350" },
+            ]}
+            onPress={() => {
+              Alert.alert(
+                "Slett hendelse",
+                "Er du sikker på at du vil slette denne hendelsen?",
+                [
+                  { text: "Avbryt", style: "cancel" },
+                  {
+                    text: "Slett",
+                    style: "destructive",
+                    onPress: () => deleteEvent(item.id), // Bruk deleteEvent
+                  },
+                ]
+              );
+            }}
+          >
+            <Text style={styles.swipeButtonText}>Slett</Text>
+          </TouchableOpacity>
+        );
+      };
+
+      return (
+        <Swipeable
+          renderRightActions={isEventFinished ? renderRightActions : null}
+          friction={2}
+          rightThreshold={40}
+          overshootRight={false}
+          enabled={isEventFinished}
+        >
+          <TouchableOpacity
+            style={[
+              styles.eventItem,
+              { backgroundColor: theme.surface || "#424242" },
+            ]}
+            onPress={() => setSelectedEvent(item)}
+          >
+            <Image
+              source={require("../../../assets/trophy_icon.png")}
+              style={styles.eventImage}
+            />
+            <View style={styles.eventInfo}>
+              <Text
+                style={[styles.eventName, { color: theme.text || "#FFFFFF" }]}
+              >
+                {item.title}
+              </Text>
+              <Text
+                style={[
+                  styles.eventDate,
+                  { color: theme.textSecondary || "#B0B0B0" },
+                ]}
+              >
+                Mål: {item.goalValue} {item.selectedActivity?.unit || "km"}
+              </Text>
+              {isEventFinished && (
+                <Text
+                  style={[
+                    styles.eventStatus,
+                    { color: theme.error || "#EF5350" },
+                  ]}
+                >
+                  (Utgått)
+                </Text>
+              )}
+            </View>
+          </TouchableOpacity>
+        </Swipeable>
+      );
+    },
+    [theme, deleteEvent]
+  );
+
+  const renderHeaderItem = ({ item }) => (
+    <View style={styles.sectionHeader}>
+      <Text style={[styles.sectionTitle, { color: theme.text || "#FFFFFF" }]}>
+        {item.title}
+      </Text>
+      {item.title === "Utgåtte:" && pastEvents.length > 0 && (
+        <TouchableOpacity
+          style={[
+            styles.clearButton,
+            { backgroundColor: accentColor || "#00C2A8" },
+          ]}
+          onPress={() => {
+            Alert.alert(
+              "Fjern alle utgåtte resultater",
+              "Er du sikker på at du vil fjerne alle utgåtte resultater?",
+              [
+                { text: "Avbryt", style: "cancel" },
+                {
+                  text: "Fjern",
+                  style: "destructive",
+                  onPress: clearPastEvents,
+                },
+              ]
+            );
+          }}
+        >
           <Text
             style={[
-              styles.eventDate,
+              styles.clearButtonText,
+              { color: theme.background || "#FFFFFF" },
+            ]}
+          >
+            Fjern alle
+          </Text>
+        </TouchableOpacity>
+      )}
+    </View>
+  );
+
+  const renderItem = ({ item, index }) => {
+    if (item.type === "header") {
+      return renderHeaderItem({ item });
+    } else if (item.type === "event") {
+      return renderEventItem({ item });
+    } else {
+      return renderLeaderboardItem({ item, index });
+    }
+  };
+
+  const renderEventSection = () => {
+    if (!selectedEvent) {
+      return (
+        <AnimatedFlatList
+          data={filteredData}
+          renderItem={renderItem}
+          keyExtractor={(item, index) =>
+            item.id ? item.id : `${item.type}-${index}`
+          }
+          contentContainerStyle={styles.listContent}
+          showsVerticalScrollIndicator={false}
+          onScroll={Animated.event(
+            [{ nativeEvent: { contentOffset: { y: scrollY } } }],
+            { useNativeDriver: true }
+          )}
+          scrollEventThrottle={16}
+          ListEmptyComponent={
+            <Text
+              style={[
+                styles.emptyText,
+                { color: theme.textSecondary || "#B0B0B0" },
+              ]}
+            >
+              Ingen hendelser tilgjengelig.
+            </Text>
+          }
+        />
+      );
+    }
+
+    const selectedLeaderboardData =
+      eventLeaderboardData[selectedEvent.id] || [];
+    const filteredLeaderboardData = selectedLeaderboardData
+      .filter(
+        (item) =>
+          (filterOption === "Alle" || item.department === filterOption) &&
+          (searchQuery === "" ||
+            item.name.toLowerCase().includes(searchQuery.toLowerCase()))
+      )
+      .sort((a, b) => b.points - a.points);
+
+    return (
+      <FlatList
+        data={filteredLeaderboardData}
+        renderItem={renderLeaderboardItem}
+        keyExtractor={(item) => item.id}
+        contentContainerStyle={styles.listContent}
+        showsVerticalScrollIndicator={false}
+        ListEmptyComponent={
+          <Text
+            style={[
+              styles.emptyText,
               { color: theme.textSecondary || "#B0B0B0" },
             ]}
           >
-            Mål: {item.goalValue} {item.selectedActivity?.unit || "km"}
+            Ingen resultater tilgjengelig for denne hendelsen.
           </Text>
-        </View>
-      </TouchableOpacity>
-    ),
-    [theme]
-  );
+        }
+      />
+    );
+  };
 
   const renderHeader = useCallback(
     () => (
@@ -520,7 +708,7 @@ const Leaderboard = () => {
           />
         ) : (
           <View
-            style={[StyleSheet.absoluteFill, { backgroundColor: "#FFFFFF" }]} // White screen for Android
+            style={[StyleSheet.absoluteFill, { backgroundColor: "#FFFFFF" }]}
           />
         )}
         <View
@@ -579,7 +767,7 @@ const Leaderboard = () => {
         />
       ) : (
         <View
-          style={[StyleSheet.absoluteFill, { backgroundColor: "#FFFFFF" }]} // White screen for Android
+          style={[StyleSheet.absoluteFill, { backgroundColor: "#FFFFFF" }]}
         />
       )}
       <View style={styles.overlayContent}>
@@ -615,22 +803,22 @@ const Leaderboard = () => {
       ]}
     >
       {renderHeader()}
-      <AnimatedFlatList
-        data={filteredData}
-        renderItem={
-          leaderboardType === "Event" && !selectedEvent
-            ? renderEventItem
-            : renderLeaderboardItem
-        }
-        keyExtractor={(item) => item.id}
-        contentContainerStyle={styles.listContent}
-        showsVerticalScrollIndicator={false}
-        onScroll={Animated.event(
-          [{ nativeEvent: { contentOffset: { y: scrollY } } }],
-          { useNativeDriver: true }
-        )}
-        scrollEventThrottle={16}
-      />
+      {leaderboardType === "Event" ? (
+        renderEventSection()
+      ) : (
+        <AnimatedFlatList
+          data={filteredData}
+          renderItem={renderLeaderboardItem}
+          keyExtractor={(item) => item.id}
+          contentContainerStyle={styles.listContent}
+          showsVerticalScrollIndicator={false}
+          onScroll={Animated.event(
+            [{ nativeEvent: { contentOffset: { y: scrollY } } }],
+            { useNativeDriver: true }
+          )}
+          scrollEventThrottle={16}
+        />
+      )}
       {hasJoinedLeaderboard && (
         <Modal
           visible={showLeaderboardTypeDropdown}
@@ -712,7 +900,7 @@ const Leaderboard = () => {
             />
           ) : (
             <View
-              style={[StyleSheet.absoluteFill, { backgroundColor: "#FFFFFF" }]} // White screen for Android
+              style={[StyleSheet.absoluteFill, { backgroundColor: "#FFFFFF" }]}
             />
           )}
         </View>
@@ -727,7 +915,7 @@ const Leaderboard = () => {
             />
           ) : (
             <View
-              style={[StyleSheet.absoluteFill, { backgroundColor: "#FFFFFF" }]} // White screen for Android
+              style={[StyleSheet.absoluteFill, { backgroundColor: "#FFFFFF" }]}
             />
           )}
           <View
@@ -946,6 +1134,10 @@ const styles = StyleSheet.create({
     fontSize: 14,
     marginTop: 4,
   },
+  eventStatus: {
+    fontSize: 12,
+    marginTop: 4,
+  },
   rankContainer: {
     width: 30,
     alignItems: "center",
@@ -1009,15 +1201,6 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   filterOptionText: {
-    fontSize: 16,
-  },
-  themeToggleContainer: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginTop: 16,
-  },
-  themeToggleText: {
     fontSize: 16,
   },
   overlayContent: {
@@ -1101,6 +1284,43 @@ const styles = StyleSheet.create({
   alertButtonSeparator: {
     width: 0.5,
     backgroundColor: "#CCCCCC",
+  },
+  sectionHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingHorizontal: 20,
+    marginBottom: 10,
+    marginTop: 20,
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: "600",
+  },
+  clearButton: {
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+  },
+  clearButtonText: {
+    fontSize: 14,
+    fontWeight: "600",
+  },
+  emptyText: {
+    textAlign: "center",
+    padding: 20,
+    fontSize: 14,
+  },
+  swipeButton: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    width: 80,
+  },
+  swipeButtonText: {
+    color: "#FFFFFF",
+    fontSize: 16,
+    fontWeight: "600",
   },
 });
 

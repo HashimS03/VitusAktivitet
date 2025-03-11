@@ -12,53 +12,102 @@ import {
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useTheme } from "../context/ThemeContext";
 import { EventContext } from "../events/EventContext";
+import { useNavigation } from "@react-navigation/native";
+import { Swipeable } from "react-native-gesture-handler";
 
 const PastEvents = () => {
   const { theme } = useTheme();
-  const { pastEvents, clearPastEvents } = useContext(EventContext);
+  const { pastEvents, clearPastEvents, deleteEvent } = useContext(EventContext);
+  const navigation = useNavigation();
 
   const truncateText = (text, maxLength) => {
-    return text.length > maxLength ? text.substring(0, maxLength) + "..." : text;
+    return text.length > maxLength
+      ? text.substring(0, maxLength) + "..."
+      : text;
+  };
+
+  const renderRightActions = (progress, dragX, eventId) => {
+    const trans = dragX.interpolate({
+      inputRange: [0, 80],
+      outputRange: [0, 80],
+      extrapolate: "clamp",
+    });
+    return (
+      <TouchableOpacity
+        style={[
+          styles.swipeButton,
+          { backgroundColor: theme.error || "#FF0000" },
+        ]}
+        onPress={() => {
+          Alert.alert(
+            "Delete Event",
+            "Are you sure you want to delete this past event?",
+            [
+              { text: "Cancel", style: "cancel" },
+              {
+                text: "Delete",
+                style: "destructive",
+                onPress: () => deleteEvent(eventId),
+              },
+            ]
+          );
+        }}
+      >
+        <Text style={styles.swipeButtonText}>Delete</Text>
+      </TouchableOpacity>
+    );
   };
 
   const renderEvent = (event) => {
-    const progress = event.currentValue / event.goalValue || 0;
-    const unit = event.selectedActivity?.unit || "sekunder";
-
     return (
-      <View
-        key={event.id}
-        style={[styles.eventCard, { backgroundColor: theme.surface }]}
+      // Fjernet key her, siden vi setter den i map-kallet nedenfor
+      <Swipeable
+        renderRightActions={(progress, dragX) =>
+          renderRightActions(progress, dragX, event.id)
+        }
+        friction={2}
+        rightThreshold={40}
+        overshootRight={false}
+        enabled={true}
       >
-        <View style={styles.cardContent}>
-          <Image
-            source={require("../../../assets/Vitus_Strong.png")}
-            style={styles.eventImage}
-            resizeMode="contain"
-          />
-          <View style={styles.eventDetails}>
-            <View style={styles.headerRow}>
-              <Text style={[styles.eventTitle, { color: theme.text }]}>
-                {truncateText(event.title, 20)}
+        <TouchableOpacity
+          style={[styles.eventCard, { backgroundColor: theme.surface }]}
+          onPress={() =>
+            navigation.navigate("ActiveEvent", { eventId: event.id })
+          }
+        >
+          <View style={styles.cardContent}>
+            <Image
+              source={require("../../../assets/Vitus_Strong.png")}
+              style={styles.eventImage}
+              resizeMode="contain"
+            />
+            <View style={styles.eventDetails}>
+              <View style={styles.headerRow}>
+                <Text style={[styles.eventTitle, { color: theme.text }]}>
+                  {truncateText(event.title, 20)}
+                </Text>
+                <TouchableOpacity disabled>
+                  <MaterialCommunityIcons
+                    name="dots-vertical"
+                    size={24}
+                    color={theme.text + "50"}
+                  />
+                </TouchableOpacity>
+              </View>
+              <Text
+                style={[styles.progressText, { color: theme.textSecondary }]}
+              >
+                Avsluttet: {new Date(event.end_date).toLocaleDateString()} •{" "}
+                {new Date(event.end_date).toLocaleTimeString([], {
+                  hour: "2-digit",
+                  minute: "2-digit",
+                })}
               </Text>
-              <TouchableOpacity disabled>
-                <MaterialCommunityIcons
-                  name="dots-vertical"
-                  size={24}
-                  color={theme.text + "50"}
-                />
-              </TouchableOpacity>
             </View>
-            <Text style={[styles.progressText, { color: theme.textSecondary }]}>
-              Avsluttet: {new Date(event.end_date).toLocaleDateString()} •{" "}
-              {new Date(event.end_date).toLocaleTimeString([], {
-                hour: "2-digit",
-                minute: "2-digit",
-              })}
-            </Text>
           </View>
-        </View>
-      </View>
+        </TouchableOpacity>
+      </Swipeable>
     );
   };
 
@@ -98,7 +147,9 @@ const PastEvents = () => {
                 );
               }}
             >
-              <Text style={[styles.clearButtonText, { color: theme.background }]}>
+              <Text
+                style={[styles.clearButtonText, { color: theme.background }]}
+              >
                 Clear All
               </Text>
             </TouchableOpacity>
@@ -107,7 +158,10 @@ const PastEvents = () => {
 
         {pastEvents.length === 0 ? (
           <View
-            style={[styles.emptyStateContainer, { backgroundColor: theme.surface }]}
+            style={[
+              styles.emptyStateContainer,
+              { backgroundColor: theme.surface },
+            ]}
           >
             <Image
               source={require("../../../assets/Vitus_Happy.png")}
@@ -117,13 +171,18 @@ const PastEvents = () => {
               Ingen tidligere hendelser
             </Text>
             <Text
-              style={[styles.emptyStateSubtitle, { color: theme.textSecondary }]}
+              style={[
+                styles.emptyStateSubtitle,
+                { color: theme.textSecondary },
+              ]}
             >
-              Det er desverre ingen tidligere hendelser per nå.
+              Det er dessverre ingen tidligere hendelser per nå.
             </Text>
           </View>
         ) : (
-          pastEvents.map((event) => renderEvent(event))
+          pastEvents.map((event) => (
+            <React.Fragment key={event.id}>{renderEvent(event)}</React.Fragment>
+          ))
         )}
       </ScrollView>
     </SafeAreaView>
@@ -150,7 +209,13 @@ const styles = StyleSheet.create({
   },
   emptyStateImage: { width: 100, height: 100, marginBottom: 16 },
   emptyStateTitle: { fontSize: 24, fontWeight: "600", marginBottom: 8 },
-  emptyStateSubtitle: { fontSize: 15, textAlign: "center", marginBottom: 24, lineHeight: 22, maxWidth: 280 },
+  emptyStateSubtitle: {
+    fontSize: 15,
+    textAlign: "center",
+    marginBottom: 24,
+    lineHeight: 22,
+    maxWidth: 280,
+  },
   eventCard: {
     borderRadius: 16,
     padding: 16,
@@ -176,6 +241,17 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   clearButtonText: { fontSize: 14, fontWeight: "600" },
+  swipeButton: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    width: 80,
+  },
+  swipeButtonText: {
+    color: "#FFFFFF",
+    fontSize: 16,
+    fontWeight: "600",
+  },
 });
 
 export default PastEvents;

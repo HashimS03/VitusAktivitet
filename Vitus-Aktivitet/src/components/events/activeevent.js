@@ -1,5 +1,3 @@
-"use client";
-
 import { useState, useContext, useEffect } from "react";
 import {
   View,
@@ -24,8 +22,12 @@ import { EventContext } from "../events/EventContext";
 
 const ActiveEvent = ({ route }) => {
   const { eventId } = route.params || {};
-  const { activeEvents, updateEvent, deleteEvent } = useContext(EventContext);
-  const eventDetails = activeEvents.find((event) => event.id === eventId);
+  const { activeEvents, pastEvents, updateEvent, deleteEvent } =
+    useContext(EventContext); // Hent både activeEvents og pastEvents
+  // Finn hendelsen fra enten activeEvents eller pastEvents
+  const eventDetails =
+    activeEvents.find((event) => event.id === eventId) ||
+    pastEvents.find((event) => event.id === eventId);
 
   const [isModalVisible, setModalVisible] = useState(false);
   const [showInviteScreen, setShowInviteScreen] = useState(false);
@@ -35,6 +37,10 @@ const ActiveEvent = ({ route }) => {
   const [newProgress, setNewProgress] = useState("");
   const navigation = useNavigation();
   const { theme, isDarkMode } = useTheme();
+
+  // Sjekk om hendelsen er ferdig
+  const isEventFinished =
+    eventDetails && new Date(eventDetails.end_date) < new Date();
 
   useEffect(() => {
     navigation.setOptions({
@@ -150,7 +156,6 @@ const ActiveEvent = ({ route }) => {
               </Text>
               <View style={styles.teamMembers}>
                 {teamIndex === 0 ? (
-                  // First team (Lag 1) - Show your avatar
                   <View style={styles.memberAvatar}>
                     <Image
                       source={require("../../../assets/member-avatar.png")}
@@ -166,15 +171,15 @@ const ActiveEvent = ({ route }) => {
                     </Text>
                   </View>
                 ) : (
-                  // Other teams - Show plus icon
                   <TouchableOpacity
                     style={[
                       styles.emptyAvatar,
-                      {
-                        backgroundColor: theme.primary,
-                      },
+                      { backgroundColor: theme.primary },
                     ]}
-                    onPress={() => setShowInviteScreen(true)}
+                    onPress={() =>
+                      !isEventFinished && setShowInviteScreen(true)
+                    } // Deaktiver invitasjon hvis hendelsen er ferdig
+                    disabled={isEventFinished}
                   >
                     <MaterialCommunityIcons
                       name="plus"
@@ -183,7 +188,6 @@ const ActiveEvent = ({ route }) => {
                     />
                   </TouchableOpacity>
                 )}
-                {/* Show remaining slots as empty */}
                 {Array.from(
                   { length: eventDetails.membersPerTeam - 1 },
                   (_, i) => (
@@ -196,7 +200,10 @@ const ActiveEvent = ({ route }) => {
                           marginLeft: 16,
                         },
                       ]}
-                      onPress={() => setShowInviteScreen(true)}
+                      onPress={() =>
+                        !isEventFinished && setShowInviteScreen(true)
+                      } // Deaktiver invitasjon
+                      disabled={isEventFinished}
                     >
                       <MaterialCommunityIcons
                         name="plus"
@@ -223,7 +230,7 @@ const ActiveEvent = ({ route }) => {
       );
     }
 
-    const filledParticipants = 1; // We'll only show the first participant
+    const filledParticipants = 1;
     const totalParticipants = eventDetails.participantCount || 0;
     const emptySlots = Math.max(0, totalParticipants - filledParticipants);
 
@@ -239,7 +246,6 @@ const ActiveEvent = ({ route }) => {
         >
           <View style={styles.participantsContainer}>
             <View style={styles.participantsRow}>
-              {/* Show only the first participant */}
               <View style={styles.memberAvatar}>
                 <Image
                   source={require("../../../assets/member-avatar.png")}
@@ -251,8 +257,6 @@ const ActiveEvent = ({ route }) => {
                   {eventDetails.participants[0]?.name || "Du"}
                 </Text>
               </View>
-
-              {/* Show plus icons for remaining slots */}
               {Array.from({ length: emptySlots }, (_, i) => (
                 <TouchableOpacity
                   key={`empty_${i}`}
@@ -260,7 +264,8 @@ const ActiveEvent = ({ route }) => {
                     styles.emptyAvatar,
                     { backgroundColor: theme.primary },
                   ]}
-                  onPress={() => setShowInviteScreen(true)}
+                  onPress={() => !isEventFinished && setShowInviteScreen(true)} // Deaktiver invitasjon
+                  disabled={isEventFinished}
                 >
                   <MaterialCommunityIcons
                     name="plus"
@@ -298,7 +303,6 @@ const ActiveEvent = ({ route }) => {
       style={[styles.safeArea, { backgroundColor: theme.background }]}
     >
       <ScrollView contentContainerStyle={{ paddingBottom: 100 }}>
-        {/* Header */}
         <View style={styles.header}>
           <TouchableOpacity onPress={handleBackPress} style={styles.backButton}>
             <MaterialCommunityIcons
@@ -319,13 +323,11 @@ const ActiveEvent = ({ route }) => {
           </TouchableOpacity>
         </View>
 
-        {/* Event Banner */}
         <Image
           source={require("../../../assets/Vitus_Happy.png")}
           style={styles.eventBanner}
         />
 
-        {/* Event Info */}
         <View
           style={[
             styles.eventInfoContainer,
@@ -344,8 +346,8 @@ const ActiveEvent = ({ route }) => {
             <Text
               style={[styles.eventDetailText, { color: theme.textSecondary }]}
             >
-              {new Date(eventDetails.startDate).toLocaleDateString()} •{" "}
-              {new Date(eventDetails.startTime).toLocaleTimeString([], {
+              {new Date(eventDetails.start_date).toLocaleDateString()} •{" "}
+              {new Date(eventDetails.start_time).toLocaleTimeString([], {
                 hour: "2-digit",
                 minute: "2-digit",
               })}
@@ -365,7 +367,6 @@ const ActiveEvent = ({ route }) => {
           </View>
         </View>
 
-        {/* Progress Section */}
         <View style={styles.progressSection}>
           <Text style={[styles.sectionTitle, { color: theme.text }]}>
             Din Fremgang
@@ -410,6 +411,7 @@ const ActiveEvent = ({ route }) => {
           <TouchableOpacity
             style={[styles.updateButton, { backgroundColor: theme.primary }]}
             onPress={handleUpdateProgress}
+            disabled={isEventFinished} // Deaktiver oppdatering av fremgang for ferdige hendelser
           >
             <MaterialCommunityIcons
               name="plus"
@@ -424,7 +426,6 @@ const ActiveEvent = ({ route }) => {
           </TouchableOpacity>
         </View>
 
-        {/* Members Section */}
         <View style={styles.membersSection}>
           <Text style={[styles.sectionTitle, { color: theme.text }]}>
             {eventDetails.eventType === "team"
@@ -436,7 +437,6 @@ const ActiveEvent = ({ route }) => {
             : renderIndividualParticipants()}
         </View>
 
-        {/* Description Section */}
         <View style={styles.descriptionSection}>
           <Text style={[styles.sectionTitle, { color: theme.text }]}>
             Beskrivelse
@@ -448,11 +448,16 @@ const ActiveEvent = ({ route }) => {
           </Text>
         </View>
 
-        {/* Action Buttons */}
         <View style={styles.buttonContainer}>
           <TouchableOpacity
-            style={[styles.actionButton, { backgroundColor: theme.primary }]}
-            onPress={() => setShowInviteScreen(true)}
+            style={[
+              styles.actionButton,
+              {
+                backgroundColor: isEventFinished ? theme.border : theme.primary,
+              }, // Grå ut knappen hvis ferdig
+            ]}
+            onPress={() => !isEventFinished && setShowInviteScreen(true)} // Deaktiver invitasjon
+            disabled={isEventFinished}
           >
             <MaterialCommunityIcons
               name="account-plus"
@@ -485,7 +490,6 @@ const ActiveEvent = ({ route }) => {
         </View>
       </ScrollView>
 
-      {/* Options Modal */}
       <Modal
         animationType="fade"
         transparent={true}
@@ -499,13 +503,19 @@ const ActiveEvent = ({ route }) => {
             <TouchableOpacity
               style={styles.modalOption}
               onPress={handleEditEvent}
+              disabled={isEventFinished} // Deaktiver redigering for ferdige hendelser
             >
               <MaterialCommunityIcons
                 name="pencil"
                 size={24}
-                color={theme.text}
+                color={isEventFinished ? theme.textSecondary : theme.text}
               />
-              <Text style={[styles.modalOptionText, { color: theme.text }]}>
+              <Text
+                style={[
+                  styles.modalOptionText,
+                  { color: isEventFinished ? theme.textSecondary : theme.text },
+                ]}
+              >
                 Rediger hendelse
               </Text>
             </TouchableOpacity>
@@ -532,7 +542,6 @@ const ActiveEvent = ({ route }) => {
         </View>
       </Modal>
 
-      {/* Progress Update Modal */}
       <Modal
         animationType="slide"
         transparent={true}
@@ -592,7 +601,6 @@ const ActiveEvent = ({ route }) => {
         </KeyboardAvoidingView>
       </Modal>
 
-      {/* Invite Members Screen */}
       <InviteMembersScreen
         visible={showInviteScreen}
         onClose={() => setShowInviteScreen(false)}
@@ -602,7 +610,6 @@ const ActiveEvent = ({ route }) => {
   );
 };
 
-// Styles
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
@@ -626,8 +633,7 @@ const styles = StyleSheet.create({
   eventBanner: {
     width: "100%",
     height: 200,
-
-    resizeMode: "contain", // Beholder proporsjonene til bildet
+    resizeMode: "contain",
   },
   eventInfoContainer: {
     padding: 16,

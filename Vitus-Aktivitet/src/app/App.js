@@ -1,3 +1,4 @@
+import { GestureHandlerRootView } from "react-native-gesture-handler"; // Legg til denne importen
 import { NavigationContainer } from "@react-navigation/native";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
@@ -115,118 +116,125 @@ const TabNavigator = () => (
 /** Root Stack Navigator - Handles authentication & app navigation */
 const App = () => {
   return (
-    <ThemeProvider>
-      <EventProvider>
-        {/* Wrap med EventProvider */}
-        <NavigationContainer>
-          <Stack.Navigator
-            initialRouteName="Start"
-            screenOptions={{
-              headerShown: false,
-            }}
-          >
-            {/* Authentication Screens */}
-            <Stack.Screen name="Start" component={StartScreen} />
-            <Stack.Screen name="Login">
-              {(props) => (
-                <LoginScreen
-                  {...props}
-                  onLoginSuccess={() =>
-                    props.navigation.reset({
-                      index: 0,
-                      routes: [{ name: "MainApp" }],
-                    })
-                  }
-                />
-              )}
-            </Stack.Screen>
-            <Stack.Screen name="SignUp">
-              {(props) => (
-                <CreateAccountScreen
-                  {...props}
-                  onSignUpSuccess={() =>
-                    props.navigation.reset({
-                      index: 0,
-                      routes: [{ name: "MainApp" }],
-                    })
-                  }
-                />
-              )}
-            </Stack.Screen>
-
-            {/* Gender Selection */}
-            <Stack.Screen name="GenderSelection">
-              {(props) => (
-                <GenderSelection
-                  {...props}
-                  onComplete={(gender) =>
-                    console.log("Selected Gender:", gender)
-                  }
-                />
-              )}
-            </Stack.Screen>
-            {/* Department Selection */}
-            <Stack.Screen name="DepartmentSelection">
-              {(props) => (
-                <DepartmentSelection
-                  {...props}
-                  onComplete={(department) =>
-                    console.log("Selected Department:", department)
-                  }
-                />
-              )}
-            </Stack.Screen>
-            {/* History */}
-            <Stack.Screen name="History" component={HistoryScreen} />
-
-            {/* Avatar Selection */}
-            <Stack.Screen name="AvatarSelection" component={AvatarSelection} />
-
-            {/* Main App (Tabs) */}
-            <Stack.Screen
-              name="MainApp"
-              component={TabNavigator}
-              options={{
-                gestureEnabled: false, // 🔒 Hindrer swipe tilbake fra Dashboard
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <ThemeProvider>
+        <EventProvider>
+          <NavigationContainer>
+            <Stack.Navigator
+              initialRouteName="Start"
+              screenOptions={{
+                headerShown: false,
               }}
-            />
+            >
+              {/* Authentication Screens */}
+              <Stack.Screen name="Start" component={StartScreen} />
+              <Stack.Screen name="Login">
+                {(props) => (
+                  <LoginScreen
+                    {...props}
+                    onLoginSuccess={() =>
+                      props.navigation.reset({
+                        index: 0,
+                        routes: [{ name: "MainApp" }],
+                      })
+                    }
+                  />
+                )}
+              </Stack.Screen>
+              <Stack.Screen name="SignUp">
+                {(props) => (
+                  <CreateAccountScreen
+                    {...props}
+                    onSignUpSuccess={() =>
+                      props.navigation.reset({
+                        index: 0,
+                        routes: [{ name: "MainApp" }],
+                      })
+                    }
+                  />
+                )}
+              </Stack.Screen>
 
-            {/* Other Screens */}
-            <Stack.Screen name="ActivitySelect" component={ActivitySelect} />
-            <Stack.Screen name="DurationSelect" component={DurationSelect} />
-            <Stack.Screen name="Confirmation" component={Confirmation} />
-            <Stack.Screen name="Setting" component={Setting} />
-            <Stack.Screen name="Stats" component={Stats} />
-            <Stack.Screen name="TrophyDetails" component={TrophyDetails} />
-            <Stack.Screen name="Notifications" component={Notifications} />
-            <Stack.Screen name="Language" component={LanguageSelection} />
-            <Stack.Screen name="EditProfile" component={EditProfile} />
+              {/* Gender Selection */}
+              <Stack.Screen name="GenderSelection">
+                {(props) => (
+                  <GenderSelection
+                    {...props}
+                    onComplete={(gender) =>
+                      console.log("Selected Gender:", gender)
+                    }
+                  />
+                )}
+              </Stack.Screen>
+              {/* Department Selection */}
+              <Stack.Screen name="DepartmentSelection">
+                {(props) => (
+                  <DepartmentSelection
+                    {...props}
+                    onComplete={(department) =>
+                      console.log("Selected Department:", department)
+                    }
+                  />
+                )}
+              </Stack.Screen>
+              {/* History */}
+              <Stack.Screen name="History" component={HistoryScreen} />
 
-            <Stack.Screen name="Achievements" component={Achievements} />
-            <Stack.Screen
-              name="notificationeditor"
-              component={NotificationEditor}
-            />
+              {/* Avatar Selection */}
+              <Stack.Screen
+                name="AvatarSelection"
+                component={AvatarSelection}
+              />
 
-            <Stack.Screen name="Theme" component={Theme} />
-            <Stack.Screen name="contactus" component={ContactUs} />
-            <Stack.Screen name="helpsupport" component={HelpSupport} />
-            <Stack.Screen name="securityprivacy" component={SecurityPrivacy} />
-            <Stack.Screen name="YourEvents" component={YourEvents} />
+              {/* Main App (Tabs) */}
+              <Stack.Screen
+                name="MainApp"
+                component={TabNavigator}
+                options={{
+                  gestureEnabled: false, // 🔒 Hindrer swipe tilbake fra Dashboard
+                }}
+              />
 
-            <Stack.Screen name="PrivacyPolicy" component={PrivacyPolicy} />
-            <Stack.Screen
-              name="EventLeaderboard"
-              component={EventLeaderboard}
-            />
-            <Stack.Screen
-              name="LogRecordingScreen"
-              component={LogRecordingScreen}
-            />
-          </Stack.Navigator>
-        </NavigationContainer>
-      </EventProvider>
-    </ThemeProvider>
+              {/* Other Screens */}
+              <Stack.Screen name="ActivitySelect" component={ActivitySelect} />
+              <Stack.Screen name="DurationSelect" component={DurationSelect} />
+              <Stack.Screen name="Confirmation" component={Confirmation} />
+              <Stack.Screen name="Setting" component={Setting} />
+              <Stack.Screen name="Stats" component={Stats} />
+              <Stack.Screen name="TrophyDetails" component={TrophyDetails} />
+              <Stack.Screen name="Notifications" component={Notifications} />
+              <Stack.Screen name="Language" component={LanguageSelection} />
+              <Stack.Screen name="EditProfile" component={EditProfile} />
+
+              <Stack.Screen name="Achievements" component={Achievements} />
+              <Stack.Screen
+                name="notificationeditor"
+                component={NotificationEditor}
+              />
+
+              <Stack.Screen name="Theme" component={Theme} />
+              <Stack.Screen name="contactus" component={ContactUs} />
+              <Stack.Screen name="helpsupport" component={HelpSupport} />
+              <Stack.Screen
+                name="securityprivacy"
+                component={SecurityPrivacy}
+              />
+              <Stack.Screen name="YourEvents" component={YourEvents} />
+
+              <Stack.Screen name="PrivacyPolicy" component={PrivacyPolicy} />
+              <Stack.Screen
+                name="EventLeaderboard"
+                component={EventLeaderboard}
+              />
+              <Stack.Screen
+                name="LogRecordingScreen"
+                component={LogRecordingScreen}
+              />
+            </Stack.Navigator>
+          </NavigationContainer>
+        </EventProvider>
+      </ThemeProvider>
+    </GestureHandlerRootView>
   );
 };
 
