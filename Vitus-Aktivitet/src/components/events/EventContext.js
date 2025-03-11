@@ -40,7 +40,7 @@ export const EventProvider = ({ children }) => {
   // Function to categorize events based on current time
   const categorizeEvents = () => {
     const now = new Date();
-    const nowUTC = new Date(now.toISOString()); // Normalize to UTC
+    const nowUTC = new Date(now.toISOString());
     const updatedUpcoming = [];
     const updatedActive = [];
     const updatedPast = [];
@@ -48,21 +48,28 @@ export const EventProvider = ({ children }) => {
     console.log("Categorizing events at (UTC):", nowUTC.toISOString());
 
     events.forEach((event) => {
-      // Ensure dates are treated as UTC
-      const startDate = new Date(event.start_date.endsWith("Z") ? event.start_date : `${event.start_date}Z`);
-      const endDate = new Date(event.end_date.endsWith("Z") ? event.end_date : `${event.end_date}Z`);
+      const startDate = new Date(
+        event.start_date.endsWith("Z")
+          ? event.start_date
+          : `${event.start_date}Z`
+      );
+      const endDate = new Date(
+        event.end_date.endsWith("Z") ? event.end_date : `${event.end_date}Z`
+      );
 
-      // Validate dates
       if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
-        console.warn(`Invalid date for event ${event.id}: start=${event.start_date}, end=${event.end_date}`);
+        console.warn(
+          `Invalid date for event ${event.id}: start=${event.start_date}, end=${event.end_date}`
+        );
         return;
       }
 
       console.log(
-        `Event ${event.id}: start=${startDate.toISOString()}, end=${endDate.toISOString()}, now=${nowUTC.toISOString()}`
+        `Event ${
+          event.id
+        }: start=${startDate.toISOString()}, end=${endDate.toISOString()}, now=${nowUTC.toISOString()}`
       );
 
-      // Prioritize active events: startDate <= now <= endDate
       if (startDate <= nowUTC && nowUTC <= endDate) {
         updatedActive.push(event);
         console.log(`Event ${event.id} categorized as active`);
@@ -73,32 +80,95 @@ export const EventProvider = ({ children }) => {
         updatedPast.push(event);
         console.log(`Event ${event.id} categorized as past`);
       } else {
-        console.warn(`Event ${event.id} not categorized: start=${startDate.toISOString()}, end=${endDate.toISOString()}`);
+        console.warn(
+          `Event ${
+            event.id
+          } not categorized: start=${startDate.toISOString()}, end=${endDate.toISOString()}`
+        );
       }
     });
 
-    // Update states only if there’s a change
     setUpcomingEvents((prev) => {
-      const newUpcoming = JSON.stringify(updatedUpcoming) !== JSON.stringify(prev) ? updatedUpcoming : prev;
+      const newUpcoming =
+        JSON.stringify(updatedUpcoming) !== JSON.stringify(prev)
+          ? updatedUpcoming
+          : prev;
       console.log(`Upcoming events count: ${newUpcoming.length}`);
       return newUpcoming;
     });
     setActiveEvents((prev) => {
-      const newActive = JSON.stringify(updatedActive) !== JSON.stringify(prev) ? updatedActive : prev;
+      const newActive =
+        JSON.stringify(updatedActive) !== JSON.stringify(prev)
+          ? updatedActive
+          : prev;
       console.log(`Active events count: ${newActive.length}`);
       return newActive;
     });
     setPastEvents((prev) => {
-      const newPast = JSON.stringify(updatedPast) !== JSON.stringify(prev) ? updatedPast : prev;
+      const newPast =
+        JSON.stringify(updatedPast) !== JSON.stringify(prev)
+          ? updatedPast
+          : prev;
       console.log(`Past events count: ${newPast.length}`);
       return newPast;
     });
   };
 
+  // Schedule the next categorization based on the closest upcoming or ending event
+  const scheduleNextCategorization = () => {
+    const now = new Date();
+    const nowUTC = new Date(now.toISOString());
+    let nextEventTime = null;
+
+    events.forEach((event) => {
+      const startDate = new Date(
+        event.start_date.endsWith("Z")
+          ? event.start_date
+          : `${event.start_date}Z`
+      );
+      const endDate = new Date(
+        event.end_date.endsWith("Z") ? event.end_date : `${event.end_date}Z`
+      );
+
+      if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) return;
+
+      // Only consider future times
+      if (startDate > nowUTC && (!nextEventTime || startDate < nextEventTime)) {
+        nextEventTime = startDate;
+      }
+      if (endDate > nowUTC && (!nextEventTime || endDate < nextEventTime)) {
+        nextEventTime = endDate;
+      }
+    });
+
+    if (nextEventTime) {
+      const delay = nextEventTime - nowUTC;
+      console.log(
+        `Scheduling next categorization in ${
+          delay / 1000
+        } seconds at ${nextEventTime.toISOString()}`
+      );
+      return setTimeout(() => {
+        categorizeEvents();
+        // Schedule the next one immediately after
+        scheduleNextCategorization();
+      }, delay);
+    } else {
+      // Fallback: check every minute if no upcoming events
+      console.log("No upcoming events, falling back to 1-minute interval");
+      return setInterval(() => {
+        categorizeEvents();
+      }, 60000);
+    }
+  };
+
   // Add a new event
   const addEvent = (newEvent) => {
     setEvents((prevEvents) => {
-      const updatedEvents = [...prevEvents, { ...newEvent, id: Date.now().toString() }];
+      const updatedEvents = [
+        ...prevEvents,
+        { ...newEvent, id: Date.now().toString() },
+      ];
       console.log("Added event:", newEvent);
       return updatedEvents;
     });
@@ -116,7 +186,9 @@ export const EventProvider = ({ children }) => {
 
   // Delete an event
   const deleteEvent = (eventId) => {
-    setEvents((prevEvents) => prevEvents.filter((event) => event.id !== eventId));
+    setEvents((prevEvents) =>
+      prevEvents.filter((event) => event.id !== eventId)
+    );
     console.log("Deleted event with id:", eventId);
   };
 
@@ -124,7 +196,9 @@ export const EventProvider = ({ children }) => {
   const clearPastEvents = () => {
     setEvents((prevEvents) =>
       prevEvents.filter((event) => {
-        const endDate = new Date(event.end_date.endsWith("Z") ? event.end_date : `${event.end_date}Z`);
+        const endDate = new Date(
+          event.end_date.endsWith("Z") ? event.end_date : `${event.end_date}Z`
+        );
         return !isNaN(endDate.getTime()) && endDate >= new Date();
       })
     );
@@ -136,13 +210,23 @@ export const EventProvider = ({ children }) => {
     categorizeEvents();
   }, [events]);
 
-  // Periodic check for time-based updates
+  // Manage dynamic scheduling of categorization
   useEffect(() => {
-    const interval = setInterval(() => {
-      categorizeEvents();
-    }, 60000); // Check every minute
-    return () => clearInterval(interval);
-  }, []);
+    // Initial categorization
+    categorizeEvents();
+
+    // Start scheduling
+    let timer = scheduleNextCategorization();
+
+    // Cleanup on unmount
+    return () => {
+      if (typeof timer === "number") {
+        clearTimeout(timer);
+      } else {
+        clearInterval(timer);
+      }
+    };
+  }, [events]);
 
   return (
     <EventContext.Provider
