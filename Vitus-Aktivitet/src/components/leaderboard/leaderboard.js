@@ -206,7 +206,7 @@ const Leaderboard = ({ route }) => {
       return [
         { type: "header", title: "Aktive hendelser" },
         ...activeEvents.map((event) => ({ type: "event", ...event })),
-        { type: "header", title: "Utgåtte:" },
+        { type: "header", title: "Utgåtte hendelser" },
         ...pastEvents.map((event) => ({ type: "event", ...event })),
       ];
     }
