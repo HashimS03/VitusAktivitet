@@ -1127,7 +1127,7 @@ export default function Dashboard() {
           />
           <View style={styles.progressContent}>
             <Image
-              source={require("../../../assets/løper.png")}
+              source={require("../../../assets/Vitus_Happy.png")}
               style={styles.runnerIcon}
             />
             <TouchableOpacity
