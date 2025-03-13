@@ -1278,7 +1278,7 @@ export default function Dashboard() {
               },
             ]}
             onPress={() =>
-              navigation.navigate("Stats", { initialTab: "ACHIEVEMENTS" })
+              navigation.navigate("Stats", { initialTab: "MILEPÆLER" })
             }
           >
             <View style={styles.statHeader}>
