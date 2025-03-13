@@ -475,7 +475,7 @@ const NewEvent = ({ route }) => {
               ]}
               value={eventDetails.goalMinutes.toString()}
               onChangeText={(text) => updateEventDetails("goalMinutes", text)}
-              placeholder="0"
+              placeholder="Minutter"
               placeholderTextColor={theme.textSecondary}
               keyboardType="numeric"
             />
@@ -486,7 +486,7 @@ const NewEvent = ({ route }) => {
               ]}
               value={eventDetails.goalSeconds.toString()}
               onChangeText={(text) => updateEventDetails("goalSeconds", text)}
-              placeholder="0"
+              placeholder="Sekunder"
               placeholderTextColor={theme.textSecondary}
               keyboardType="numeric"
             />
