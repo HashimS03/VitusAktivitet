@@ -22,6 +22,13 @@ import { useTheme } from "../context/ThemeContext"; // Import Theme Context
 
 const screenWidth = Dimensions.get("window").width;
 
+// Definer oversettelser
+const translations = {
+  Home: "Hjem",
+  Leaderboard: "Ledertavle",
+  Events: "Hendelser",
+};
+
 const Navbar = ({ state, descriptors, navigation }) => {
   const [slideAnim] = React.useState(new Animated.Value(0));
   const { theme, isDarkMode } = useTheme(); // Get theme values
@@ -58,13 +65,13 @@ const Navbar = ({ state, descriptors, navigation }) => {
           {
             backgroundColor: isDarkMode ? "#3A3A3A" : "#FFFFFF",
             borderTopColor: theme.border,
-            shadowColor: isDarkMode ? "transparent" : "#000000", // 🔹 Light shadow only in Light Mode
+            shadowColor: isDarkMode ? "transparent" : "#000000",
             shadowOffset: isDarkMode
               ? { width: 0, height: 0 }
               : { width: 0, height: -2 },
-            shadowOpacity: isDarkMode ? 0 : 0.1, // 🔹 Subtle shadow in Light Mode
-            shadowRadius: isDarkMode ? 0 : 8, // 🔹 Light blur effect
-            elevation: isDarkMode ? 0 : 6, // 🔹 Android shadow for Light Mode
+            shadowOpacity: isDarkMode ? 0 : 0.1,
+            shadowRadius: isDarkMode ? 0 : 8,
+            elevation: isDarkMode ? 0 : 6,
           },
         ]}
       >
@@ -94,7 +101,7 @@ const Navbar = ({ state, descriptors, navigation }) => {
 
           {orderedRoutes.map((route, index) => {
             const { options } = descriptors[route.key];
-            const label = options.tabBarLabel ?? options.title ?? route.name;
+            const label = translations[route.name] || route.name; // Bruk oversettelse hvis tilgjengelig
             const isFocused = state.routes.indexOf(route) === state.index;
 
             const onPress = () => {
@@ -151,7 +158,6 @@ const Navbar = ({ state, descriptors, navigation }) => {
                     style={[
                       styles.label,
                       {
-                        opacity: isFocused ? 1 : 0,
                         color: isFocused
                           ? isDarkMode
                             ? "#FFFFFF"
@@ -180,9 +186,9 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     height: 90,
-    borderTopLeftRadius: 30, // ✅ Keeps the curved effect
-    borderTopRightRadius: 30, // ✅ Keeps the curved effect
-    overflow: "hidden", // ✅ Ensures no artifacts outside
+    borderTopLeftRadius: 30,
+    borderTopRightRadius: 30,
+    overflow: "hidden",
   },
   container: {
     flex: 1,
@@ -190,7 +196,7 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: 30,
     borderTopRightRadius: 30,
     borderTopWidth: 1,
-    overflow: "hidden", // ✅ Prevents anything from leaking out
+    overflow: "hidden",
   },
   navContainer: {
     flex: 1,
@@ -232,7 +238,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     height: 50,
-    marginTop: 6,
+    marginTop: 7,
   },
   label: {
     fontSize: 12,
