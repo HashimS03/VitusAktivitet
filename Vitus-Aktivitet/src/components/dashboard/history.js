@@ -208,18 +208,37 @@ const fetchStepHistory = async (period) => {
         };
       }
       case "week": {
-        const startOfWeek = new Date(
-          today.setDate(today.getDate() - today.getDay())
-        );
-        const weekData = stepsByDate.filter(
-          (entry) => new Date(entry.date) >= startOfWeek
-        );
+        const today = new Date();
+        const startOfWeek = new Date(today);
+        startOfWeek.setDate(today.getDate() - today.getDay());
+        startOfWeek.setHours(0, 0, 0, 0);
+
+        console.log("Start of week:", startOfWeek.toISOString());
+
+        const weekData = [];
         const values = Array(7).fill(0);
-        weekData.forEach((entry) => {
-          const dayIndex = new Date(entry.date).getDay();
-          values[dayIndex] = (values[dayIndex] || 0) + entry.steps;
-        });
+
+        // Get all step history entries
+        for (let i = 0; i < 7; i++) {
+          const currentDate = new Date(startOfWeek);
+          currentDate.setDate(startOfWeek.getDate() + i);
+          const dateString = currentDate.toISOString().split("T")[0];
+
+          // Find matching entry
+          const entry = stepsByDate.find((item) => item.date === dateString);
+          if (entry) {
+            console.log(`Found steps for ${dateString}:`, entry.steps);
+            values[i] = entry.steps;
+            weekData.push(entry);
+          } else {
+            console.log(`No steps found for ${dateString}`);
+          }
+        }
+
         const total = values.reduce((sum, val) => sum + val, 0);
+        console.log("Weekly total steps:", total);
+        console.log("Weekly values array:", values);
+
         return {
           total,
           labels: ["Søn", "Man", "Tir", "Ons", "Tor", "Fre", "Lør"],
@@ -329,8 +348,8 @@ const calculateStreaks = async () => {
   const storedLastDate = await AsyncStorage.getItem("lastCompletionDate");
   const storedBestStreak = await AsyncStorage.getItem("bestStreak");
 
-  currentStreak = storedStreak ? parseInt(storedStreak) : 0;
-  bestStreak = storedBestStreak ? parseInt(storedBestStreak) : 0;
+  currentStreak = storedStreak ? Number.parseInt(storedStreak) : 0;
+  bestStreak = storedBestStreak ? Number.parseInt(storedBestStreak) : 0;
   lastDate = storedLastDate ? new Date(storedLastDate) : null;
 
   for (let i = 0; i < stepsByDate.length; i++) {
