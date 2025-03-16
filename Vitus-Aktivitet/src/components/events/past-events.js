@@ -1,4 +1,4 @@
-import React, { useContext } from "react";
+import React, { useContext, useState } from "react";
 import {
   View,
   Text,
@@ -8,6 +8,7 @@ import {
   ScrollView,
   TouchableOpacity,
   Alert,
+  Modal,
 } from "react-native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useTheme } from "../context/ThemeContext";
@@ -19,11 +20,65 @@ const PastEvents = () => {
   const { theme } = useTheme();
   const { pastEvents, clearPastEvents, deleteEvent } = useContext(EventContext);
   const navigation = useNavigation();
+  const [selectedEvent, setSelectedEvent] = useState(null);
+  const [menuVisible, setMenuVisible] = useState(false);
 
   const truncateText = (text, maxLength) => {
     return text.length > maxLength
       ? text.substring(0, maxLength) + "..."
       : text;
+  };
+
+  const handleMenuPress = (event) => {
+    setSelectedEvent(event);
+    setMenuVisible(true);
+  };
+
+  const handleStartAgain = () => {
+    setMenuVisible(false);
+    const now = new Date();
+    const oneHourLater = new Date(now.getTime() + 3600000);
+
+    const newEventTemplate = {
+      title: selectedEvent.title,
+      description: selectedEvent.description,
+      goalValue: selectedEvent.goalValue,
+      selectedActivity: selectedEvent.selectedActivity,
+      location: selectedEvent.location,
+      eventType: selectedEvent.eventType,
+      teamCount: selectedEvent.team_count,
+      membersPerTeam: selectedEvent.members_per_team,
+      participantCount: selectedEvent.total_participants,
+      currentValue: 0,
+      startDate: now,
+      endDate: oneHourLater,
+      startTime: now,
+      endTime: oneHourLater,
+      start_date: now.toISOString(),
+      end_date: oneHourLater.toISOString(),
+      id: Date.now().toString(),
+    };
+
+    navigation.navigate("NewEvent", {
+      eventDetails: newEventTemplate,
+      isEditing: false,
+    });
+  };
+
+  const handleDeleteEvent = () => {
+    setMenuVisible(false);
+    Alert.alert(
+      "Delete Event",
+      "Are you sure you want to delete this past event?",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: () => deleteEvent(selectedEvent.id),
+        },
+      ]
+    );
   };
 
   const renderRightActions = (progress, dragX, eventId) => {
@@ -60,7 +115,6 @@ const PastEvents = () => {
 
   const renderEvent = (event) => {
     return (
-      // Fjernet key her, siden vi setter den i map-kallet nedenfor
       <Swipeable
         renderRightActions={(progress, dragX) =>
           renderRightActions(progress, dragX, event.id)
@@ -87,11 +141,11 @@ const PastEvents = () => {
                 <Text style={[styles.eventTitle, { color: theme.text }]}>
                   {truncateText(event.title, 20)}
                 </Text>
-                <TouchableOpacity disabled>
+                <TouchableOpacity onPress={() => handleMenuPress(event)}>
                   <MaterialCommunityIcons
                     name="dots-vertical"
                     size={24}
-                    color={theme.text + "50"}
+                    color={theme.text}
                   />
                 </TouchableOpacity>
               </View>
@@ -185,6 +239,52 @@ const PastEvents = () => {
           ))
         )}
       </ScrollView>
+
+      {/* Options Menu Modal */}
+      <Modal
+        visible={menuVisible}
+        transparent={true}
+        animationType="slide" // Endret til slide for en renere følelse
+        onRequestClose={() => setMenuVisible(false)}
+      >
+        <TouchableOpacity
+          style={styles.modalOverlay}
+          activeOpacity={1}
+          onPress={() => setMenuVisible(false)}
+        >
+          <View
+            style={[styles.menuContainer, { backgroundColor: theme.surface }]}
+          >
+            <TouchableOpacity
+              style={styles.menuItem}
+              onPress={handleStartAgain}
+            >
+              <MaterialCommunityIcons
+                name="restart"
+                size={20}
+                color={theme.primary}
+              />
+              <Text style={[styles.menuItemText, { color: theme.text }]}>
+                Start igjen
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.menuItem}
+              onPress={handleDeleteEvent}
+            >
+              <MaterialCommunityIcons
+                name="delete"
+                size={20}
+                color={theme.error || "#FF0000"}
+              />
+              <Text style={[styles.menuItemText, { color: theme.text }]}>
+                Delete Event
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </TouchableOpacity>
+      </Modal>
     </SafeAreaView>
   );
 };
@@ -251,6 +351,36 @@ const styles = StyleSheet.create({
     color: "#FFFFFF",
     fontSize: 16,
     fontWeight: "600",
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.3)", // Litt lysere overlay
+    justifyContent: "flex-end", // Plasserer menyen nederst
+    alignItems: "center",
+  },
+  menuContainer: {
+    width: "100%", // Full bredde for clean look
+    borderTopLeftRadius: 16, // Rundede kanter øverst
+    borderTopRightRadius: 16,
+    paddingVertical: 16,
+    paddingHorizontal: 20,
+    elevation: 10,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: -2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+  },
+  menuItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 14, // Mer vertikal plass
+    borderBottomWidth: 1, // Separator mellom elementer
+    borderBottomColor: "rgba(0, 0, 0, 0.05)",
+  },
+  menuItemText: {
+    fontSize: 16,
+    marginLeft: 16, // Økt avstand til ikon
+    fontWeight: "400", // Mindre fet tekst for renere look
   },
 });
 

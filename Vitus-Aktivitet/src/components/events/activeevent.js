@@ -1,3 +1,5 @@
+"use client";
+
 import { useState, useContext, useEffect } from "react";
 import {
   View,
@@ -298,6 +300,24 @@ const ActiveEvent = ({ route }) => {
     return null;
   }
 
+  // Formater dato og tid
+  const formatDate = (dateString) => {
+    const date = new Date(dateString);
+    return date.toLocaleDateString("no", {
+      day: "numeric",
+      month: "numeric",
+      year: "numeric",
+    });
+  };
+
+  const formatTime = (dateString) => {
+    const date = new Date(dateString);
+    return date.toLocaleTimeString("no", {
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  };
+
   return (
     <SafeAreaView
       style={[styles.safeArea, { backgroundColor: theme.background }]}
@@ -346,11 +366,21 @@ const ActiveEvent = ({ route }) => {
             <Text
               style={[styles.eventDetailText, { color: theme.textSecondary }]}
             >
-              {new Date(eventDetails.start_date).toLocaleDateString()} •{" "}
-              {new Date(eventDetails.start_time).toLocaleTimeString([], {
-                hour: "2-digit",
-                minute: "2-digit",
-              })}
+              {formatDate(eventDetails.start_date)} -{" "}
+              {formatDate(eventDetails.end_date)}
+            </Text>
+          </View>
+          <View style={styles.eventDetails}>
+            <MaterialCommunityIcons
+              name="clock-outline"
+              size={20}
+              color={theme.textSecondary}
+            />
+            <Text
+              style={[styles.eventDetailText, { color: theme.textSecondary }]}
+            >
+              {formatTime(eventDetails.start_date)} -{" "}
+              {formatTime(eventDetails.end_date)}
             </Text>
           </View>
           <View style={styles.eventDetails}>
