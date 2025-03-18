@@ -1,3 +1,5 @@
+"use client";
+
 import { useState, useEffect, useRef, useContext } from "react";
 import {
   View,
@@ -191,7 +193,9 @@ const NewEvent = ({ route }) => {
     setEventDetails((prev) => {
       const updated = { ...prev, [key]: value };
       if (key === "goalMinutes" || key === "goalSeconds") {
-        const totalSeconds = (Number(updated.goalMinutes || 0) * 60) + Number(updated.goalSeconds || 0);
+        const totalSeconds =
+          Number(updated.goalMinutes || 0) * 60 +
+          Number(updated.goalSeconds || 0);
         updated.goalValue = totalSeconds;
       }
       const filledFields = Object.values(updated).filter(
@@ -237,7 +241,8 @@ const NewEvent = ({ route }) => {
 
         // Update the corresponding time field if mode is time
         if (dateTimePickerConfig.mode === "time") {
-          const timeField = currentField === "startDate" ? "startTime" : "endTime";
+          const timeField =
+            currentField === "startDate" ? "startTime" : "endTime";
           updateEventDetails(timeField, updatedDate);
         }
       }
@@ -268,7 +273,8 @@ const NewEvent = ({ route }) => {
 
       // Update the corresponding time field if mode is time
       if (dateTimePickerConfig.mode === "time") {
-        const timeField = currentField === "startDate" ? "startTime" : "endTime";
+        const timeField =
+          currentField === "startDate" ? "startTime" : "endTime";
         updateEventDetails(timeField, updatedDate);
       }
     }
@@ -286,7 +292,11 @@ const NewEvent = ({ route }) => {
   };
 
   const closeDateTimePicker = () => {
-    setDateTimePickerConfig((prev) => ({ ...prev, visible: false, selectedValue: null }));
+    setDateTimePickerConfig((prev) => ({
+      ...prev,
+      visible: false,
+      selectedValue: null,
+    }));
   };
 
   const validateForm = () => {
@@ -315,6 +325,30 @@ const NewEvent = ({ route }) => {
       return false;
     }
 
+    // Check if start and end times are identical
+    const startDateTime = new Date(eventDetails.startDate);
+    startDateTime.setHours(eventDetails.startTime.getHours());
+    startDateTime.setMinutes(eventDetails.startTime.getMinutes());
+
+    const endDateTime = new Date(eventDetails.endDate);
+    endDateTime.setHours(eventDetails.endTime.getHours());
+    endDateTime.setMinutes(eventDetails.endTime.getMinutes());
+
+    if (startDateTime.getTime() === endDateTime.getTime()) {
+      Alert.alert(
+        "Identiske tider",
+        "Er du sikker? Start- og sluttid er identiske.",
+        [
+          { text: "Avbryt", style: "cancel" },
+          {
+            text: "Fortsett likevel",
+            onPress: () => setShowConfirmModal(true),
+          },
+        ]
+      );
+      return false;
+    }
+
     return true;
   };
 
@@ -337,6 +371,13 @@ const NewEvent = ({ route }) => {
     endDateTime.setMinutes(eventDetails.endTime.getMinutes());
     const endDateTimeUTC = endDateTime.toISOString();
 
+    // Ensure end time is after start time
+    if (endDateTime <= startDateTime) {
+      // Add 1 hour to end time if it's equal to or before start time
+      endDateTime.setHours(endDateTime.getHours() + 1);
+      const endDateTimeUTC = endDateTime.toISOString();
+    }
+
     const eventData = {
       id: eventDetails.id,
       title: eventDetails.title,
@@ -353,9 +394,11 @@ const NewEvent = ({ route }) => {
       members_per_team: Number(eventDetails.membersPerTeam) || 0,
       selectedActivity: eventDetails.selectedActivity,
       activityUnit: eventDetails.selectedActivity.unit,
+      progress: eventDetails.currentValue / eventDetails.goalValue || 0,
     };
 
     try {
+      //await sendEventTobackend(eventData);
       const updatedEvent = {
         ...eventDetails,
         ...eventData,
@@ -407,14 +450,28 @@ const NewEvent = ({ route }) => {
     navigation.goBack();
   };
 
-  const renderInput = (label, value, onChangeText, placeholder, multiline = false, keyboardType = "default") => (
+  const renderInput = (
+    label,
+    value,
+    onChangeText,
+    placeholder,
+    multiline = false,
+    keyboardType = "default"
+  ) => (
     <View style={styles.inputGroup}>
       <Text style={[styles.label, { color: theme.text }]}>{label}</Text>
       <TextInput
         style={[
           styles.unifiedInput,
-          { backgroundColor: theme.surface, borderColor: isDarkMode ? theme.border : "#E5E5E5" },
-          multiline && { height: 100, textAlignVertical: "top", paddingTop: 12 },
+          {
+            backgroundColor: theme.surface,
+            borderColor: isDarkMode ? theme.border : "#E5E5E5",
+          },
+          multiline && {
+            height: 100,
+            textAlignVertical: "top",
+            paddingTop: 12,
+          },
         ]}
         value={value}
         onChangeText={onChangeText}
@@ -433,26 +490,43 @@ const NewEvent = ({ route }) => {
         <TouchableOpacity
           style={[
             styles.dateTimeInput,
-            { backgroundColor: theme.surface, borderColor: isDarkMode ? theme.border : "#E5E5E5" },
+            {
+              backgroundColor: theme.surface,
+              borderColor: isDarkMode ? theme.border : "#E5E5E5",
+            },
           ]}
           onPress={() => showDateTimePicker("date", dateField)}
         >
           <Text style={[styles.dateTimeText, { color: theme.text }]}>
             {eventDetails[dateField].toLocaleDateString()}
           </Text>
-          <MaterialCommunityIcons name="calendar" size={18} color={theme.primary} />
+          <MaterialCommunityIcons
+            name="calendar"
+            size={18}
+            color={theme.primary}
+          />
         </TouchableOpacity>
         <TouchableOpacity
           style={[
             styles.dateTimeInput,
-            { backgroundColor: theme.surface, borderColor: isDarkMode ? theme.border : "#E5E5E5" },
+            {
+              backgroundColor: theme.surface,
+              borderColor: isDarkMode ? theme.border : "#E5E5E5",
+            },
           ]}
           onPress={() => showDateTimePicker("time", dateField)}
         >
           <Text style={[styles.dateTimeText, { color: theme.text }]}>
-            {eventDetails[timeField].toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+            {eventDetails[timeField].toLocaleTimeString([], {
+              hour: "2-digit",
+              minute: "2-digit",
+            })}
           </Text>
-          <MaterialCommunityIcons name="clock-outline" size={18} color={theme.primary} />
+          <MaterialCommunityIcons
+            name="clock-outline"
+            size={18}
+            color={theme.primary}
+          />
         </TouchableOpacity>
       </View>
     </View>
@@ -471,7 +545,10 @@ const NewEvent = ({ route }) => {
             <TextInput
               style={[
                 styles.dateTimeInput,
-                { backgroundColor: theme.surface, borderColor: isDarkMode ? theme.border : "#E5E5E5" },
+                {
+                  backgroundColor: theme.surface,
+                  borderColor: isDarkMode ? theme.border : "#E5E5E5",
+                },
               ]}
               value={eventDetails.goalMinutes.toString()}
               onChangeText={(text) => updateEventDetails("goalMinutes", text)}
@@ -482,7 +559,10 @@ const NewEvent = ({ route }) => {
             <TextInput
               style={[
                 styles.dateTimeInput,
-                { backgroundColor: theme.surface, borderColor: isDarkMode ? theme.border : "#E5E5E5" },
+                {
+                  backgroundColor: theme.surface,
+                  borderColor: isDarkMode ? theme.border : "#E5E5E5",
+                },
               ]}
               value={eventDetails.goalSeconds.toString()}
               onChangeText={(text) => updateEventDetails("goalSeconds", text)}
@@ -562,8 +642,19 @@ const NewEvent = ({ route }) => {
             <Text style={[styles.stepTitle, { color: theme.text }]}>
               Hendelsesdetaljer
             </Text>
-            {renderInput("Navn", eventDetails.title, (text) => updateEventDetails("title", text), "Skriv inn navn")}
-            {renderInput("Beskrivelse", eventDetails.description, (text) => updateEventDetails("description", text), "Skriv inn beskrivelse", true)}
+            {renderInput(
+              "Navn",
+              eventDetails.title,
+              (text) => updateEventDetails("title", text),
+              "Skriv inn navn"
+            )}
+            {renderInput(
+              "Beskrivelse",
+              eventDetails.description,
+              (text) => updateEventDetails("description", text),
+              "Skriv inn beskrivelse",
+              true
+            )}
             {renderGoalInput()}
           </View>
         );
@@ -573,7 +664,14 @@ const NewEvent = ({ route }) => {
             <Text style={[styles.stepTitle, { color: theme.text }]}>
               Tid og sted
             </Text>
-            {renderInput("Sted", eventDetails.location, (text) => updateEventDetails("location", text), "Skriv inn sted", false, "default")}
+            {renderInput(
+              "Sted",
+              eventDetails.location,
+              (text) => updateEventDetails("location", text),
+              "Skriv inn sted",
+              false,
+              "default"
+            )}
             {renderDateTimePicker("Start", "startDate", "startTime")}
             {renderDateTimePicker("Slutt", "endDate", "endTime")}
           </View>
@@ -591,8 +689,12 @@ const NewEvent = ({ route }) => {
                   style={[
                     styles.eventTypeButton,
                     { borderColor: isDarkMode ? theme.border : "#E5E5E5" },
-                    eventDetails.eventType === type && { backgroundColor: theme.primary },
-                    eventDetails.eventType !== type && { backgroundColor: "#FFFFFF" },
+                    eventDetails.eventType === type && {
+                      backgroundColor: theme.primary,
+                    },
+                    eventDetails.eventType !== type && {
+                      backgroundColor: "#FFFFFF",
+                    },
                   ]}
                   onPress={() => updateEventDetails("eventType", type)}
                 >
@@ -621,13 +723,33 @@ const NewEvent = ({ route }) => {
                 </TouchableOpacity>
               ))}
             </View>
-            {eventDetails.eventType === "individual" && (
-              renderInput("Antall deltakere", eventDetails.participantCount, (text) => updateEventDetails("participantCount", text), "Skriv inn antall", false, "numeric")
-            )}
+            {eventDetails.eventType === "individual" &&
+              renderInput(
+                "Antall deltakere",
+                eventDetails.participantCount,
+                (text) => updateEventDetails("participantCount", text),
+                "Skriv inn antall",
+                false,
+                "numeric"
+              )}
             {eventDetails.eventType === "team" && (
               <>
-                {renderInput("Antall lag", eventDetails.teamCount, (text) => updateEventDetails("teamCount", text), "Skriv inn antall lag", false, "numeric")}
-                {renderInput("Medlemmer per lag", eventDetails.membersPerTeam, (text) => updateEventDetails("membersPerTeam", text), "Skriv inn antall medlemmer", false, "numeric")}
+                {renderInput(
+                  "Antall lag",
+                  eventDetails.teamCount,
+                  (text) => updateEventDetails("teamCount", text),
+                  "Skriv inn antall lag",
+                  false,
+                  "numeric"
+                )}
+                {renderInput(
+                  "Medlemmer per lag",
+                  eventDetails.membersPerTeam,
+                  (text) => updateEventDetails("membersPerTeam", text),
+                  "Skriv inn antall medlemmer",
+                  false,
+                  "numeric"
+                )}
               </>
             )}
           </View>
@@ -647,7 +769,15 @@ const NewEvent = ({ route }) => {
           style={styles.contentContainer}
           keyboardVerticalOffset={Platform.OS === "ios" ? 64 : 0}
         >
-          <View style={[styles.header, { backgroundColor: theme.background, borderBottomColor: "rgba(0, 0, 0, 0.05)" }]}>
+          <View
+            style={[
+              styles.header,
+              {
+                backgroundColor: theme.background,
+                borderBottomColor: "rgba(0, 0, 0, 0.05)",
+              },
+            ]}
+          >
             <Animated.View
               style={[
                 styles.progressBar,
@@ -672,7 +802,9 @@ const NewEvent = ({ route }) => {
             scrollEventThrottle={16}
             onScroll={Animated.event(
               [{ nativeEvent: { contentOffset: { x: stepAnimation } } }],
-              { useNativeDriver: true }
+              {
+                useNativeDriver: true,
+              }
             )}
           >
             {[0, 1, 2, 3].map((step) => (
@@ -752,9 +884,7 @@ const NewEvent = ({ route }) => {
                 style={[styles.modalButton, { backgroundColor: theme.border }]}
                 onPress={() => setShowCancelModal(false)}
               >
-                <Text
-                  style={[styles.modalButtonText, { color: theme.text }]}
-                >
+                <Text style={[styles.modalButtonText, { color: theme.text }]}>
                   Fortsett
                 </Text>
               </TouchableOpacity>
@@ -791,9 +921,7 @@ const NewEvent = ({ route }) => {
                 style={[styles.modalButton, { backgroundColor: theme.border }]}
                 onPress={() => setShowConfirmModal(false)}
               >
-                <Text
-                  style={[styles.modalButtonText, { color: theme.text }]}
-                >
+                <Text style={[styles.modalButtonText, { color: theme.text }]}>
                   Avbryt
                 </Text>
               </TouchableOpacity>
@@ -815,10 +943,16 @@ const NewEvent = ({ route }) => {
       {dateTimePickerConfig.visible && (
         <Modal visible={true} transparent={true} animationType="fade">
           <View
-            style={[styles.modalContainer, { backgroundColor: "rgba(0,0,0,0.5)" }]}
+            style={[
+              styles.modalContainer,
+              { backgroundColor: "rgba(0,0,0,0.5)" },
+            ]}
           >
             <View
-              style={[styles.dateTimePickerContainer, { backgroundColor: theme.background }]}
+              style={[
+                styles.dateTimePickerContainer,
+                { backgroundColor: theme.background },
+              ]}
             >
               <DateTimePicker
                 value={dateTimePickerConfig.currentValue}
@@ -832,11 +966,17 @@ const NewEvent = ({ route }) => {
               />
               {Platform.OS === "ios" && (
                 <TouchableOpacity
-                  style={[styles.closeDateTimeButton, { backgroundColor: theme.primary }]}
+                  style={[
+                    styles.closeDateTimeButton,
+                    { backgroundColor: theme.primary },
+                  ]}
                   onPress={confirmDateTime}
                 >
                   <Text
-                    style={[styles.closeDateTimeButtonText, { color: theme.background }]}
+                    style={[
+                      styles.closeDateTimeButtonText,
+                      { color: theme.background },
+                    ]}
                   >
                     Bekreft
                   </Text>
