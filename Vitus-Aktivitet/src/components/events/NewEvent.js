@@ -239,7 +239,6 @@ const NewEvent = ({ route }) => {
 
         updateEventDetails(currentField, updatedDate);
 
-        // Update the corresponding time field if mode is time
         if (dateTimePickerConfig.mode === "time") {
           const timeField =
             currentField === "startDate" ? "startTime" : "endTime";
@@ -271,7 +270,6 @@ const NewEvent = ({ route }) => {
 
       updateEventDetails(currentField, updatedDate);
 
-      // Update the corresponding time field if mode is time
       if (dateTimePickerConfig.mode === "time") {
         const timeField =
           currentField === "startDate" ? "startTime" : "endTime";
@@ -325,7 +323,6 @@ const NewEvent = ({ route }) => {
       return false;
     }
 
-    // Check if start and end times are identical
     const startDateTime = new Date(eventDetails.startDate);
     startDateTime.setHours(eventDetails.startTime.getHours());
     startDateTime.setMinutes(eventDetails.startTime.getMinutes());
@@ -371,11 +368,9 @@ const NewEvent = ({ route }) => {
     endDateTime.setMinutes(eventDetails.endTime.getMinutes());
     const endDateTimeUTC = endDateTime.toISOString();
 
-    // Ensure end time is after start time
     if (endDateTime <= startDateTime) {
-      // Add 1 hour to end time if it's equal to or before start time
       endDateTime.setHours(endDateTime.getHours() + 1);
-      const endDateTimeUTC = endDateTime.toISOString();
+      endDateTimeUTC = endDateTime.toISOString();
     }
 
     const eventData = {
@@ -398,7 +393,6 @@ const NewEvent = ({ route }) => {
     };
 
     try {
-      //await sendEventTobackend(eventData);
       const updatedEvent = {
         ...eventDetails,
         ...eventData,
@@ -459,13 +453,16 @@ const NewEvent = ({ route }) => {
     keyboardType = "default"
   ) => (
     <View style={styles.inputGroup}>
-      <Text style={[styles.label, { color: theme.text }]}>{label}</Text>
+      <Text style={[styles.label, { color: isDarkMode ? "#FFFFFF" : "#333333" }]}>
+        {label}
+      </Text>
       <TextInput
         style={[
           styles.unifiedInput,
           {
             backgroundColor: theme.surface,
             borderColor: isDarkMode ? theme.border : "#E5E5E5",
+            color: isDarkMode ? "#FFFFFF" : "#000000",
           },
           multiline && {
             height: 100,
@@ -476,7 +473,7 @@ const NewEvent = ({ route }) => {
         value={value}
         onChangeText={onChangeText}
         placeholder={placeholder}
-        placeholderTextColor={theme.textSecondary}
+        placeholderTextColor={isDarkMode ? "#CCCCCC" : "#999999"}
         multiline={multiline}
         keyboardType={keyboardType}
       />
@@ -485,7 +482,9 @@ const NewEvent = ({ route }) => {
 
   const renderDateTimePicker = (label, dateField, timeField) => (
     <View style={styles.inputGroup}>
-      <Text style={[styles.label, { color: theme.text }]}>{label}</Text>
+      <Text style={[styles.label, { color: isDarkMode ? "#FFFFFF" : "#333333" }]}>
+        {label}
+      </Text>
       <View style={styles.dateTimeRow}>
         <TouchableOpacity
           style={[
@@ -497,7 +496,7 @@ const NewEvent = ({ route }) => {
           ]}
           onPress={() => showDateTimePicker("date", dateField)}
         >
-          <Text style={[styles.dateTimeText, { color: theme.text }]}>
+          <Text style={[styles.dateTimeText, { color: isDarkMode ? "#FFFFFF" : "#000000" }]}>
             {eventDetails[dateField].toLocaleDateString()}
           </Text>
           <MaterialCommunityIcons
@@ -516,7 +515,7 @@ const NewEvent = ({ route }) => {
           ]}
           onPress={() => showDateTimePicker("time", dateField)}
         >
-          <Text style={[styles.dateTimeText, { color: theme.text }]}>
+          <Text style={[styles.dateTimeText, { color: isDarkMode ? "#FFFFFF" : "#000000" }]}>
             {eventDetails[timeField].toLocaleTimeString([], {
               hour: "2-digit",
               minute: "2-digit",
@@ -538,7 +537,7 @@ const NewEvent = ({ route }) => {
     if (eventDetails.selectedActivity.type === "duration") {
       return (
         <View style={styles.inputGroup}>
-          <Text style={[styles.label, { color: theme.text }]}>
+          <Text style={[styles.label, { color: isDarkMode ? "#FFFFFF" : "#333333" }]}>
             Mål ({eventDetails.selectedActivity.unit})
           </Text>
           <View style={styles.dateTimeRow}>
@@ -548,12 +547,13 @@ const NewEvent = ({ route }) => {
                 {
                   backgroundColor: theme.surface,
                   borderColor: isDarkMode ? theme.border : "#E5E5E5",
+                  color: isDarkMode ? "#FFFFFF" : "#000000",
                 },
               ]}
               value={eventDetails.goalMinutes.toString()}
               onChangeText={(text) => updateEventDetails("goalMinutes", text)}
               placeholder="Minutter"
-              placeholderTextColor={theme.textSecondary}
+              placeholderTextColor={isDarkMode ? "#CCCCCC" : "#999999"}
               keyboardType="numeric"
             />
             <TextInput
@@ -562,12 +562,13 @@ const NewEvent = ({ route }) => {
                 {
                   backgroundColor: theme.surface,
                   borderColor: isDarkMode ? theme.border : "#E5E5E5",
+                  color: isDarkMode ? "#FFFFFF" : "#000000",
                 },
               ]}
               value={eventDetails.goalSeconds.toString()}
               onChangeText={(text) => updateEventDetails("goalSeconds", text)}
               placeholder="Sekunder"
-              placeholderTextColor={theme.textSecondary}
+              placeholderTextColor={isDarkMode ? "#CCCCCC" : "#999999"}
               keyboardType="numeric"
             />
           </View>
@@ -590,7 +591,7 @@ const NewEvent = ({ route }) => {
       case 0:
         return (
           <View style={styles.stepContainer}>
-            <Text style={[styles.stepTitle, { color: theme.text }]}>
+            <Text style={[styles.stepTitle, { color: isDarkMode ? "#FFFFFF" : "#333333" }]}>
               {isEditing ? "Endre aktivitetstype" : "Velg aktivitetstype"}
             </Text>
             <View style={styles.activityGrid}>
@@ -625,7 +626,7 @@ const NewEvent = ({ route }) => {
                         color:
                           eventDetails.selectedActivity?.id === activity.id
                             ? "#FFFFFF"
-                            : theme.text,
+                            : isDarkMode ? "#FFFFFF" : "#333333",
                       },
                     ]}
                   >
@@ -639,7 +640,7 @@ const NewEvent = ({ route }) => {
       case 1:
         return (
           <View style={styles.stepContainer}>
-            <Text style={[styles.stepTitle, { color: theme.text }]}>
+            <Text style={[styles.stepTitle, { color: isDarkMode ? "#FFFFFF" : "#333333" }]}>
               Hendelsesdetaljer
             </Text>
             {renderInput(
@@ -661,7 +662,7 @@ const NewEvent = ({ route }) => {
       case 2:
         return (
           <View style={styles.stepContainer}>
-            <Text style={[styles.stepTitle, { color: theme.text }]}>
+            <Text style={[styles.stepTitle, { color: isDarkMode ? "#FFFFFF" : "#333333" }]}>
               Tid og sted
             </Text>
             {renderInput(
@@ -679,7 +680,7 @@ const NewEvent = ({ route }) => {
       case 3:
         return (
           <View style={styles.stepContainer}>
-            <Text style={[styles.stepTitle, { color: theme.text }]}>
+            <Text style={[styles.stepTitle, { color: isDarkMode ? "#FFFFFF" : "#333333" }]}>
               Deltakere
             </Text>
             <View style={styles.eventTypeButtons}>
@@ -688,12 +689,12 @@ const NewEvent = ({ route }) => {
                   key={type}
                   style={[
                     styles.eventTypeButton,
-                    { borderColor: isDarkMode ? theme.border : "#E5E5E5" },
-                    eventDetails.eventType === type && {
-                      backgroundColor: theme.primary,
-                    },
-                    eventDetails.eventType !== type && {
-                      backgroundColor: "#FFFFFF",
+                    {
+                      borderColor: isDarkMode ? theme.border : "#E5E5E5",
+                      backgroundColor:
+                        eventDetails.eventType === type
+                          ? theme.primary
+                          : theme.surface,
                     },
                   ]}
                   onPress={() => updateEventDetails("eventType", type)}
@@ -704,7 +705,7 @@ const NewEvent = ({ route }) => {
                     color={
                       eventDetails.eventType === type
                         ? theme.background
-                        : theme.text
+                        : isDarkMode ? "#FFFFFF" : "#333333"
                     }
                   />
                   <Text
@@ -714,7 +715,7 @@ const NewEvent = ({ route }) => {
                         color:
                           eventDetails.eventType === type
                             ? theme.background
-                            : theme.text,
+                            : isDarkMode ? "#FFFFFF" : "#333333",
                       },
                     ]}
                   >
@@ -774,7 +775,7 @@ const NewEvent = ({ route }) => {
               styles.header,
               {
                 backgroundColor: theme.background,
-                borderBottomColor: "rgba(0, 0, 0, 0.05)",
+                borderBottomColor: isDarkMode ? "rgba(255, 255, 255, 0.05)" : "rgba(0, 0, 0, 0.05)",
               },
             ]}
           >
@@ -830,7 +831,7 @@ const NewEvent = ({ route }) => {
               }
             }}
           >
-            <Text style={[styles.footerButtonText, { color: theme.text }]}>
+            <Text style={[styles.footerButtonText, { color: isDarkMode ? "#FFFFFF" : "#333333" }]}>
               {currentStep === 0 ? "Avbryt" : "Forrige"}
             </Text>
           </TouchableOpacity>
@@ -871,12 +872,12 @@ const NewEvent = ({ route }) => {
       <Modal visible={showCancelModal} animationType="fade" transparent={true}>
         <BlurView intensity={100} style={styles.modalContainer}>
           <View
-            style={[styles.modalContent, { backgroundColor: theme.background }]}
+            style={[styles.modalContent, { backgroundColor: theme.surface }]}
           >
-            <Text style={[styles.modalTitle, { color: theme.text }]}>
+            <Text style={[styles.modalTitle, { color: isDarkMode ? "#FFFFFF" : "#333333" }]}>
               Avbryt oppretting
             </Text>
-            <Text style={[styles.modalText, { color: theme.textSecondary }]}>
+            <Text style={[styles.modalText, { color: isDarkMode ? "#CCCCCC" : "#666666" }]}>
               Er du sikker på at du vil avbryte? Endringer vil ikke bli lagret.
             </Text>
             <View style={styles.modalButtons}>
@@ -884,7 +885,7 @@ const NewEvent = ({ route }) => {
                 style={[styles.modalButton, { backgroundColor: theme.border }]}
                 onPress={() => setShowCancelModal(false)}
               >
-                <Text style={[styles.modalButtonText, { color: theme.text }]}>
+                <Text style={[styles.modalButtonText, { color: isDarkMode ? "#FFFFFF" : "#333333" }]}>
                   Fortsett
                 </Text>
               </TouchableOpacity>
@@ -906,12 +907,12 @@ const NewEvent = ({ route }) => {
       <Modal visible={showConfirmModal} animationType="fade" transparent={true}>
         <BlurView intensity={100} style={styles.modalContainer}>
           <View
-            style={[styles.modalContent, { backgroundColor: theme.background }]}
+            style={[styles.modalContent, { backgroundColor: theme.surface }]}
           >
-            <Text style={[styles.modalTitle, { color: theme.text }]}>
+            <Text style={[styles.modalTitle, { color: isDarkMode ? "#FFFFFF" : "#333333" }]}>
               {isEditing ? "Bekreft endringer" : "Bekreft hendelse"}
             </Text>
-            <Text style={[styles.modalText, { color: theme.textSecondary }]}>
+            <Text style={[styles.modalText, { color: isDarkMode ? "#CCCCCC" : "#666666" }]}>
               {isEditing
                 ? "Er du sikker på at du vil oppdatere denne hendelsen?"
                 : "Er du sikker på at du vil opprette denne hendelsen?"}
@@ -921,7 +922,7 @@ const NewEvent = ({ route }) => {
                 style={[styles.modalButton, { backgroundColor: theme.border }]}
                 onPress={() => setShowConfirmModal(false)}
               >
-                <Text style={[styles.modalButtonText, { color: theme.text }]}>
+                <Text style={[styles.modalButtonText, { color: isDarkMode ? "#FFFFFF" : "#333333" }]}>
                   Avbryt
                 </Text>
               </TouchableOpacity>
@@ -951,7 +952,7 @@ const NewEvent = ({ route }) => {
             <View
               style={[
                 styles.dateTimePickerContainer,
-                { backgroundColor: theme.background },
+                { backgroundColor: theme.surface },
               ]}
             >
               <DateTimePicker
@@ -1060,7 +1061,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "500",
     marginBottom: 8,
-    color: "#333",
   },
   unifiedInput: {
     width: "100%",
