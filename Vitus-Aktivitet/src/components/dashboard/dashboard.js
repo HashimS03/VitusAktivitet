@@ -1,6 +1,4 @@
-"use client";
-
-import { useState, useEffect, useCallback, useContext, useRef } from "react";
+import React, { useState, useEffect, useCallback, useContext, useRef } from "react";
 import { useRoute, useFocusEffect } from "@react-navigation/native";
 import {
   SafeAreaView,
@@ -1140,12 +1138,12 @@ export default function Dashboard() {
               <Text style={[styles.stepsText, { color: accentColor }]}>
                 {stepCount.toLocaleString()}
               </Text>
+              <Text
+                style={[styles.dailyStepsLabel, { color: theme.textSecondary }]}
+              >
+                Daglig skritt (Mål: {dailyGoal})
+              </Text>
             </TouchableOpacity>
-            <Text
-              style={[styles.dailyStepsLabel, { color: theme.textSecondary }]}
-            >
-              Daglig skritt (Mål: {dailyGoal})
-            </Text>
           </View>
           <TouchableOpacity
             style={[
@@ -1368,22 +1366,30 @@ const styles = StyleSheet.create({
     position: "absolute",
     alignItems: "center",
     justifyContent: "center",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    flexDirection: "column",
   },
   runnerIcon: {
     width: 40,
     height: 40,
     resizeMode: "contain",
-    marginBottom: 8,
+    marginBottom: 10, // Added spacing below the icon
   },
   stepsText: {
     fontSize: 36,
     fontWeight: "bold",
+    textAlign: "center",
+    marginBottom: 4, // Added spacing below the number
   },
   dailyStepsLabel: {
     fontSize: 14,
-    marginTop: 4,
+    textAlign: "center",
   },
   stepsTouchable: {
+    alignItems: "center",
     zIndex: 0,
   },
   section: {
