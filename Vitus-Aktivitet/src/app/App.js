@@ -154,7 +154,6 @@ const App = () => {
                   />
                 )}
               </Stack.Screen>
-
               {/* Gender Selection */}
               <Stack.Screen name="GenderSelection">
                 {(props) => (
@@ -179,13 +178,11 @@ const App = () => {
               </Stack.Screen>
               {/* History */}
               <Stack.Screen name="History" component={HistoryScreen} />
-
               {/* Avatar Selection */}
               <Stack.Screen
                 name="AvatarSelection"
                 component={AvatarSelection}
               />
-
               {/* Main App (Tabs) */}
               <Stack.Screen
                 name="MainApp"
@@ -194,18 +191,13 @@ const App = () => {
                   gestureEnabled: false, // 🔒 Hindrer swipe tilbake fra Dashboard
                 }}
               />
-
               {/* Other Screens */}
-              <Stack.Screen name="ActivitySelect" component={ActivitySelect} />
-              <Stack.Screen name="DurationSelect" component={DurationSelect} />
-              <Stack.Screen name="Confirmation" component={Confirmation} />
               <Stack.Screen name="Setting" component={Setting} />
               <Stack.Screen name="Stats" component={Stats} />
               <Stack.Screen name="TrophyDetails" component={TrophyDetails} />
               <Stack.Screen name="Notifications" component={Notifications} />
               <Stack.Screen name="Language" component={LanguageSelection} />
               <Stack.Screen name="EditProfile" component={EditProfile} />
-
               <Stack.Screen name="Achievements" component={Achievements} />
               <Stack.Screen
                 name="notificationeditor"
@@ -220,7 +212,6 @@ const App = () => {
                 component={SecurityPrivacy}
               />
               <Stack.Screen name="YourEvents" component={YourEvents} />
-
               <Stack.Screen name="PrivacyPolicy" component={PrivacyPolicy} />
               <Stack.Screen
                 name="EventLeaderboard"
