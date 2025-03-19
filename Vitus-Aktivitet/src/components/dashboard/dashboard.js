@@ -1,4 +1,10 @@
-import React, { useState, useEffect, useCallback, useContext, useRef } from "react";
+import React, {
+  useState,
+  useEffect,
+  useCallback,
+  useContext,
+  useRef,
+} from "react";
 import { useRoute, useFocusEffect } from "@react-navigation/native";
 import {
   SafeAreaView,
@@ -13,6 +19,7 @@ import {
   FlatList,
   TextInput,
   Animated,
+  Alert, // Importer Alert for tilbakemelding
 } from "react-native";
 import { Users, Bell, Award, ChevronRight, X } from "lucide-react-native";
 import * as Progress from "react-native-progress";
@@ -25,7 +32,6 @@ import Svg, {
 } from "react-native-svg";
 import StepCounter from "../stepcounter/stepcounter";
 import { useNavigation } from "@react-navigation/native";
-
 import FloatingSymbols from "../../components/BackgroundAnimation/FloatingSymbols";
 import { useTheme } from "../context/ThemeContext";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
@@ -34,6 +40,7 @@ import Color from "color";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { EventContext } from "../events/EventContext";
 import { trophyData } from "../profile/achievements";
+import StepCalculator from "../dashboard/StepCalculator";
 
 const SCREEN_WIDTH = Dimensions.get("window").width;
 const SCREEN_HEIGHT = Dimensions.get("window").height;
@@ -41,19 +48,39 @@ const DAILY_STEP_GOAL = 7500;
 const PROGRESS_RING_SIZE = 300;
 const PROGRESS_RING_THICKNESS = 30;
 
-// Initialiser tutorial-status globalt (kun for utvikling)
-const initializeTutorialForDev = async () => {
+// Funksjon for å nullstille all data ved oppstart (for testing)
+const initializeAppForDev = async () => {
   try {
-    await AsyncStorage.removeItem("hasSeenTutorial");
-    await AsyncStorage.removeItem("tutorialStep");
-    console.log("Tutorial reset for development");
+    const allKeys = await AsyncStorage.getAllKeys();
+    const keysToRemove = allKeys.filter(
+      (key) =>
+        key.startsWith("stepHistory_") ||
+        key === "stepCount" ||
+        key === "dailyGoal" ||
+        key === "currentStreak" ||
+        key === "lastCompletionDate" ||
+        key === "totalSteps" ||
+        key === "participatedEvents" ||
+        key === "completedEvents" ||
+        key === "leaderboardRank" ||
+        key === "privacyExplored" ||
+        key === "hasSeenTutorial" ||
+        key === "tutorialStep" ||
+        key === "lastStepResetDate" ||
+        key === "pendingDailyGoal" ||
+        key === "pendingGoalDate" ||
+        key === "lastGoalUpdateDate"
+    );
+    if (keysToRemove.length > 0) {
+      await AsyncStorage.multiRemove(keysToRemove);
+      console.log("✅ All app data nullstilt for utvikling/testing");
+    }
   } catch (error) {
-    console.error("❌ Feil ved initialisering av tutorial for dev:", error);
+    console.error("❌ Feil ved nullstilling av app-data for dev:", error);
   }
 };
 
-// Kjør dette én gang ved appstart (kun i utvikling)
-initializeTutorialForDev();
+initializeAppForDev();
 
 const CustomProgressCircle = ({ progress, accentColor }) => {
   const radius = (PROGRESS_RING_SIZE - PROGRESS_RING_THICKNESS) / 2;
@@ -260,7 +287,6 @@ const EnhancedTutorial = ({
   );
 };
 
-// Streak calculation function
 const updateStreaks = async (stepCount, dailyGoal) => {
   const today = new Date();
   const todayString = today.toISOString().split("T")[0];
@@ -315,13 +341,13 @@ export default function Dashboard() {
   const [showGoalModal, setShowGoalModal] = useState(false);
   const [dailyGoal, setDailyGoal] = useState(DAILY_STEP_GOAL);
   const [newGoal, setNewGoal] = useState("");
+  const [showCalculatorModal, setShowCalculatorModal] = useState(false);
   const { activeEvents } = useContext(EventContext);
   const route = useRoute();
   const scrollViewRef = useRef(null);
 
   const TOTAL_TUTORIAL_STEPS = 8;
 
-  // Randomly select a trophy and its progress
   const [randomTrophy, setRandomTrophy] = useState(null);
   const [unlockedLevel, setUnlockedLevel] = useState(0);
   const [progress, setProgress] = useState({ current: 0, nextGoal: 0 });
@@ -475,33 +501,58 @@ export default function Dashboard() {
     selectRandomTrophyAndLoadProgress();
   }, []);
 
+  // Daglig reset av stepCount og sjekk for ventende mål
   useEffect(() => {
-    const resetStepData = async () => {
+    const checkAndResetDailySteps = async () => {
       try {
-        console.log(
-          "🔄 Resetter skritt- og streak-relaterte data i AsyncStorage..."
-        );
-        const allKeys = await AsyncStorage.getAllKeys();
-        const keysToReset = allKeys.filter(
-          (key) =>
-            key.startsWith("stepHistory_") ||
-            key === "stepCount" ||
-            key === "currentStreak" ||
-            key === "lastCompletionDate" ||
-            key === "bestStreak"
-        );
-        if (keysToReset.length > 0) {
-          await AsyncStorage.multiRemove(keysToReset);
+        const today = new Date().toISOString().split("T")[0];
+        const lastDate = await AsyncStorage.getItem("lastStepResetDate");
+
+        // Sjekk om det finnes et ventende mål som skal aktiveres
+        const pendingGoal = await AsyncStorage.getItem("pendingDailyGoal");
+        const pendingGoalDate = await AsyncStorage.getItem("pendingGoalDate");
+
+        if (pendingGoal && pendingGoalDate && lastDate !== today) {
+          const newGoal = parseInt(pendingGoal, 10);
+          if (!isNaN(newGoal) && newGoal > 0) {
+            await AsyncStorage.setItem("dailyGoal", JSON.stringify(newGoal));
+            setDailyGoal(newGoal);
+            await AsyncStorage.removeItem("pendingDailyGoal");
+            await AsyncStorage.removeItem("pendingGoalDate");
+            console.log("✅ Ventende mål aktivert:", newGoal);
+          }
         }
-        setStepCount(0);
-        setStreak(0);
-        console.log("✅ Skritt- og streak-data er nullstilt!");
+
+        if (lastDate !== today) {
+          // Lagre forrige dags skritt i historikken før reset
+          const storedSteps = await AsyncStorage.getItem("stepCount");
+          const previousSteps = storedSteps ? parseInt(storedSteps) : 0;
+          if (lastDate && previousSteps > 0) {
+            await AsyncStorage.setItem(
+              `stepHistory_${lastDate}`,
+              previousSteps.toString()
+            );
+          }
+
+          // Nullstill stepCount
+          await AsyncStorage.setItem("stepCount", "0");
+          setStepCount(0);
+          await AsyncStorage.setItem("lastStepResetDate", today);
+          console.log("✅ stepCount nullstilt for ny dag:", today);
+
+          // Oppdater streak basert på forrige dags data
+          const updatedStreak = await updateStreaks(previousSteps, dailyGoal);
+          setStreak(updatedStreak);
+        }
       } catch (error) {
-        console.error("❌ Feil ved nullstilling av data:", error);
+        console.error("❌ Feil ved daglig reset av stepCount:", error);
       }
     };
-    resetStepData();
-  }, []);
+
+    checkAndResetDailySteps();
+    const interval = setInterval(checkAndResetDailySteps, 60 * 60 * 1000); // Sjekk hver time
+    return () => clearInterval(interval);
+  }, [dailyGoal]);
 
   useEffect(() => {
     const loadData = async () => {
@@ -511,12 +562,10 @@ export default function Dashboard() {
           ? JSON.parse(storedGoal)
           : DAILY_STEP_GOAL;
         setDailyGoal(initialGoal);
-        console.log("Loaded initial dailyGoal:", initialGoal);
 
         const storedSteps = await AsyncStorage.getItem("stepCount");
         const initialSteps = storedSteps ? parseInt(storedSteps) : 0;
         setStepCount(initialSteps);
-        console.log("Loaded initial stepCount:", initialSteps);
 
         const initialStreak = await updateStreaks(initialSteps, initialGoal);
         setStreak(initialStreak);
@@ -525,7 +574,6 @@ export default function Dashboard() {
           (await AsyncStorage.getItem("totalSteps")) || "0",
           10
         );
-        console.log("Loaded totalSteps:", totalSteps);
 
         const hasSeenTutorial = await AsyncStorage.getItem("hasSeenTutorial");
         const storedTutorialStep = await AsyncStorage.getItem("tutorialStep");
@@ -549,9 +597,6 @@ export default function Dashboard() {
 
   useFocusEffect(
     useCallback(() => {
-      console.log("🔄 Dashboard (MainApp) har fått fokus!");
-      console.log("📡 route.params nå:", route.params);
-
       const updateSteps = async () => {
         try {
           const storedSteps = await AsyncStorage.getItem("stepCount");
@@ -561,10 +606,8 @@ export default function Dashboard() {
             route.params?.addedSteps &&
             typeof route.params.addedSteps === "number"
           ) {
-            console.log("🔥 Mottatt addedSteps:", route.params.addedSteps);
             const newSteps = route.params.addedSteps;
             const newStepCount = previousSteps + newSteps;
-            console.log("📊 Oppdatert stepCount:", newStepCount);
 
             await AsyncStorage.setItem("stepCount", newStepCount.toString());
             setStepCount(newStepCount);
@@ -579,15 +622,10 @@ export default function Dashboard() {
             const today = new Date().toISOString().split("T")[0];
             const stepHistoryKey = `stepHistory_${today}`;
             await AsyncStorage.setItem(stepHistoryKey, newStepCount.toString());
-            console.log(
-              "📜 Updated history steps for today to total:",
-              newStepCount
-            );
 
             const updatedStreak = await updateStreaks(newStepCount, dailyGoal);
             setStreak(updatedStreak);
 
-            // Oppdater trofé-progresjon for den tilfeldige troféen
             if (randomTrophy) {
               let level = 0;
               let currentProgress = 0;
@@ -712,7 +750,7 @@ export default function Dashboard() {
               setProgress({ current: currentProgress, nextGoal });
             }
 
-            navigation.setParams({ addedSteps: null }); // Tøm parameteren etter bruk
+            navigation.setParams({ addedSteps: null });
           }
         } catch (error) {
           console.error("❌ Feil ved oppdatering av stepCount:", error);
@@ -833,17 +871,13 @@ export default function Dashboard() {
 
   useEffect(() => {
     checkFirstTimeUser();
-    console.log("🚀 Appen kjører!");
   }, []);
 
   const checkFirstTimeUser = async () => {
     try {
-      console.log("🔍 Sjekker hasSeenTutorial i AsyncStorage...");
       const hasSeenTutorial = await AsyncStorage.getItem("hasSeenTutorial");
-      console.log("💾 Lest fra AsyncStorage:", hasSeenTutorial);
       if (hasSeenTutorial === null) {
         setShowTutorial(true);
-        console.log("🎉 Førstegangsbruker! Viser tutorial...");
       } else {
         setShowTutorial(false);
       }
@@ -997,10 +1031,123 @@ export default function Dashboard() {
   const handleSetDailyGoal = async () => {
     const goal = Number.parseInt(newGoal, 10);
     if (!isNaN(goal) && goal > 0) {
-      await AsyncStorage.setItem("dailyGoal", JSON.stringify(goal));
-      setDailyGoal(goal);
-      setShowGoalModal(false);
-      setNewGoal("");
+      try {
+        const today = new Date().toISOString().split("T")[0];
+        const lastGoalUpdateDate = await AsyncStorage.getItem(
+          "lastGoalUpdateDate"
+        );
+
+        if (lastGoalUpdateDate === today) {
+          // Brukeren har allerede oppdatert målet i dag, lagre som ventende
+          await AsyncStorage.setItem("pendingDailyGoal", JSON.stringify(goal));
+          await AsyncStorage.setItem("pendingGoalDate", today);
+          Alert.alert(
+            "Mål lagret for i morgen",
+            `Du kan kun endre målet én gang per dag. Ditt nye mål (${goal} skritt) vil tre i kraft i morgen.`,
+            [{ text: "OK" }]
+          );
+        } else {
+          // Oppdater målet som normalt
+          await AsyncStorage.setItem("dailyGoal", JSON.stringify(goal));
+          await AsyncStorage.setItem("lastGoalUpdateDate", today);
+          setDailyGoal(goal);
+        }
+
+        setShowGoalModal(false);
+        setNewGoal("");
+      } catch (error) {
+        console.error("❌ Feil ved oppdatering av daglig mål:", error);
+      }
+    } else {
+      Alert.alert(
+        "Ugyldig mål",
+        "Vennligst skriv inn et gyldig tall større enn 0."
+      );
+    }
+  };
+
+  const handleCalculatorConfirm = async (steps) => {
+    try {
+      const storedSteps = await AsyncStorage.getItem("stepCount");
+      let previousSteps = storedSteps ? parseInt(storedSteps) : 0;
+      const newStepCount = previousSteps + steps;
+
+      await AsyncStorage.setItem("stepCount", newStepCount.toString());
+      setStepCount(newStepCount);
+
+      const totalSteps = parseInt(
+        (await AsyncStorage.getItem("totalSteps")) || "0",
+        10
+      );
+      const newTotalSteps = totalSteps + steps;
+      await AsyncStorage.setItem("totalSteps", newTotalSteps.toString());
+
+      const today = new Date().toISOString().split("T")[0];
+      const stepHistoryKey = `stepHistory_${today}`;
+      await AsyncStorage.setItem(stepHistoryKey, newStepCount.toString());
+
+      const updatedStreak = await updateStreaks(newStepCount, dailyGoal);
+      setStreak(updatedStreak);
+
+      if (randomTrophy) {
+        let level = 0;
+        let currentProgress = 0;
+        let nextGoal = randomTrophy.levels[0].goal;
+
+        switch (randomTrophy.name) {
+          case "Step Master":
+            currentProgress = newStepCount;
+            if (newStepCount >= 15000) {
+              level = 3;
+              nextGoal = 15000;
+            } else if (newStepCount >= 10000) {
+              level = 2;
+              nextGoal = 15000;
+            } else if (newStepCount >= 5000) {
+              level = 1;
+              nextGoal = 10000;
+            } else {
+              nextGoal = 5000;
+            }
+            break;
+          case "Step Titan":
+            currentProgress = newTotalSteps;
+            if (newTotalSteps >= 250000) {
+              level = 3;
+              nextGoal = 250000;
+            } else if (newTotalSteps >= 100000) {
+              level = 2;
+              nextGoal = 250000;
+            } else if (newTotalSteps >= 50000) {
+              level = 1;
+              nextGoal = 100000;
+            } else {
+              nextGoal = 50000;
+            }
+            break;
+          case "Streak Star":
+            currentProgress = updatedStreak;
+            if (updatedStreak >= 15) {
+              level = 3;
+              nextGoal = 15;
+            } else if (updatedStreak >= 10) {
+              level = 2;
+              nextGoal = 15;
+            } else if (updatedStreak >= 5) {
+              level = 1;
+              nextGoal = 10;
+            } else {
+              nextGoal = 5;
+            }
+            break;
+        }
+        setUnlockedLevel(level);
+        setProgress({ current: currentProgress, nextGoal });
+      }
+
+      setShowCalculatorModal(false);
+    } catch (error) {
+      console.error("❌ Feil ved oppdatering av skritt fra kalkulator:", error);
     }
   };
 
@@ -1154,7 +1301,7 @@ export default function Dashboard() {
                 zIndex: tutorialStep === 4 ? 1002 : 0,
               },
             ]}
-            onPress={() => navigation.navigate("ActivitySelect")}
+            onPress={() => setShowCalculatorModal(true)}
           >
             <Text style={[styles.addButtonText, { color: accentColor }]}>
               +
@@ -1204,6 +1351,29 @@ export default function Dashboard() {
                   </Text>
                 </TouchableOpacity>
               </View>
+            </View>
+          </View>
+        </Modal>
+
+        <Modal
+          transparent
+          visible={showCalculatorModal}
+          animationType="slide"
+          onRequestClose={() => setShowCalculatorModal(false)}
+        >
+          <View style={styles.calculatorModalOverlay}>
+            <View
+              style={[
+                styles.calculatorModalContent,
+                { backgroundColor: theme.surface },
+              ]}
+            >
+              <StepCalculator
+                onConfirm={handleCalculatorConfirm}
+                onCancel={() => setShowCalculatorModal(false)}
+                theme={theme}
+                accentColor={accentColor}
+              />
             </View>
           </View>
         </Modal>
@@ -1351,10 +1521,6 @@ const styles = StyleSheet.create({
     borderRadius: 24,
     marginLeft: 8,
   },
-  progressWrapper: {
-    paddingVertical: 0,
-    marginTop: -30,
-  },
   progressContainer: {
     alignItems: "center",
     justifyContent: "center",
@@ -1376,13 +1542,13 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     resizeMode: "contain",
-    marginBottom: 10, // Added spacing below the icon
+    marginBottom: 10,
   },
   stepsText: {
     fontSize: 36,
     fontWeight: "bold",
     textAlign: "center",
-    marginBottom: 4, // Added spacing below the number
+    marginBottom: 4,
   },
   dailyStepsLabel: {
     fontSize: 14,
@@ -1501,10 +1667,6 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     marginLeft: 8,
   },
-  pointsText: {
-    fontSize: 14,
-    marginBottom: 8,
-  },
   levelProgress: {
     width: "100%",
     marginBottom: 8,
@@ -1592,6 +1754,18 @@ const styles = StyleSheet.create({
     width: "80%",
     padding: 20,
     borderRadius: 10,
+  },
+  calculatorModalOverlay: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+  },
+  calculatorModalContent: {
+    width: "90%",
+    padding: 20,
+    borderRadius: 15,
+    maxHeight: "80%",
   },
   modalTitle: {
     fontSize: 18,
