@@ -1,20 +1,29 @@
-import React from "react";
-import {
-  View,
-  Text,
-  StyleSheet,
-  Image,
-  TouchableOpacity,
-  SafeAreaView,
-  ScrollView,
-  Alert,
-} from "react-native";
-import { Ionicons } from "@expo/vector-icons";
-import { useNavigation } from "@react-navigation/native";
-import { useTheme } from "../context/ThemeContext"; // 🌙 Import Theme Support
+"use client"
+
+import { useState, useEffect } from "react"
+import { View, Text, StyleSheet, Image, TouchableOpacity, SafeAreaView, ScrollView, Alert } from "react-native"
+import { Ionicons } from "@expo/vector-icons"
+import { useNavigation } from "@react-navigation/native"
+import { useTheme } from "../context/ThemeContext"
+import AsyncStorage from "@react-native-async-storage/async-storage"
+
+// Define the avatars list (same as in EditAvatar)
+const avatars = [
+  { id: 1, source: require("../../../assets/avatars/Avatar_Asian.png") },
+  { id: 2, source: require("../../../assets/avatars/Avatar_Athlete.png") },
+  { id: 3, source: require("../../../assets/avatars/Avatar_Dizzy.png") },
+  { id: 4, source: require("../../../assets/avatars/Avatar_Gangster.png") },
+  { id: 5, source: require("../../../assets/avatars/Avatar_Happy.png") },
+  { id: 6, source: require("../../../assets/avatars/Avatar_Love.png") },
+  { id: 7, source: require("../../../assets/avatars/Avatar_Sikh.png") },
+  { id: 8, source: require("../../../assets/avatars/Avatar_Smirk.png") },
+  { id: 9, source: require("../../../assets/avatars/Avatar_Hijabi.png") },
+  { id: 10, source: require("../../../assets/avatars/Avatar_Silly.png") },
+]
 
 const SettingsRow = ({ icon, title, value, onPress, isLastItem }) => {
-  const { theme, accentColor } = useTheme(); // Get Theme & Accent Color
+  const { theme } = useTheme()
+  const accentColor = theme.primary
 
   return (
     <TouchableOpacity
@@ -23,101 +32,126 @@ const SettingsRow = ({ icon, title, value, onPress, isLastItem }) => {
         !isLastItem && {
           borderBottomColor: theme.border,
           borderBottomWidth: 1,
-        }, // ✅ Only add border if NOT last item
+        },
       ]}
       onPress={onPress}
     >
       <View style={styles.settingsLeft}>
         <Ionicons name={icon} size={24} color={theme.text} />
-        <Text style={[styles.settingsText, { color: theme.text }]}>
-          {title}
-        </Text>
+        <Text style={[styles.settingsText, { color: theme.text }]}>{title}</Text>
       </View>
       {value && (
-        <Text
-          style={[
-            styles.settingsValue,
-            { color: accentColor },
-            value === "ON" && styles.activeValue,
-          ]}
-        >
+        <Text style={[styles.settingsValue, { color: accentColor }, value === "ON" && styles.activeValue]}>
           {value}
         </Text>
       )}
     </TouchableOpacity>
-  );
-};
+  )
+}
 
 const SettingsSection = ({ children }) => {
-  const { theme } = useTheme();
-  return (
-    <View style={[styles.settingsSection, { backgroundColor: theme.surface }]}>
-      {children}
-    </View>
-  );
-};
+  const { theme } = useTheme()
+  return <View style={[styles.settingsSection, { backgroundColor: theme.surface }]}>{children}</View>
+}
 
 export default function SettingScreen() {
-  const navigation = useNavigation();
-  const { theme, isDarkMode } = useTheme(); // ✅ Ensure correct theme state
+  const navigation = useNavigation()
+  const { theme, isDarkMode } = useTheme()
+  const [avatarSelection, setAvatarSelection] = useState(null)
 
-  // 🔴 Logout Confirmation Function
+  // Load the avatar selection when the component mounts
+  useEffect(() => {
+    const loadAvatarSelection = async () => {
+      try {
+        const selection = await AsyncStorage.getItem("userAvatarSelection")
+        if (selection) {
+          setAvatarSelection(JSON.parse(selection))
+        }
+      } catch (error) {
+        console.error("Error loading avatar selection:", error)
+      }
+    }
+    loadAvatarSelection()
+  }, [])
+
+  // Reload avatar selection when the screen is focused
+  useEffect(() => {
+    const subscription = navigation.addListener("focus", () => {
+      const loadAvatarSelection = async () => {
+        try {
+          const selection = await AsyncStorage.getItem("userAvatarSelection")
+          if (selection) {
+            setAvatarSelection(JSON.parse(selection))
+          }
+        } catch (error) {
+          console.error("Error loading avatar selection:", error)
+        }
+      }
+      loadAvatarSelection()
+    })
+    return subscription
+  }, [navigation])
+
   const handleLogout = () => {
     Alert.alert("Logg ut", "Er du sikker på at du vil logge ut?", [
       { text: "Avbryt", style: "cancel" },
       {
         text: "Logg ut",
         style: "destructive",
-        onPress: () =>
-          navigation.reset({ index: 0, routes: [{ name: "Start" }] }),
+        onPress: () => {
+          // Fikset navigasjon til Start-skjermen
+          navigation.reset({
+            index: 0,
+            routes: [{ name: "Start" }],
+          })
+        },
       },
-    ]);
-  };
+    ])
+  }
 
-  // ✅ Correctly detect theme mode (light/dark)
-  const themeMode = isDarkMode ? "Mørk Modus" : "Lys Modus"; // 🔥 FIXED
+  const themeMode = isDarkMode ? "Mørk Modus" : "Lys Modus"
+
+  // Find the selected avatar object if type is "avatar"
+  const selectedAvatarObj =
+    avatarSelection?.type === "avatar" ? avatars.find((avatar) => avatar.id === avatarSelection.value) : null
 
   return (
-    <SafeAreaView
-      style={[styles.container, { backgroundColor: theme.background }]}
-    >
+    <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]}>
       <ScrollView>
-        {/* 🔹 Header Section */}
+        {/* Header Section */}
         <View style={styles.headerContainer}>
-          {/* 🔙 Back Button */}
-          <TouchableOpacity
-            style={styles.backButton}
-            onPress={() => navigation.goBack()}
-          >
+          <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
             <Ionicons name="chevron-back" size={24} color={theme.text} />
           </TouchableOpacity>
-
-          {/* 🏷 Title Aligned with Back Button */}
-          <Text style={[styles.settingsHeader, { color: theme.text }]}>
-            Innstillinger
-          </Text>
+          <Text style={[styles.settingsHeader, { color: theme.text }]}>Innstillinger</Text>
+          <View style={{ width: 24 }} />
         </View>
 
-        {/* 🔹 Avatar Section */}
+        {/* Avatar Section */}
         <View style={styles.avatarSection}>
           <View style={styles.avatarContainer}>
-            <Image
-              source={require("../../../assets/avatars/memo_35.png")}
-              style={styles.avatar}
-            />
+            {avatarSelection?.type === "photo" ? (
+              <Image source={{ uri: avatarSelection.value }} style={styles.avatar} />
+            ) : selectedAvatarObj ? (
+              <Image source={selectedAvatarObj.source} style={styles.avatar} />
+            ) : (
+              <Image
+                source={require("../../../assets/avatars/memo_35.png")} // Default avatar
+                style={styles.avatar}
+              />
+            )}
             <TouchableOpacity
               style={[styles.editButton, { backgroundColor: theme.surface }]}
+              onPress={() => navigation.navigate("EditAvatar")} // Navigate within SettingsStack
             >
               <Ionicons name="pencil" size={20} color={theme.text} />
             </TouchableOpacity>
           </View>
           <Text style={[styles.name, { color: theme.text }]}>Navn</Text>
-          <Text style={[styles.contact, { color: theme.textSecondary }]}>
-            youremail@domain.com | +47 256 27 189
-          </Text>
+          <Text style={[styles.contact, { color: theme.textSecondary }]}>youremail@domain.com | +47 256 27 189</Text>
         </View>
 
-        {/* 🔹 Settings Sections */}
+        {/* Settings Sections */}
         <SettingsSection>
           {[
             {
@@ -143,8 +177,8 @@ export default function SettingScreen() {
               icon={item.icon}
               title={item.title}
               value={item.value}
-              onPress={() => navigation.navigate(item.route)}
-              isLastItem={index === array.length - 1} // ✅ Last item gets NO border
+              onPress={() => navigation.navigate(item.route)} // Navigate within SettingsStack
+              isLastItem={index === array.length - 1}
             />
           ))}
         </SettingsSection>
@@ -161,14 +195,14 @@ export default function SettingScreen() {
               title: "Tema",
               value: themeMode,
               route: "Theme",
-            }, // ✅ FIXED
+            },
           ].map((item, index, array) => (
             <SettingsRow
               key={item.title}
               icon={item.icon}
               title={item.title}
               value={item.value}
-              onPress={() => navigation.navigate(item.route)}
+              onPress={() => navigation.navigate(item.route)} // Navigate within SettingsStack
               isLastItem={index === array.length - 1}
             />
           ))}
@@ -189,9 +223,7 @@ export default function SettingScreen() {
               icon={item.icon}
               title={item.title}
               onPress={
-                item.onPress
-                  ? item.onPress
-                  : () => navigation.navigate(item.route)
+                item.onPress ? item.onPress : () => navigation.navigate(item.route) // Navigate within SettingsStack
               }
               isLastItem={index === array.length - 1}
             />
@@ -199,34 +231,27 @@ export default function SettingScreen() {
         </SettingsSection>
       </ScrollView>
     </SafeAreaView>
-  );
+  )
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-
-  // ✅ Header Fix: Aligns title and back button properly
   headerContainer: {
     flexDirection: "row",
-    alignItems: "center", // Aligns items on the same row
+    alignItems: "center",
     paddingHorizontal: 16,
-    paddingVertical: 16, // ✅ Moves title up
+    paddingVertical: 16,
+    justifyContent: "space-between",
   },
-
   backButton: {
     padding: 8,
-    zIndex: 999, // ✅ Midlertidig løsning
+    zIndex: 999,
   },
-
   settingsHeader: {
     fontSize: 20,
     fontWeight: "bold",
-    flex: 1, // ✅ Ensures title is centered while back button stays on the left
-    left: -10, // ✅ Moves title slightly left to balance alignment
     textAlign: "center",
-    marginLeft: -24, // ✅ Moves title slightly left to balance alignment
   },
-
   avatarSection: { alignItems: "center", marginBottom: 24 },
   avatarContainer: { position: "relative", marginBottom: 16 },
   avatar: {
@@ -264,4 +289,5 @@ const styles = StyleSheet.create({
   settingsText: { fontSize: 16 },
   settingsValue: { fontSize: 16 },
   activeValue: { fontWeight: "600" },
-});
+})
+

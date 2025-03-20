@@ -31,6 +31,7 @@ import HelpSupport from "../components/Setting/helpsupport";
 import SecurityPrivacy from "../components/Setting/securityprivacy";
 import PrivacyPolicy from "../components/Setting/privacypolicy";
 import { ThemeProvider } from "../components/context/ThemeContext";
+import EditAvatar from "../components/Setting/editavatar";
 
 // Events and Event Management
 import JoinEvent from "../components/events/JoinEvent";
@@ -193,6 +194,7 @@ const App = () => {
               />
               {/* Other Screens */}
               <Stack.Screen name="Setting" component={Setting} />
+              <Stack.Screen name="EditAvatar" component={EditAvatar} />
               <Stack.Screen name="Stats" component={Stats} />
               <Stack.Screen name="TrophyDetails" component={TrophyDetails} />
               <Stack.Screen name="Notifications" component={Notifications} />

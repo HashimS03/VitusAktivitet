@@ -18,13 +18,25 @@ import {
   Check,
   TrendingUp,
 } from "lucide-react-native";
-import { MaterialCommunityIcons } from "@expo/vector-icons"; // Add this for the flame icon
+import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useNavigation, useRoute } from "@react-navigation/native";
 import { useTheme } from "../context/ThemeContext";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { EventContext } from "../events/EventContext"; // Import EventContext
+import { EventContext } from "../events/EventContext";
 import Achievements from "./achievements";
 import Activity from "./activity";
+
+// Define the avatars list (same as in AvatarSelection)
+const avatars = [
+  { id: 1, source: require("../../../assets/avatars/Avatar_Asian.png") },
+  { id: 2, source: require("../../../assets/avatars/Avatar_Athlete.png") },
+  { id: 3, source: require("../../../assets/avatars/Avatar_Dizzy.png") },
+  { id: 4, source: require("../../../assets/avatars/Avatar_Gangster.png") },
+  { id: 5, source: require("../../../assets/avatars/Avatar_Happy.png") },
+  { id: 6, source: require("../../../assets/avatars/Avatar_Love.png") },
+  { id: 7, source: require("../../../assets/avatars/Avatar_Sikh.png") },
+  { id: 8, source: require("../../../assets/avatars/Avatar_Smirk.png") },
+];
 
 const TABS = ["STATS", "MILEPÆLER"];
 
@@ -34,22 +46,23 @@ const Stats = () => {
   const [bestStreak, setBestStreak] = useState(0);
   const [eventsParticipated, setEventsParticipated] = useState(0);
   const [dailyGoalProgress, setDailyGoalProgress] = useState(0);
-  const [dailyGoal, setDailyGoal] = useState(7500); // Default daily goal
+  const [dailyGoal, setDailyGoal] = useState(7500);
+  const [avatarSelection, setAvatarSelection] = useState(null); // State for avatar/photo
   const navigation = useNavigation();
   const route = useRoute();
   const { theme, accentColor } = useTheme();
-  const { activeEvents } = useContext(EventContext); // Access activeEvents from EventContext
+  const { activeEvents } = useContext(EventContext);
 
   useEffect(() => {
     if (route.params?.initialTab && TABS.includes(route.params.initialTab)) {
       setActiveTab(route.params.initialTab);
     }
     loadStatsData();
+    loadAvatarSelection(); // Load avatar selection
   }, [route.params?.initialTab]);
 
   const loadStatsData = async () => {
     try {
-      // Load total steps from stepHistory_
       const allKeys = await AsyncStorage.getAllKeys();
       const stepHistoryKeys = allKeys.filter((key) =>
         key.startsWith("stepHistory_")
@@ -61,19 +74,16 @@ const Stats = () => {
       }
       setTotalSteps(totalHistoricalSteps);
 
-      // Load best streak (use currentStreak if bestStreak isn't tracked separately)
       const currentStreak = await AsyncStorage.getItem("currentStreak");
       const storedBestStreak =
         (await AsyncStorage.getItem("bestStreak")) || currentStreak || "0";
       setBestStreak(parseInt(storedBestStreak) || 0);
 
-      // Load events participated
       const participatedEvents = JSON.parse(
         (await AsyncStorage.getItem("participatedEvents")) || "[]"
       );
       setEventsParticipated(participatedEvents.length);
 
-      // Load daily goal and progress
       const storedGoal = await AsyncStorage.getItem("dailyGoal");
       const goal = storedGoal ? JSON.parse(storedGoal) : 7500;
       setDailyGoal(goal);
@@ -86,9 +96,22 @@ const Stats = () => {
     }
   };
 
-  // Update stats when screen is focused
+  const loadAvatarSelection = async () => {
+    try {
+      const selection = await AsyncStorage.getItem("userAvatarSelection");
+      if (selection) {
+        setAvatarSelection(JSON.parse(selection));
+      }
+    } catch (error) {
+      console.error("Error loading avatar selection:", error);
+    }
+  };
+
   useEffect(() => {
-    const subscription = navigation.addListener("focus", loadStatsData);
+    const subscription = navigation.addListener("focus", () => {
+      loadStatsData();
+      loadAvatarSelection(); // Reload avatar selection when screen is focused
+    });
     return subscription;
   }, [navigation]);
 
@@ -109,15 +132,34 @@ const Stats = () => {
     </View>
   );
 
-  const renderProfileSection = () => (
-    <View style={styles.profileSection}>
-      <Image
-        source={require("../../../assets/avatars/memo_35.png")}
-        style={styles.avatar}
-      />
-      <Text style={[styles.name, { color: theme.text }]}>Navn</Text>
-    </View>
-  );
+  const renderProfileSection = () => {
+    // Find the selected avatar object if type is "avatar"
+    const selectedAvatarObj = avatarSelection?.type === "avatar"
+      ? avatars.find((avatar) => avatar.id === avatarSelection.value)
+      : null;
+
+    return (
+      <View style={styles.profileSection}>
+        {avatarSelection?.type === "photo" ? (
+          <Image
+            source={{ uri: avatarSelection.value }}
+            style={styles.avatar}
+          />
+        ) : selectedAvatarObj ? (
+          <Image
+            source={selectedAvatarObj.source}
+            style={styles.avatar}
+          />
+        ) : (
+          <Image
+            source={require("../../../assets/avatars/memo_35.png")} // Default avatar
+            style={styles.avatar}
+          />
+        )}
+        <Text style={[styles.name, { color: theme.text }]}>Navn</Text>
+      </View>
+    );
+  };
 
   const renderTabs = () => (
     <View style={[styles.tabsContainer, { borderBottomColor: theme.border }]}>
@@ -125,14 +167,14 @@ const Stats = () => {
         <TouchableOpacity
           key={tab}
           onPress={() => setActiveTab(tab)}
-          style={[styles.tab, { flex: 1 }]} // Each tab takes half the width
+          style={[styles.tab, { flex: 1 }]}
         >
           <Text
             style={[
               styles.tabText,
               {
                 color: activeTab === tab ? accentColor : theme.textSecondary,
-                textAlign: "center", // Center text horizontally
+                textAlign: "center",
               },
             ]}
           >
@@ -153,16 +195,16 @@ const Stats = () => {
       icon: Zap,
       value: totalSteps.toLocaleString(),
       label: "Total Skritt",
-      iconColor: "#FF9500", // Orange
+      iconColor: "#FF9500",
       iconBgColor: "#FFF5E6",
       progress: null,
     },
     {
-      icon: MaterialCommunityIcons, // Use MaterialCommunityIcons for flame
-      iconName: "fire", // Flame icon name
+      icon: MaterialCommunityIcons,
+      iconName: "fire",
       value: bestStreak,
       label: "Best Streak",
-      iconColor: "#007AFF", // Blue
+      iconColor: "#007AFF",
       iconBgColor: "#E5F1FF",
       progress: null,
     },
@@ -170,7 +212,7 @@ const Stats = () => {
       icon: Check,
       value: eventsParticipated,
       label: "Hendelser Deltatt",
-      iconColor: "#34C759", // Green
+      iconColor: "#34C759",
       iconBgColor: "#E8F7EB",
       progress: null,
     },
@@ -178,7 +220,7 @@ const Stats = () => {
       icon: TrendingUp,
       value: `${Math.round(dailyGoalProgress)}%`,
       label: "Daglig Mål",
-      iconColor: "#FF3B30", // Red
+      iconColor: "#FF3B30",
       iconBgColor: "#FFE5E5",
       progress: dailyGoalProgress,
     },
@@ -195,7 +237,7 @@ const Stats = () => {
           <TouchableOpacity
             key={index}
             style={[styles.statCard, { backgroundColor: theme.surface }]}
-            onPress={() => console.log(`${card.label} pressed`)} // Optional: Add navigation or action
+            onPress={() => console.log(`${card.label} pressed`)}
           >
             <View style={styles.cardContent}>
               <View
@@ -384,16 +426,16 @@ const styles = StyleSheet.create({
   },
   tabsContainer: {
     flexDirection: "row",
-    justifyContent: "space-between", // Ensure tabs are evenly spaced
+    justifyContent: "space-between",
     paddingHorizontal: 16,
     marginBottom: 24,
     borderBottomWidth: 1,
   },
   tab: {
-    flex: 1, // Each tab takes half the width
+    flex: 1,
     paddingVertical: 12,
-    paddingHorizontal: 0, // Remove horizontal padding to fit exactly
-    alignItems: "center", // Center the content horizontally
+    paddingHorizontal: 0,
+    alignItems: "center",
   },
   tabText: {
     fontSize: 16,
