@@ -1,95 +1,68 @@
-import React, { useState, useEffect } from "react";
-import {
-  View,
-  Text,
-  TouchableOpacity,
-  StyleSheet,
-  ScrollView,
-  Animated,
-  Image,
-  Modal,
-} from "react-native";
-import { ChevronLeft, Camera } from "lucide-react-native";
-import { Ionicons } from "@expo/vector-icons";
-import * as ImagePicker from "expo-image-picker";
-import AsyncStorage from "@react-native-async-storage/async-storage";
+"use client"
 
-const TEAL_COLOR = "#00B6AA";
+import { useState, useEffect } from "react"
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Image, SafeAreaView, Modal } from "react-native"
+import { Ionicons } from "@expo/vector-icons"
+import { Camera } from "lucide-react-native"
+import * as ImagePicker from "expo-image-picker"
+import AsyncStorage from "@react-native-async-storage/async-storage"
+import { useNavigation } from "@react-navigation/native"
+import { useTheme } from "../context/ThemeContext"
 
-const avatars = [
-  { id: 1, source: require("../../../assets/avatars/Avatar_Asian.png") },
-  { id: 2, source: require("../../../assets/avatars/Avatar_Athlete.png") },
-  { id: 3, source: require("../../../assets/avatars/Avatar_Dizzy.png") },
-  { id: 4, source: require("../../../assets/avatars/Avatar_Gangster.png") },
-  { id: 5, source: require("../../../assets/avatars/Avatar_Happy.png") },
-  { id: 6, source: require("../../../assets/avatars/Avatar_Love.png") },
-  { id: 7, source: require("../../../assets/avatars/Avatar_Sikh.png") },
-  { id: 8, source: require("../../../assets/avatars/Avatar_Smirk.png") },
-  { id: 9, source: require("../../../assets/avatars/Avatar_Hijabi.png") },
-  { id: 10, source: require("../../../assets/avatars/Avatar_Silly.png") },
-];
-
-export default function AvatarSelection({ navigation }) {
-  const [selectedMode, setSelectedMode] = useState("avatar");
-  const [selectedAvatar, setSelectedAvatar] = useState(null);
-  const [photo, setPhoto] = useState(null);
-  const [progress] = useState(new Animated.Value(0));
-  const [isModalVisible, setIsModalVisible] = useState(false);
-
-  useEffect(() => {
-    Animated.timing(progress, {
-      toValue: 1,
-      duration: 500,
-      useNativeDriver: false,
-    }).start();
-  }, [progress]);
+export default function EditAvatar() {
+  const navigation = useNavigation()
+  const { theme, isDarkMode } = useTheme()
+  const [selectedMode, setSelectedMode] = useState("avatar")
+  const [selectedAvatar, setSelectedAvatar] = useState(null)
+  const [photo, setPhoto] = useState(null)
+  const [isModalVisible, setIsModalVisible] = useState(false)
 
   // Load the current selection when the component mounts
   useEffect(() => {
     const loadSelection = async () => {
       try {
-        const selection = await AsyncStorage.getItem("userAvatarSelection");
+        const selection = await AsyncStorage.getItem("userAvatarSelection")
         if (selection) {
-          const parsedSelection = JSON.parse(selection);
+          const parsedSelection = JSON.parse(selection)
           if (parsedSelection.type === "avatar") {
-            setSelectedMode("avatar");
-            setSelectedAvatar(parsedSelection.value);
-            setPhoto(null);
+            setSelectedMode("avatar")
+            setSelectedAvatar(parsedSelection.value)
+            setPhoto(null)
           } else if (parsedSelection.type === "photo") {
-            setSelectedMode("picture");
-            setPhoto(parsedSelection.value);
-            setSelectedAvatar(null);
+            setSelectedMode("picture")
+            setPhoto(parsedSelection.value)
+            setSelectedAvatar(null)
           }
         }
       } catch (error) {
-        console.error("Error loading avatar selection:", error);
+        console.error("Error loading avatar selection:", error)
       }
-    };
-    loadSelection();
-  }, []);
+    }
+    loadSelection()
+  }, [])
 
   const handleTakePhoto = async () => {
-    const { status } = await ImagePicker.requestCameraPermissionsAsync();
+    const { status } = await ImagePicker.requestCameraPermissionsAsync()
 
     if (status === "granted") {
       const result = await ImagePicker.launchCameraAsync({
         allowsEditing: true,
         aspect: [1, 1],
         quality: 1,
-      });
+      })
 
       if (!result.canceled) {
-        setPhoto(result.assets[0].uri);
-        setSelectedAvatar(null);
+        setPhoto(result.assets[0].uri)
+        setSelectedAvatar(null)
       }
     } else {
-      alert("Camera permission is required to take a photo.");
+      alert("Camera permission is required to take a photo.")
     }
-    setIsModalVisible(false);
-  };
+    setIsModalVisible(false)
+  }
 
   const handleChooseFromGallery = async () => {
-    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync()
 
     if (status === "granted") {
       const result = await ImagePicker.launchImageLibraryAsync({
@@ -97,17 +70,17 @@ export default function AvatarSelection({ navigation }) {
         allowsEditing: true,
         aspect: [1, 1],
         quality: 1,
-      });
+      })
 
       if (!result.canceled) {
-        setPhoto(result.assets[0].uri);
-        setSelectedAvatar(null);
+        setPhoto(result.assets[0].uri)
+        setSelectedAvatar(null)
       }
     } else {
-      alert("Gallery permission is required to choose a photo.");
+      alert("Gallery permission is required to choose a photo.")
     }
-    setIsModalVisible(false);
-  };
+    setIsModalVisible(false)
+  }
 
   const handleContinue = async () => {
     if (selectedAvatar || photo) {
@@ -115,71 +88,82 @@ export default function AvatarSelection({ navigation }) {
         const selection = {
           type: selectedAvatar ? "avatar" : "photo",
           value: selectedAvatar ? selectedAvatar : photo,
-        };
-        await AsyncStorage.setItem("userAvatarSelection", JSON.stringify(selection));
-        navigation.replace("MainApp");
+        }
+        await AsyncStorage.setItem("userAvatarSelection", JSON.stringify(selection))
+        navigation.goBack()
       } catch (error) {
-        console.error("Error saving avatar selection:", error);
+        console.error("Error saving avatar selection:", error)
       }
     }
-  };
+  }
 
-  const selectedAvatarObj = avatars.find((avatar) => avatar.id === selectedAvatar);
+  const avatars = [
+    { id: 1, source: require("../../../assets/avatars/Avatar_Asian.png") },
+    { id: 2, source: require("../../../assets/avatars/Avatar_Athlete.png") },
+    { id: 3, source: require("../../../assets/avatars/Avatar_Dizzy.png") },
+    { id: 4, source: require("../../../assets/avatars/Avatar_Gangster.png") },
+    { id: 5, source: require("../../../assets/avatars/Avatar_Happy.png") },
+    { id: 6, source: require("../../../assets/avatars/Avatar_Love.png") },
+    { id: 7, source: require("../../../assets/avatars/Avatar_Sikh.png") },
+    { id: 8, source: require("../../../assets/avatars/Avatar_Smirk.png") },
+    { id: 9, source: require("../../../assets/avatars/Avatar_Hijabi.png") },
+    { id: 10, source: require("../../../assets/avatars/Avatar_Silly.png") },
+  ]
+
+  const selectedAvatarObj = avatars.find((avatar) => avatar.id === selectedAvatar)
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]}>
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()}>
-          <ChevronLeft color="#000" size={24} />
+          <Ionicons name="chevron-back" size={24} color={theme.text} />
         </TouchableOpacity>
-        <View style={styles.progressContainer}>
-          <View style={styles.progressBar}>
-            <Animated.View
-              style={[
-                styles.progressFill,
-                {
-                  width: progress.interpolate({
-                    inputRange: [0, 1],
-                    outputRange: ["0%", "100%"],
-                  }),
-                },
-              ]}
-            />
-          </View>
-          <Text style={styles.progressText}>3/3</Text>
-        </View>
+        <Text style={[styles.headerTitle, { color: theme.text }]}>Rediger Avatar</Text>
+        <View style={{ width: 24 }}>{/* Spacer for symmetry */}</View>
       </View>
 
       <View style={styles.content}>
-        <Text style={styles.title}>
-          Velg hvordan du viser <Text style={styles.highlight}>Deg</Text>
+        <Text style={[styles.title, { color: theme.text }]}>
+          <Text>Velg hvordan du viser </Text>
+          <Text style={[styles.highlight, { color: theme.primary }]}>Deg</Text>
         </Text>
 
         <View style={styles.previewContainer}>
           {photo ? (
-            <Image source={{ uri: photo }} style={styles.previewImage} />
+            <Image source={{ uri: photo }} style={[styles.previewImage, { borderColor: theme.primary }]} />
           ) : selectedAvatarObj ? (
-            <Image source={selectedAvatarObj.source} style={styles.previewImage} />
+            <Image source={selectedAvatarObj.source} style={[styles.previewImage, { borderColor: theme.primary }]} />
           ) : (
-            <View style={styles.previewPlaceholder}>
-              <Text style={styles.previewPlaceholderText}>Velg et bilde</Text>
+            <View
+              style={[
+                styles.previewPlaceholder,
+                {
+                  backgroundColor: theme.surface,
+                  borderColor: isDarkMode ? theme.border : theme.primary + "30",
+                },
+              ]}
+            >
+              <Text style={[styles.previewPlaceholderText, { color: theme.textSecondary }]}>Velg et bilde</Text>
             </View>
           )}
-          <Text style={styles.previewText}>Dette er hvordan profilen din vil se ut</Text>
+          <Text style={[styles.previewText, { color: theme.textSecondary }]}>
+            Dette er hvordan profilen din vil se ut
+          </Text>
         </View>
 
-        <View style={styles.toggleContainer}>
+        <View style={[styles.toggleContainer, { backgroundColor: theme.border }]}>
           <TouchableOpacity
             style={[
               styles.toggleButton,
-              selectedMode === "avatar" && styles.toggleButtonActive,
+              selectedMode === "avatar" && [styles.toggleButtonActive, { backgroundColor: theme.card }],
             ]}
             onPress={() => setSelectedMode("avatar")}
           >
             <Text
               style={[
                 styles.toggleText,
-                selectedMode === "avatar" && styles.toggleTextActive,
+                { color: theme.textSecondary },
+                selectedMode === "avatar" && [styles.toggleTextActive, { color: theme.text }],
               ]}
             >
               Avatar
@@ -188,36 +172,34 @@ export default function AvatarSelection({ navigation }) {
           <TouchableOpacity
             style={[
               styles.toggleButton,
-              selectedMode === "picture" && styles.toggleButtonActive,
+              selectedMode === "picture" && [styles.toggleButtonActive, { backgroundColor: theme.card }],
             ]}
             onPress={() => setSelectedMode("picture")}
           >
             <Text
               style={[
                 styles.toggleText,
-                selectedMode === "picture" && styles.toggleTextActive,
+                { color: theme.textSecondary },
+                selectedMode === "picture" && [styles.toggleTextActive, { color: theme.text }],
               ]}
             >
-              Picture
+              Bilde
             </Text>
           </TouchableOpacity>
         </View>
 
         {selectedMode === "avatar" ? (
-          <ScrollView
-            contentContainerStyle={styles.avatarGrid}
-            showsVerticalScrollIndicator={false}
-          >
+          <ScrollView contentContainerStyle={styles.avatarGrid} showsVerticalScrollIndicator={false}>
             {avatars.map((avatar) => (
               <TouchableOpacity
                 key={avatar.id}
                 style={[
                   styles.avatarContainer,
-                  selectedAvatar === avatar.id && styles.selectedAvatar,
+                  selectedAvatar === avatar.id && [styles.selectedAvatar, { backgroundColor: theme.primary + "20" }],
                 ]}
                 onPress={() => {
-                  setSelectedAvatar(avatar.id);
-                  setPhoto(null);
+                  setSelectedAvatar(avatar.id)
+                  setPhoto(null)
                 }}
               >
                 <Image source={avatar.source} style={styles.avatar} />
@@ -227,22 +209,19 @@ export default function AvatarSelection({ navigation }) {
         ) : (
           <View style={styles.cameraContainer}>
             {photo ? (
-              <TouchableOpacity
-                style={styles.photoPreviewContainer}
-                onPress={() => setIsModalVisible(true)}
-              >
+              <TouchableOpacity style={styles.photoPreviewContainer} onPress={() => setIsModalVisible(true)}>
                 <Image source={{ uri: photo }} style={styles.photoPreview} />
-                <View style={styles.changePhotoOverlay}>
-                  <Ionicons name="pencil" size={20} color="#FFF" />
+                <View style={[styles.changePhotoOverlay, { borderColor: theme.card }]}>
+                  <Ionicons name="pencil" size={20} color={theme.card} />
                 </View>
               </TouchableOpacity>
             ) : (
               <TouchableOpacity
-                style={styles.cameraButton}
+                style={[styles.cameraButton, { backgroundColor: theme.surface }]}
                 onPress={() => setIsModalVisible(true)}
               >
-                <Camera size={40} color={TEAL_COLOR} />
-                <Text style={styles.cameraText}>Ta bilde</Text>
+                <Camera size={40} color={theme.primary} />
+                <Text style={[styles.cameraText, { color: theme.primary }]}>Ta bilde</Text>
               </TouchableOpacity>
             )}
           </View>
@@ -251,22 +230,25 @@ export default function AvatarSelection({ navigation }) {
 
       <View style={styles.footer}>
         <TouchableOpacity
-          style={styles.skipButton}
+          style={[styles.skipButton, { backgroundColor: theme.primary + "20" }]}
           onPress={() => navigation.goBack()}
         >
-          <Text style={styles.skipButtonText}>Hopp Over</Text>
+          <Text style={[styles.skipButtonText, { color: theme.primary }]}>Avbryt</Text>
         </TouchableOpacity>
         <TouchableOpacity
           style={[
             styles.continueButton,
-            (selectedAvatar || photo) && styles.continueButtonActive,
+            { backgroundColor: theme.border },
+            (selectedAvatar || photo) && [styles.continueButtonActive, { backgroundColor: theme.primary }],
           ]}
           onPress={handleContinue}
+          disabled={!(selectedAvatar || photo)}
         >
           <Text
             style={[
               styles.continueButtonText,
-              (selectedAvatar || photo) && styles.continueButtonTextActive,
+              { color: theme.textSecondary },
+              (selectedAvatar || photo) && [styles.continueButtonTextActive, { color: theme.card }],
             ]}
           >
             Fortsett
@@ -281,71 +263,54 @@ export default function AvatarSelection({ navigation }) {
         onRequestClose={() => setIsModalVisible(false)}
       >
         <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Velg en handling</Text>
+          <View style={[styles.modalContent, { backgroundColor: theme.card }]}>
+            <Text style={[styles.modalTitle, { color: theme.text }]}>Velg en handling</Text>
             <TouchableOpacity
-              style={styles.modalButton}
+              style={[styles.modalButton, { backgroundColor: theme.primary }]}
               onPress={handleTakePhoto}
             >
-              <Text style={styles.modalButtonText}>Ta bilde</Text>
+              <Text style={[styles.modalButtonText, { color: theme.card }]}>Ta bilde</Text>
             </TouchableOpacity>
             <TouchableOpacity
-              style={styles.modalButton}
+              style={[styles.modalButton, { backgroundColor: theme.primary }]}
               onPress={handleChooseFromGallery}
             >
-              <Text style={styles.modalButtonText}>Velg fra galleri</Text>
+              <Text style={[styles.modalButtonText, { color: theme.card }]}>Velg fra galleri</Text>
             </TouchableOpacity>
             <TouchableOpacity
-              style={[styles.modalButton, styles.cancelButton]}
+              style={[styles.modalButton, styles.cancelButton, { backgroundColor: theme.primary + "20" }]}
               onPress={() => setIsModalVisible(false)}
             >
-              <Text style={[styles.modalButtonText, styles.cancelButtonText]}>Avbryt</Text>
+              <Text style={[styles.modalButtonText, styles.cancelButtonText, { color: theme.primary }]}>Avbryt</Text>
             </TouchableOpacity>
           </View>
         </View>
       </Modal>
-    </View>
-  );
+    </SafeAreaView>
+  )
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#FFF",
   },
   header: {
     flexDirection: "row",
     alignItems: "center",
-    padding: 16,
-    paddingTop: 60,
+    paddingHorizontal: 16,
+    paddingVertical: 16,
+    justifyContent: "space-between",
   },
-  progressContainer: {
+  headerTitle: {
+    fontSize: 20,
+    fontWeight: "bold",
+    textAlign: "center",
     flex: 1,
-    flexDirection: "row",
-    alignItems: "center",
-    marginLeft: 16,
-    marginRight: 8,
-  },
-  progressBar: {
-    flex: 1,
-    height: 8,
-    backgroundColor: "#E5F7F6",
-    borderRadius: 4,
-    marginRight: 8,
-  },
-  progressFill: {
-    height: "100%",
-    backgroundColor: TEAL_COLOR,
-    borderRadius: 4,
-  },
-  progressText: {
-    fontSize: 14,
-    color: "#666",
   },
   content: {
     flex: 1,
     paddingHorizontal: 24,
-    paddingTop: 40,
+    paddingTop: 20,
   },
   title: {
     fontSize: 32,
@@ -354,7 +319,7 @@ const styles = StyleSheet.create({
     marginBottom: 32,
   },
   highlight: {
-    color: TEAL_COLOR,
+    fontWeight: "bold",
   },
   previewContainer: {
     alignItems: "center",
@@ -365,7 +330,6 @@ const styles = StyleSheet.create({
     height: 120,
     borderRadius: 60,
     borderWidth: 2,
-    borderColor: TEAL_COLOR,
     backgroundColor: "#EDEDED",
   },
   previewPlaceholder: {
@@ -376,22 +340,18 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     borderWidth: 2,
-    borderColor: "#E5F7F6",
   },
   previewPlaceholderText: {
     fontSize: 14,
-    color: "#666",
     textAlign: "center",
   },
   previewText: {
     marginTop: 12,
     fontSize: 14,
-    color: "#666",
     fontStyle: "italic",
   },
   toggleContainer: {
     flexDirection: "row",
-    backgroundColor: "#F5F5F5",
     borderRadius: 100,
     padding: 4,
     marginBottom: 32,
@@ -407,10 +367,8 @@ const styles = StyleSheet.create({
   },
   toggleText: {
     fontSize: 16,
-    color: "#666",
   },
   toggleTextActive: {
-    color: "#000",
     fontWeight: "600",
   },
   avatarGrid: {
@@ -443,14 +401,12 @@ const styles = StyleSheet.create({
     width: 200,
     height: 200,
     borderRadius: 100,
-    backgroundColor: "#F5F5F5",
     justifyContent: "center",
     alignItems: "center",
   },
   cameraText: {
     marginTop: 16,
     fontSize: 16,
-    color: TEAL_COLOR,
     fontWeight: "600",
   },
   photoPreviewContainer: {
@@ -474,7 +430,6 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     borderWidth: 2,
-    borderColor: "#FFF",
   },
   footer: {
     flexDirection: "row",
@@ -486,10 +441,8 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     marginRight: 12,
     borderRadius: 12,
-    backgroundColor: "#E5F7F6",
   },
   skipButtonText: {
-    color: TEAL_COLOR,
     fontSize: 16,
     fontWeight: "600",
     textAlign: "center",
@@ -499,13 +452,11 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     marginLeft: 12,
     borderRadius: 12,
-    backgroundColor: "#F5F5F5",
   },
   continueButtonActive: {
-    backgroundColor: TEAL_COLOR,
+    backgroundColor: "#00B6AA",
   },
   continueButtonText: {
-    color: "#666",
     fontSize: 16,
     fontWeight: "600",
     textAlign: "center",
@@ -520,7 +471,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   modalContent: {
-    backgroundColor: "#FFF",
     borderRadius: 12,
     padding: 20,
     width: "80%",
@@ -532,7 +482,6 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   modalButton: {
-    backgroundColor: TEAL_COLOR,
     paddingVertical: 12,
     paddingHorizontal: 20,
     borderRadius: 8,
@@ -541,7 +490,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   modalButtonText: {
-    color: "#FFF",
     fontSize: 16,
     fontWeight: "600",
   },
@@ -549,6 +497,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#E5F7F6",
   },
   cancelButtonText: {
-    color: TEAL_COLOR,
+    color: "#00B6AA",
   },
-});
+})
+

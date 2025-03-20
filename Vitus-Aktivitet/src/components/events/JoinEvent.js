@@ -20,7 +20,7 @@ export default function JoinEvent({ navigation }) {
     Alert.alert("QR Skannet", `Bli med i hendelse: ${data}`, [
       {
         text: "OK",
-        onPress: () => navigation.navigate("EventDetail", { eventId: data }),
+        onPress: () => navigation.navigate("ActiveEvent", { eventId: data }),
       },
     ]);
   };
