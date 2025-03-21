@@ -321,14 +321,14 @@ const fetchStreaks = async () => {
     const storedBestStreak = await AsyncStorage.getItem("bestStreak");
 
     const currentStreak = storedCurrentStreak
-      ? Number.parseInt(storedCurrentStreak)
+      ? parseInt(storedCurrentStreak)
       : 0;
-    const bestStreak = storedBestStreak ? Number.parseInt(storedBestStreak) : 0;
+    const bestStreak = storedBestStreak ? parseInt(storedBestStreak) : 0;
 
     return { currentStreak, bestStreak };
   } catch (error) {
     console.error("Feil ved henting av streaks:", error);
-    return { currentStreak: 0, bestStreak: 0 }; // Returner 0 ved feil
+    return { currentStreak: 0, bestStreak: 0 };
   }
 };
 
@@ -527,7 +527,7 @@ const HistoryScreen = () => {
             {streaks.bestStreak}
           </Text>
           <Text style={[styles.summaryLabel, { color: theme.text }]}>
-            Best streak
+            Beste streak
           </Text>
         </View>
       </View>
