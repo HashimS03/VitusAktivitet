@@ -209,42 +209,31 @@ const fetchStepHistory = async (period) => {
       }
       case "week": {
         const today = new Date();
+        today.setHours(0, 0, 0, 0);
         const startOfWeek = new Date(today);
-        startOfWeek.setDate(today.getDate() - today.getDay());
+        const dayOfWeek = today.getDay();
+        const daysToSubtract = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
+        startOfWeek.setDate(today.getDate() - daysToSubtract);
         startOfWeek.setHours(0, 0, 0, 0);
 
-        console.log("Start of week:", startOfWeek.toISOString());
-
-        const weekData = [];
         const values = Array(7).fill(0);
-
-        // Get all step history entries
-        for (let i = 0; i < 7; i++) {
-          const currentDate = new Date(startOfWeek);
-          currentDate.setDate(startOfWeek.getDate() + i);
-          const dateString = currentDate.toISOString().split("T")[0];
-
-          // Find matching entry
-          const entry = stepsByDate.find((item) => item.date === dateString);
-          if (entry) {
-            console.log(`Found steps for ${dateString}:`, entry.steps);
-            values[i] = entry.steps;
-            weekData.push(entry);
-          } else {
-            console.log(`No steps found for ${dateString}`);
+        stepsByDate.forEach((entry) => {
+          const entryDate = new Date(entry.date);
+          entryDate.setHours(0, 0, 0, 0);
+          const diffTime = entryDate - startOfWeek;
+          const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+          if (diffDays >= 0 && diffDays < 7) {
+            values[diffDays] = entry.steps;
           }
-        }
+        });
 
         const total = values.reduce((sum, val) => sum + val, 0);
-        console.log("Weekly total steps:", total);
-        console.log("Weekly values array:", values);
-
         return {
           total,
-          labels: ["Søn", "Man", "Tir", "Ons", "Tor", "Fre", "Lør"],
+          labels: ["Man", "Tir", "Ons", "Tor", "Fre", "Lør", "Søn"],
           values,
-          maxValue: Math.max(...values, 3000),
-          average: total / 7,
+          maxValue: Math.round(Math.max(...values, 3000)),
+          average: Math.round(total / 7),
         };
       }
       case "month": {
@@ -325,87 +314,22 @@ const fetchStepHistory = async (period) => {
   }
 };
 
-const calculateStreaks = async () => {
-  const today = new Date();
-  const todayString = today.toISOString().split("T")[0];
-  const allKeys = await AsyncStorage.getAllKeys();
-  const stepKeys = allKeys.filter((key) => key.startsWith("stepHistory_"));
-  const stepData = await AsyncStorage.multiGet(stepKeys);
-  const dailyGoal = JSON.parse(await AsyncStorage.getItem("dailyGoal")) || 7500;
+// Forenklet calculateStreaks til kun å hente lagrede verdier
+const fetchStreaks = async () => {
+  try {
+    const storedCurrentStreak = await AsyncStorage.getItem("currentStreak");
+    const storedBestStreak = await AsyncStorage.getItem("bestStreak");
 
-  const stepsByDate = stepData
-    .map(([key, value]) => ({
-      date: key.replace("stepHistory_", ""),
-      steps: JSON.parse(value) || 0,
-    }))
-    .sort((a, b) => new Date(a.date) - new Date(b.date));
+    const currentStreak = storedCurrentStreak
+      ? Number.parseInt(storedCurrentStreak)
+      : 0;
+    const bestStreak = storedBestStreak ? Number.parseInt(storedBestStreak) : 0;
 
-  let currentStreak = 0;
-  let bestStreak = 0;
-  let lastDate = null;
-
-  const storedStreak = await AsyncStorage.getItem("currentStreak");
-  const storedLastDate = await AsyncStorage.getItem("lastCompletionDate");
-  const storedBestStreak = await AsyncStorage.getItem("bestStreak");
-
-  currentStreak = storedStreak ? Number.parseInt(storedStreak) : 0;
-  bestStreak = storedBestStreak ? Number.parseInt(storedBestStreak) : 0;
-  lastDate = storedLastDate ? new Date(storedLastDate) : null;
-
-  for (let i = 0; i < stepsByDate.length; i++) {
-    const { date, steps } = stepsByDate[i];
-    const currentDate = new Date(date);
-    const isGoalMet = steps >= dailyGoal;
-
-    if (lastDate) {
-      const diffTime = currentDate - lastDate;
-      const diffDays = diffTime / (1000 * 60 * 60 * 24);
-
-      if (diffDays === 1 && isGoalMet) {
-        currentStreak += 1;
-      } else if (diffDays > 1) {
-        currentStreak = isGoalMet ? 1 : 0;
-      }
-    } else if (isGoalMet) {
-      currentStreak = 1;
-    }
-
-    if (isGoalMet) {
-      lastDate = currentDate;
-    }
-
-    bestStreak = Math.max(bestStreak, currentStreak);
+    return { currentStreak, bestStreak };
+  } catch (error) {
+    console.error("Feil ved henting av streaks:", error);
+    return { currentStreak: 0, bestStreak: 0 }; // Returner 0 ved feil
   }
-
-  const todayData = stepsByDate.find((entry) => entry.date === todayString);
-  const todaySteps = todayData ? todayData.steps : 0;
-
-  if (lastDate) {
-    const diffTime = today - lastDate;
-    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
-
-    if (diffDays === 1 && todaySteps >= dailyGoal) {
-      currentStreak += 1;
-      lastDate = today;
-    } else if (diffDays > 1) {
-      currentStreak = todaySteps >= dailyGoal ? 1 : 0;
-      lastDate = todaySteps >= dailyGoal ? today : null;
-    }
-  } else if (todaySteps >= dailyGoal) {
-    currentStreak = 1;
-    lastDate = today;
-  }
-
-  await AsyncStorage.setItem("currentStreak", currentStreak.toString());
-  await AsyncStorage.setItem("bestStreak", bestStreak.toString());
-  if (lastDate) {
-    await AsyncStorage.setItem(
-      "lastCompletionDate",
-      lastDate.toISOString().split("T")[0]
-    );
-  }
-
-  return { currentStreak, bestStreak };
 };
 
 const HistoryScreen = () => {
@@ -421,7 +345,7 @@ const HistoryScreen = () => {
   useEffect(() => {
     const loadData = async () => {
       const data = await fetchStepHistory(selectedPeriod);
-      const streakData = await calculateStreaks();
+      const streakData = await fetchStreaks();
       setPeriodData(data);
       setStreaks(streakData);
     };
