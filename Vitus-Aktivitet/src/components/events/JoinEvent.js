@@ -1,7 +1,14 @@
-'use client';
+"use client";
 
 import React, { useState, useEffect } from "react";
-import { View, Text, StyleSheet, TouchableOpacity, Alert, Image } from "react-native";
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  Alert,
+  Image,
+} from "react-native";
 import { CameraView, useCameraPermissions } from "expo-camera";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 
@@ -17,10 +24,11 @@ export default function JoinEvent({ navigation }) {
 
   const handleBarCodeScanned = ({ data }) => {
     setScanned(true);
+    const eventId = data.split("/event/")[1];
     Alert.alert("QR Skannet", `Bli med i hendelse: ${data}`, [
       {
         text: "OK",
-        onPress: () => navigation.navigate("ActiveEvent", { eventId: data }),
+        onPress: () => navigation.navigate("ActiveEvent", { eventId }),
       },
     ]);
   };
@@ -82,10 +90,10 @@ export default function JoinEvent({ navigation }) {
 }
 
 const styles = StyleSheet.create({
-  container: { 
-    flex: 1, 
-    justifyContent: "center", 
-    alignItems: "center" 
+  container: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
   },
   closeButton: {
     position: "absolute",
@@ -103,10 +111,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     borderRadius: 8,
   },
-  rescanButtonText: { 
-    color: "#fff", 
-    fontSize: 16, 
-    fontWeight: "600" 
+  rescanButtonText: {
+    color: "#fff",
+    fontSize: 16,
+    fontWeight: "600",
   },
   permissionButton: {
     backgroundColor: "#007AFF",
@@ -114,18 +122,18 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     marginTop: 20,
   },
-  permissionButtonText: { 
-    color: "#fff", 
-    fontSize: 16, 
-    fontWeight: "600" 
+  permissionButtonText: {
+    color: "#fff",
+    fontSize: 16,
+    fontWeight: "600",
   },
   qrPlaceholder: {
     width: 200,
     height: 200,
-    resizeMode: 'contain',
-    position: 'absolute',
-    top: '50%',
-    left: '50%',
+    resizeMode: "contain",
+    position: "absolute",
+    top: "50%",
+    left: "50%",
     transform: [{ translateX: -100 }, { translateY: -100 }],
   },
 });

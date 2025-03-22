@@ -1,4 +1,12 @@
-import { View, Text, StyleSheet, SafeAreaView, TouchableOpacity, Modal, Share } from "react-native";
+import {
+  View,
+  Text,
+  StyleSheet,
+  SafeAreaView,
+  TouchableOpacity,
+  Modal,
+  Share,
+} from "react-native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import QRCode from "react-native-qrcode-svg";
 import { useNavigation } from "@react-navigation/native";
@@ -10,10 +18,9 @@ const InviteMembersScreen = ({ visible, onClose, eventId }) => {
 
   const handleShare = async () => {
     try {
-      const eventLink = `https://yourapp.com/join/${eventId}`;
+      const eventLink = `exp://192.168.0.135:8081/event/${eventId}`;
       await Share.share({
-        message: "Join my event!",
-        url: eventLink,
+        message: `Join my event! Scan the QR code or click this link: ${eventLink}`,
       });
     } catch (error) {
       console.error(error);
@@ -21,8 +28,15 @@ const InviteMembersScreen = ({ visible, onClose, eventId }) => {
   };
 
   return (
-    <Modal animationType="slide" transparent={true} visible={visible} onRequestClose={onClose}>
-      <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]}>
+    <Modal
+      animationType="slide"
+      transparent={true}
+      visible={visible}
+      onRequestClose={onClose}
+    >
+      <SafeAreaView
+        style={[styles.container, { backgroundColor: theme.background }]}
+      >
         <View style={styles.content}>
           {/* Close Button */}
           <TouchableOpacity
@@ -35,13 +49,19 @@ const InviteMembersScreen = ({ visible, onClose, eventId }) => {
           {/* Title */}
           <Text style={[styles.title, { color: theme.text }]}>Din gruppe</Text>
           <Text style={[styles.subtitle, { color: theme.textSecondary }]}>
-            Dine venner kan scanne{"\n"}denne QR koden for å bli{"\n"}med i gruppen
+            Dine venner kan scanne{"\n"}denne QR koden for å bli{"\n"}med i
+            gruppen
           </Text>
 
           {/* QR Code - Matches Background */}
-          <View style={[styles.qrContainer, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+          <View
+            style={[
+              styles.qrContainer,
+              { backgroundColor: theme.surface, borderColor: theme.border },
+            ]}
+          >
             <QRCode
-              value={`https://yourapp.com/join/${eventId}`}
+              value={`exp://192.168.0.135:8081/event/${eventId}`}
               size={200}
               backgroundColor={theme.background} // Matches background color
               color={isDarkMode ? "white" : "black"} // White in dark mode, black in light mode
@@ -51,18 +71,32 @@ const InviteMembersScreen = ({ visible, onClose, eventId }) => {
           {/* Divider */}
           <View style={styles.dividerContainer}>
             <View style={[styles.divider, { backgroundColor: theme.border }]} />
-            <Text style={[styles.dividerText, { color: theme.textSecondary }]}>Eller</Text>
+            <Text style={[styles.dividerText, { color: theme.textSecondary }]}>
+              Eller
+            </Text>
             <View style={[styles.divider, { backgroundColor: theme.border }]} />
           </View>
 
           {/* Share Link Button */}
-          <TouchableOpacity style={[styles.shareButton, { backgroundColor: theme.surface }]} onPress={handleShare}>
-            <MaterialCommunityIcons name="share-variant" size={20} color={theme.text} />
-            <Text style={[styles.shareButtonText, { color: theme.text }]}>Del Lenke</Text>
+          <TouchableOpacity
+            style={[styles.shareButton, { backgroundColor: theme.surface }]}
+            onPress={handleShare}
+          >
+            <MaterialCommunityIcons
+              name="share-variant"
+              size={20}
+              color={theme.text}
+            />
+            <Text style={[styles.shareButtonText, { color: theme.text }]}>
+              Del Lenke
+            </Text>
           </TouchableOpacity>
 
           {/* Done Button */}
-          <TouchableOpacity style={[styles.doneButton, { backgroundColor: theme.primary }]} onPress={onClose}>
+          <TouchableOpacity
+            style={[styles.doneButton, { backgroundColor: theme.primary }]}
+            onPress={onClose}
+          >
             <Text style={styles.doneButtonText}>Done</Text>
           </TouchableOpacity>
         </View>
