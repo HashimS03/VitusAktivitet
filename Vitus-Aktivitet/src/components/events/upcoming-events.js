@@ -13,8 +13,21 @@ import { useTheme } from "../context/ThemeContext";
 import { EventContext } from "../events/EventContext";
 
 const UpcomingEvents = () => {
-  const { theme } = useTheme();
+  const { theme, accentColor } = useTheme(); // Added accentColor
   const { upcomingEvents } = useContext(EventContext);
+
+  // Map accent colors to the correct Vitus_Happy images
+  const vitusHappyImages = {
+    "#48CAB2": require("../../../assets/Vitus_Happy.png"), // Teal
+    "#FF6B6B": require("../../../assets/Vitus_Happy_Red.png"),
+    "#FFD93D": require("../../../assets/Vitus_Happy_Gold.png"),
+    "#4C82FB": require("../../../assets/Vitus_Happy_Blue.png"),
+    "#8A4FFF": require("../../../assets/Vitus_Happy_Purple.png"),
+  };
+
+  // Select the appropriate Vitus_Happy image based on accentColor
+  const selectedVitusHappyImage =
+    vitusHappyImages[accentColor] || require("../../../assets/Vitus_Happy.png");
 
   const truncateText = (text, maxLength) => {
     return text.length > maxLength ? text.substring(0, maxLength) + "..." : text;
@@ -86,7 +99,7 @@ const UpcomingEvents = () => {
             style={[styles.emptyStateContainer, { backgroundColor: theme.surface }]}
           >
             <Image
-              source={require("../../../assets/Vitus_Happy.png")}
+              source={selectedVitusHappyImage} // Updated to use dynamic image
               style={styles.emptyStateImage}
             />
             <Text style={[styles.emptyStateTitle, { color: theme.text }]}>

@@ -19,7 +19,7 @@ import {
   FlatList,
   TextInput,
   Animated,
-  Alert, // Importer Alert for tilbakemelding
+  Alert,
 } from "react-native";
 import { Users, Bell, Award, ChevronRight, X } from "lucide-react-native";
 import * as Progress from "react-native-progress";
@@ -351,6 +351,19 @@ export default function Dashboard() {
   const [randomTrophy, setRandomTrophy] = useState(null);
   const [unlockedLevel, setUnlockedLevel] = useState(0);
   const [progress, setProgress] = useState({ current: 0, nextGoal: 0 });
+
+  // Map accent colors to the correct Vitus_Happy images
+  const vitusHappyImages = {
+    "#48CAB2": require("../../../assets/Vitus_Happy.png"),
+    "#FF6B6B": require("../../../assets/Vitus_Happy_Red.png"),
+    "#FFD93D": require("../../../assets/Vitus_Happy_Gold.png"),
+    "#4C82FB": require("../../../assets/Vitus_Happy_Blue.png"),
+    "#8A4FFF": require("../../../assets/Vitus_Happy_Purple.png"), // Included for completeness
+  };
+
+  // Get the correct Vitus_Happy image for the selected accent color
+  const selectedVitusHappyImage =
+    vitusHappyImages[accentColor] || require("../../../assets/Vitus_Happy.png");
 
   useEffect(() => {
     const selectRandomTrophyAndLoadProgress = async () => {
@@ -1272,7 +1285,7 @@ export default function Dashboard() {
           />
           <View style={styles.progressContent}>
             <Image
-              source={require("../../../assets/Vitus_Happy.png")}
+              source={selectedVitusHappyImage} // Use the dynamically selected image
               style={styles.runnerIcon}
             />
             <TouchableOpacity
