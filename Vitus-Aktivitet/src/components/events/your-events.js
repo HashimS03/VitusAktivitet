@@ -18,10 +18,23 @@ import * as Progress from "react-native-progress";
 
 const YourEvents = () => {
   const navigation = useNavigation();
-  const { theme } = useTheme();
+  const { theme, accentColor } = useTheme(); // Added accentColor
   const { activeEvents, deleteEvent, updateEvent } = useContext(EventContext);
   const [selectedEvent, setSelectedEvent] = useState(null);
   const [isMenuVisible, setMenuVisible] = useState(false);
+
+  // Map accent colors to the correct Vitus_Happy images
+  const vitusHappyImages = {
+    "#48CAB2": require("../../../assets/Vitus_Happy.png"), // Teal
+    "#FF6B6B": require("../../../assets/Vitus_Happy_Red.png"),
+    "#FFD93D": require("../../../assets/Vitus_Happy_Gold.png"),
+    "#4C82FB": require("../../../assets/Vitus_Happy_Blue.png"),
+    "#8A4FFF": require("../../../assets/Vitus_Happy_Purple.png"),
+  };
+
+  // Select the appropriate Vitus_Happy image based on accentColor
+  const selectedVitusHappyImage =
+    vitusHappyImages[accentColor] || require("../../../assets/Vitus_Happy.png");
 
   useEffect(() => {
     // Optional: React to changes in activeEvents
@@ -67,7 +80,7 @@ const YourEvents = () => {
       >
         <View style={styles.cardContent}>
           <Image
-            source={require("../../../assets/Vitus_Strong.png")} // Replace with teal character image
+            source={require("../../../assets/Vitus_Strong.png")}
             style={styles.eventImage}
             resizeMode="contain"
           />
@@ -158,7 +171,7 @@ const YourEvents = () => {
             style={[styles.emptyStateContainer, { backgroundColor: theme.surface }]}
           >
             <Image
-              source={require("../../../assets/Vitus_Happy.png")}
+              source={selectedVitusHappyImage} // Updated to use dynamic image
               style={styles.emptyStateImage}
             />
             <Text style={[styles.emptyStateTitle, { color: theme.text }]}>

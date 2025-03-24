@@ -17,11 +17,24 @@ import { useNavigation } from "@react-navigation/native";
 import { Swipeable } from "react-native-gesture-handler";
 
 const PastEvents = () => {
-  const { theme } = useTheme();
+  const { theme, accentColor } = useTheme(); // Added accentColor
   const { pastEvents, clearPastEvents, deleteEvent } = useContext(EventContext);
   const navigation = useNavigation();
   const [selectedEvent, setSelectedEvent] = useState(null);
   const [menuVisible, setMenuVisible] = useState(false);
+
+  // Map accent colors to the correct Vitus_Happy images
+  const vitusHappyImages = {
+    "#48CAB2": require("../../../assets/Vitus_Happy.png"), 
+    "#FF6B6B": require("../../../assets/Vitus_Happy_Red.png"),
+    "#FFD93D": require("../../../assets/Vitus_Happy_Gold.png"),
+    "#4C82FB": require("../../../assets/Vitus_Happy_Blue.png"),
+    "#8A4FFF": require("../../../assets/Vitus_Happy_Purple.png"),
+  };
+
+  // Select the appropriate Vitus_Happy image based on accentColor
+  const selectedVitusHappyImage =
+    vitusHappyImages[accentColor] || require("../../../assets/Vitus_Happy.png");
 
   const truncateText = (text, maxLength) => {
     return text.length > maxLength
@@ -218,7 +231,7 @@ const PastEvents = () => {
             ]}
           >
             <Image
-              source={require("../../../assets/Vitus_Happy.png")}
+              source={selectedVitusHappyImage} // Updated to use dynamic image
               style={styles.emptyStateImage}
             />
             <Text style={[styles.emptyStateTitle, { color: theme.text }]}>
@@ -244,7 +257,7 @@ const PastEvents = () => {
       <Modal
         visible={menuVisible}
         transparent={true}
-        animationType="slide" // Endret til slide for en renere følelse
+        animationType="slide"
         onRequestClose={() => setMenuVisible(false)}
       >
         <TouchableOpacity
@@ -354,13 +367,13 @@ const styles = StyleSheet.create({
   },
   modalOverlay: {
     flex: 1,
-    backgroundColor: "rgba(0, 0, 0, 0.3)", // Litt lysere overlay
-    justifyContent: "flex-end", // Plasserer menyen nederst
+    backgroundColor: "rgba(0, 0, 0, 0.3)",
+    justifyContent: "flex-end",
     alignItems: "center",
   },
   menuContainer: {
-    width: "100%", // Full bredde for clean look
-    borderTopLeftRadius: 16, // Rundede kanter øverst
+    width: "100%",
+    borderTopLeftRadius: 16,
     borderTopRightRadius: 16,
     paddingVertical: 16,
     paddingHorizontal: 20,
@@ -373,14 +386,14 @@ const styles = StyleSheet.create({
   menuItem: {
     flexDirection: "row",
     alignItems: "center",
-    paddingVertical: 14, // Mer vertikal plass
-    borderBottomWidth: 1, // Separator mellom elementer
+    paddingVertical: 14,
+    borderBottomWidth: 1,
     borderBottomColor: "rgba(0, 0, 0, 0.05)",
   },
   menuItemText: {
     fontSize: 16,
-    marginLeft: 16, // Økt avstand til ikon
-    fontWeight: "400", // Mindre fet tekst for renere look
+    marginLeft: 16,
+    fontWeight: "400",
   },
 });
 
