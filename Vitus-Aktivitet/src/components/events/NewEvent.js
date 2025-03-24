@@ -373,26 +373,26 @@ const NewEvent = ({ route }) => {
       endDateTimeUTC = endDateTime.toISOString();
     }
 
-    // Opprett event-data uten å sette ID her, la addEvent håndtere det
+    // Format event data to match server expectations
     const eventData = {
-      //id: eventDetails.id,
       title: eventDetails.title,
-      description: eventDetails.description,
+      description: eventDetails.description || "",
       activity: eventDetails.selectedActivity?.name || "",
-      goalValue: eventDetails.goalValue,
+      goalValue: eventDetails.goalValue || 0,
       currentValue: eventDetails.currentValue || 0,
       start_date: startDateTimeUTC,
       end_date: endDateTimeUTC,
-      location: eventDetails.location,
-      eventType: eventDetails.eventType,
+      location: eventDetails.location || "",
+      eventType: eventDetails.eventType || "individual",
       total_participants: Number(eventDetails.participantCount) || 0,
       team_count: Number(eventDetails.teamCount) || 0,
       members_per_team: Number(eventDetails.membersPerTeam) || 0,
       selectedActivity: eventDetails.selectedActivity,
-      activityUnit: eventDetails.selectedActivity.unit,
-      progress: eventDetails.currentValue / eventDetails.goalValue || 0,
-      participants: [], // Legges til senere
-      teams: [], // Legges til senere
+      activityUnit: eventDetails.selectedActivity?.unit || "",
+      progress: 0, // Start with 0 progress
+      participants: [], // Filled in later
+      teams: [], // Filled in later
+      goal: eventDetails.goalValue, // Add goal property for server
     };
 
     try {
@@ -401,10 +401,10 @@ const NewEvent = ({ route }) => {
         ...eventData,
       };
 
-      // Fyll ut deltakere eller lag basert på eventType
+      // Fill in participants or teams based on eventType
       if (updatedEvent.eventType === "individual") {
         updatedEvent.participants = Array.from(
-          { length: Number.parseInt(updatedEvent.participantCount) },
+          { length: Number.parseInt(updatedEvent.participantCount) || 0 },
           (_, i) => ({
             id: `participant_${i + 1}`,
             name: `Deltaker ${i + 1}`,
@@ -412,12 +412,12 @@ const NewEvent = ({ route }) => {
         );
       } else if (updatedEvent.eventType === "team") {
         updatedEvent.teams = Array.from(
-          { length: Number.parseInt(updatedEvent.teamCount) },
+          { length: Number.parseInt(updatedEvent.teamCount) || 0 },
           (_, i) => ({
             id: `team_${i + 1}`,
             name: `Lag ${i + 1}`,
             members: Array.from(
-              { length: Number.parseInt(updatedEvent.membersPerTeam) },
+              { length: Number.parseInt(updatedEvent.membersPerTeam) || 0 },
               (_, j) => ({
                 id: `member_${i + 1}_${j + 1}`,
                 name: `Medlem ${j + 1}`,
@@ -427,23 +427,22 @@ const NewEvent = ({ route }) => {
         );
       }
 
+      let savedEvent;
+      
       if (isEditing) {
-        // Hvis vi redigerer, bruk eksisterende ID
-        updateEvent(updatedEvent);
-        navigation.replace("ActiveEvent", { eventId: updatedEvent.id });
+        // Update existing event
+        await updateEvent(updatedEvent);
+        savedEvent = updatedEvent;
       } else {
-        // Generer en midlertidig ID lokalt for å bruke i navigasjonen
-        const tempEventId = Date.now().toString();
-        updatedEvent.id = tempEventId; // Sett ID-en her midlertidig
-        addEvent(updatedEvent); // Legg til eventet, ID overskrives i addEvent
-
-        // Vent litt for å sikre at EventContext har oppdatert events og AsyncStorage
-        setTimeout(() => {
-          navigation.replace("ActiveEvent", { eventId: tempEventId });
-        }, 100); // 100ms forsinkelse, juster om nødvendig
+        // Create new event - the addEvent function will save to server and return the event with ID
+        savedEvent = await addEvent(updatedEvent);
       }
+      
+      // Navigate to the event detail screen with the saved event's ID
+      navigation.replace("ActiveEvent", { eventId: savedEvent.id });
+      
     } catch (error) {
-      Alert.alert("Feil", "Kunne ikke opprette hendelsen.");
+      Alert.alert("Feil", "Kunne ikke lagre hendelsen på serveren.");
       console.error("Error in createEvent:", error);
     }
   };
