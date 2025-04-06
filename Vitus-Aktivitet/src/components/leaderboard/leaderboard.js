@@ -537,7 +537,7 @@ const Leaderboard = ({ route }) => {
                     ]}
                   >
                     {leaderboardType === "General"
-                      ? "Generell"
+                      ? "Felles"
                       : selectedEvent
                       ? selectedEvent.title
                       : "Hendelser"}
@@ -886,7 +886,7 @@ const Leaderboard = ({ route }) => {
                       },
                     ]}
                   >
-                    {option === "General" ? "Generell" : "Hendelse"} Ledertavle
+                    {option === "General" ? "Felles" : "Hendelse"} Ledertavle
                   </Text>
                 </TouchableOpacity>
               ))}
