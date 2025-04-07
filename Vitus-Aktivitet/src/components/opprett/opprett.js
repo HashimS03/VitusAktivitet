@@ -6,17 +6,47 @@ import {
   StyleSheet,
   TextInput,
   Dimensions,
+  Alert,
 } from "react-native";
+import axios from "axios";
 
 const { width } = Dimensions.get("window");
 
-export default function CreateAccountScreen({ navigation }) {
+export default function opprett({ navigation }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-  const [firstName, setFirstName] = useState("");
-  const [lastName, setLastName] = useState("");
-  const [dateOfBirth, setDateOfBirth] = useState("");
+  const [name, setName] = useState("");
+
+  const handleRegister = async () => {
+    if (password !== confirmPassword) {
+      Alert.alert("Error", "Passwords do not match");
+      return;
+    }
+
+    if (!email || !password || !name) {
+      Alert.alert("Error", "All fields are required");
+      return;
+    }
+
+    try {
+      console.log("Sending registration data:", { name, email, password }); // Debug log
+      const response = await axios.post("http://localhost:4000/register", {
+        name,
+        email,
+        password,
+        avatar: null,
+      });
+
+      if (response.data.success) {
+        Alert.alert("Success", "User registered successfully");
+        navigation.replace("GenderSelection");
+      }
+    } catch (error) {
+      console.log("Registration error:", error.response?.data); // Debug log
+      Alert.alert("Error", error.response?.data?.message || "Registration failed");
+    }
+  };
 
   return (
     <View style={styles.container}>
@@ -38,7 +68,7 @@ export default function CreateAccountScreen({ navigation }) {
         <View style={styles.inputContainer}>
           <TextInput
             style={styles.input}
-            placeholder="Passsword"
+            placeholder="Password"
             value={password}
             onChangeText={setPassword}
             secureTextEntry
@@ -49,7 +79,7 @@ export default function CreateAccountScreen({ navigation }) {
         <View style={styles.inputContainer}>
           <TextInput
             style={styles.input}
-            placeholder="Re-write Passsword"
+            placeholder="Re-write Password"
             value={confirmPassword}
             onChangeText={setConfirmPassword}
             secureTextEntry
@@ -60,37 +90,14 @@ export default function CreateAccountScreen({ navigation }) {
         <View style={styles.inputContainer}>
           <TextInput
             style={styles.input}
-            placeholder="First Name"
-            value={firstName}
-            onChangeText={setFirstName}
+            placeholder="Name"
+            value={name}
+            onChangeText={setName}
           />
           <View style={styles.inputBorder} />
         </View>
 
-        <View style={styles.inputContainer}>
-          <TextInput
-            style={styles.input}
-            placeholder="Last Name"
-            value={lastName}
-            onChangeText={setLastName}
-          />
-          <View style={styles.inputBorder} />
-        </View>
-
-        <View style={styles.inputContainer}>
-          <TextInput
-            style={styles.input}
-            placeholder="Date Of Birth"
-            value={dateOfBirth}
-            onChangeText={setDateOfBirth}
-          />
-          <View style={styles.inputBorder} />
-        </View>
-
-        <TouchableOpacity
-          style={styles.createButton}
-          onPress={() => navigation.replace("GenderSelection")}
-        >
+        <TouchableOpacity style={styles.createButton} onPress={handleRegister}>
           <Text style={styles.createButtonText}>Create Now</Text>
         </TouchableOpacity>
 
@@ -116,7 +123,7 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: 30,
     borderTopRightRadius: 30,
     padding: 24,
-    marginTop: 100, // Juster dette for å simulere plassen logoen tok
+    marginTop: 100,
   },
   title: {
     fontSize: 32,
