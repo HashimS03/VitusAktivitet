@@ -1,6 +1,7 @@
 const express = require("express");
 const cors = require("cors");
 const session = require("express-session");
+console.log("LOOK FOR ME IN THE LOGS");
 const { sql, poolPromise } = require("./db");
 const bcrypt = require("bcrypt");
 require("dotenv").config();
