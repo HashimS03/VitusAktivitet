@@ -6,7 +6,7 @@ name: Build and deploy Node.js app to Azure Web App - apphractivity01
 on:
   push:
     branches:
-      ["main", "Daniel's-new-branch"]
+      - main
   workflow_dispatch:
 
 jobs:
@@ -27,7 +27,6 @@ jobs:
         working-directory: server
         run: |
           npm install
-          npm install bcryptjs
           npm run build --if-present
           npm run test --if-present
       
@@ -50,47 +49,11 @@ jobs:
         with:
           name: node-app
       
-      - name: Copy web.config if missing
-        run: |
-          if [ ! -f "web.config" ]; then
-            echo "Creating web.config file..."
-            cat > web.config << EOL
-              <?xml version="1.0" encoding="utf-8"?>
-              <configuration>
-                <system.webServer>
-                  <webSocket enabled="false" />
-                  <handlers>
-                    <add name="iisnode" path="server.js" verb="*" modules="iisnode" />
-                  </handlers>
-                  <rewrite>
-                    <rules>
-                      <rule name="Main Rule">
-                        <match url="/*" />
-                        <conditions logicalGrouping="MatchAll">
-                          <add input="{REQUEST_FILENAME}" matchType="IsFile" negate="true" />
-                        </conditions>
-                        <action type="Rewrite" url="server.js" />
-                      </rule>
-                    </rules>
-                  </rewrite>
-                  <iisnode
-                    nodeProcessCommandLine="node"
-                    watchedFiles="web.config;*.js"
-                    loggingEnabled="true"
-                    debuggingEnabled="true"
-                    devErrorsEnabled="true"
-                  />
-                </system.webServer>
-              </configuration>
-              EOL
-          fi
-        shell: bash
-
-      - name: Deploy to Azure Web App
+      - name: 'Deploy to Azure Web App'
         uses: azure/webapps-deploy@v3
         id: deploy-to-webapp
         with:
-          app-name: apphractivity01
-          slot-name: Production
+          app-name: 'apphractivity01'
+          slot-name: 'Production'
           package: .
           publish-profile: ${{ secrets.AZUREAPPSERVICE_PUBLISHPROFILE_E955EA6411EA463995CAB9A3A48C3438 }}
