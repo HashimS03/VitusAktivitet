@@ -4,7 +4,7 @@ const express = require("express");
 const cors = require("cors");
 const session = require("express-session");
 const { sql, poolPromise } = require("./db");
-const bcrypt = require("bcrypt");
+const bcrypt = require("bcryptjs");
 require("dotenv").config();
 
 const app = express();
