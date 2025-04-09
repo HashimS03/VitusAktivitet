@@ -1,9 +1,10 @@
 import React, { createContext, useState, useEffect } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import axios from "axios";
+import { SERVER_CONFIG } from "../../config/serverConfig"; 
 
 const STORAGE_KEY = "events";
-const API_BASE_URL = "http://localhost:4000"; // Adjust this URL for your actual server
+const API_BASE_URL = SERVER_CONFIG.getBaseUrl();
 
 export const EventContext = createContext();
 

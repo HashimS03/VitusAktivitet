@@ -5,12 +5,19 @@ const { sql, poolPromise } = require("./db");
 const bcrypt = require("bcrypt");
 require("dotenv").config();
 
+console.log("Starting server...");
+console.log("NODE_ENV:", process.env.NODE_ENV);
+console.log("PORT:", process.env.PORT || 4000);
+console.log("Current working directory:", process.cwd());
+
 const app = express();
 const PORT = process.env.PORT || 4000;
 
 app.use(express.json());
-// Configure CORS to allow your frontend (e.g., http://localhost:3000 for React Native dev server)
-app.use(cors({ origin: "http://localhost:3000", credentials: true }));
+app.use(cors({
+  origin: "*", // Replace with your frontend's URL
+  credentials: true
+}));
 
 // Use SESSION_SECRET for session management
 app.use(
@@ -20,6 +27,16 @@ app.use(
     saveUninitialized: false,
   })
 );
+
+// Add this before your other routes
+app.get("/test", (req, res) => {
+  res.json({ message: "API connection successful!" });
+});
+
+// Also add a root route
+app.get("/", (req, res) => {
+  res.send("VitusAktivitet API is running. Use /events to access events.");
+});
 
 // 🔹 Route to Register a User
 app.post("/register", async (req, res) => {
@@ -119,7 +136,7 @@ app.post("/events", async (req, res) => {
 
     const pool = await poolPromise;
     const result = await pool.request()
-    
+
       .input("title", sql.NVarChar, title)
       .input("description", sql.NVarChar, description)
       .input("activity", sql.NVarChar, activity)
@@ -164,4 +181,9 @@ app.get("/events", async (req, res) => {
 });
 
 // Start Server
-app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));
+app.listen(PORT, () => {
+  console.log(`🚀 Server running on port ${PORT}`);
+  console.log(`Test endpoint: ${process.env.WEBSITE_HOSTNAME || 'localhost'}/test`);
+  console.log(`Events endpoint: ${process.env.WEBSITE_HOSTNAME || 'localhost'}/events`);
+  console.log("Available environment variables:", Object.keys(process.env));
+});

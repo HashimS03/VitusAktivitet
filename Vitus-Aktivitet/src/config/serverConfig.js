@@ -1,12 +1,7 @@
-// Centralized server configuration
-
-export const SERVER_CONFIG = {
-  BASE_URL: "http://localhost:4000",  // Development
-  // BASE_URL: "https://your-production-server.com", // Production
+export const SERVER_CONFIG = {  
+  // Your Azure web app URL - replace with your actual Azure URL
+  PROD_URL: "https://apphractivity01-dqcuh0g2epgsgfeq.westeurope-01.azurewebsites.net",
   
-  // Use this function to get the correct URL based on environment
-  getBaseUrl: () => {
-    // You could add environment detection logic here
-    return SERVER_CONFIG.BASE_URL;
-  }
+  // Always use the production URL, regardless of environment
+  getBaseUrl: () => SERVER_CONFIG.PROD_URL,
 };
