@@ -1,221 +1,223 @@
-"use client"
-
-import { useEffect, useState } from "react"
-import { Platform, AppState } from "react-native"
-import { Pedometer } from "expo-sensors"
-import AsyncStorage from "@react-native-async-storage/async-storage"
+import { useEffect, useState, useContext } from "react";
+import { Platform, AppState } from "react-native";
+import { Pedometer } from "expo-sensors";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import axios from "axios";
+import { UserContext } from "../context/UserContext";
+import { Alert } from "react-native";
 
 export default function StepCounter({ setStepCount }) {
-  const [appState, setAppState] = useState(AppState.currentState)
+  const { userId } = useContext(UserContext);
+  const [appState, setAppState] = useState(AppState.currentState);
 
   useEffect(() => {
-    console.log("StepCounter component mounted!")
-    let subscription = null
-    let lastAndroidStepCount = 0
-    let androidStepsSinceReboot = 0
-    let appStateSubscription
+    console.log("StepCounter component mounted! UserId:", userId);
+    let subscription = null;
+    let lastAndroidStepCount = 0;
+    let androidStepsSinceReboot = 0;
+    let appStateSubscription;
 
-    // Check if pedometer is available on the device
     const checkPedometerAvailability = async () => {
       try {
-        const available = await Pedometer.isAvailableAsync()
-        console.log("Pedometer available:", available)
-        return available
+        const available = await Pedometer.isAvailableAsync();
+        console.log("Pedometer available:", available);
+        return available;
       } catch (error) {
-        console.error("Error checking pedometer availability:", error)
-        return false
+        console.error("Error checking pedometer availability:", error);
+        return false;
       }
-    }
+    };
 
-    // Load initial step count and last recorded Android step count from storage
     const loadInitialData = async () => {
+      if (!userId) return; // Wait for userId to be available
       try {
-        const storedSteps = await AsyncStorage.getItem("stepCount")
-        const storedAndroidSteps = await AsyncStorage.getItem("androidStepsSinceReboot")
-
-        if (storedSteps) {
-          setStepCount(JSON.parse(storedSteps))
+        const response = await axios.get("http://localhost:4000/step-activity", {
+          withCredentials: true,
+        });
+        const latestActivity = response.data.data[0];
+        if (latestActivity) {
+          setStepCount(latestActivity.step_count || 0);
+          await AsyncStorage.setItem("stepCount", JSON.stringify(latestActivity.step_count || 0));
         }
-
+        const storedAndroidSteps = await AsyncStorage.getItem("androidStepsSinceReboot");
         if (storedAndroidSteps && Platform.OS === "android") {
-          androidStepsSinceReboot = JSON.parse(storedAndroidSteps)
+          androidStepsSinceReboot = JSON.parse(storedAndroidSteps);
         }
       } catch (error) {
-        console.error("Error loading initial data:", error)
+        console.error("Error loading initial step data:", error);
+        if (error.response && error.response.status === 500) {
+          Alert.alert("Server Error", "Unable to load step data. Please try again later.");
+        }
       }
-    }
+    };
 
-    // For iOS: Update step count in storage
     const updateStepCountInStorage = async (newPhysicalSteps) => {
+      if (!userId) return;
       try {
-        // Get previously stored data
-        const storedSteps = await AsyncStorage.getItem("stepCount")
-        const storedPhysicalSteps = await AsyncStorage.getItem("lastPhysicalSteps")
+        const storedSteps = await AsyncStorage.getItem("stepCount");
+        const currentTotalSteps = storedSteps ? JSON.parse(storedSteps) : 0;
+        const lastPhysicalSteps = await AsyncStorage.getItem("lastPhysicalSteps")
+          ? JSON.parse(await AsyncStorage.getItem("lastPhysicalSteps"))
+          : 0;
+        const newStepsDelta = Math.max(0, newPhysicalSteps - lastPhysicalSteps);
+        const updatedTotalSteps = currentTotalSteps + newStepsDelta;
 
-        const currentTotalSteps = storedSteps ? JSON.parse(storedSteps) : 0
-        const lastPhysicalSteps = storedPhysicalSteps ? JSON.parse(storedPhysicalSteps) : 0
+        await AsyncStorage.setItem("stepCount", JSON.stringify(updatedTotalSteps));
+        await AsyncStorage.setItem("lastPhysicalSteps", JSON.stringify(newPhysicalSteps));
 
-        // Calculate new physical steps (the difference)
-        const newStepsDelta = Math.max(0, newPhysicalSteps - lastPhysicalSteps)
-        const updatedTotalSteps = currentTotalSteps + newStepsDelta
-
-        // Store updated total
-        await AsyncStorage.setItem("stepCount", JSON.stringify(updatedTotalSteps))
-        await AsyncStorage.setItem("lastPhysicalSteps", JSON.stringify(newPhysicalSteps))
-
-        // Store today's steps in history
-        const today = new Date().toISOString().split("T")[0] // Format: YYYY-MM-DD
-        const stepHistoryKey = `stepHistory_${today}`
+        const today = new Date().toISOString().split("T")[0];
+        const stepHistoryKey = `stepHistory_${today}`;
         const storedHistorySteps = await AsyncStorage.getItem(stepHistoryKey)
-        const currentHistorySteps = storedHistorySteps ? JSON.parse(storedHistorySteps) : 0
-        const updatedHistorySteps = currentHistorySteps + newStepsDelta
+          ? JSON.parse(await AsyncStorage.getItem(stepHistoryKey))
+          : 0;
+        const updatedHistorySteps = storedHistorySteps + newStepsDelta;
+        await AsyncStorage.setItem(stepHistoryKey, JSON.stringify(updatedHistorySteps));
 
-        await AsyncStorage.setItem(stepHistoryKey, JSON.stringify(updatedHistorySteps))
+        // Sync with backend
+        await axios.post(
+          "http://localhost:4000/step-activity",
+          {
+            stepCount: updatedTotalSteps,
+            distance: null, // Add distance if available
+            timestamp: new Date(),
+          },
+          { withCredentials: true }
+        );
 
-        setStepCount(updatedTotalSteps) // Update Dashboard
+        setStepCount(updatedTotalSteps);
         console.log(
           "Updated stepCount:",
           updatedTotalSteps,
           "New physical steps:",
           newStepsDelta,
           "History steps for today:",
-          updatedHistorySteps,
-        )
+          updatedHistorySteps
+        );
       } catch (error) {
-        console.error("Error updating step count in storage:", error)
+        console.error("Error updating step count in storage:", error);
+        if (error.response && error.response.status === 500) {
+          Alert.alert("Server Error", "Unable to save step data. Please try again later.");
+        }
       }
-    }
+    };
 
-    // For Android: Handle step updates differently
     const handleAndroidStepUpdate = async (stepData) => {
+      if (!userId) return;
       try {
-        const currentSteps = stepData.steps
+        const currentSteps = stepData.steps;
 
-        // If this is the first reading or after a reboot
         if (lastAndroidStepCount === 0) {
-          lastAndroidStepCount = currentSteps
-          await AsyncStorage.setItem("androidLastStepCount", JSON.stringify(currentSteps))
-          return // Skip the first reading to establish a baseline
+          lastAndroidStepCount = currentSteps;
+          await AsyncStorage.setItem("androidLastStepCount", JSON.stringify(currentSteps));
+          return;
         }
 
-        // Calculate steps since last check
-        let stepDelta = 0
-
-        // If current reading is less than last reading, device likely rebooted
+        let stepDelta = 0;
         if (currentSteps < lastAndroidStepCount) {
-          console.log("Android device likely rebooted, resetting step counter")
-          // Save the current steps as our new baseline
-          stepDelta = currentSteps
+          console.log("Android device likely rebooted, resetting step counter");
+          stepDelta = currentSteps;
         } else {
-          stepDelta = currentSteps - lastAndroidStepCount
+          stepDelta = currentSteps - lastAndroidStepCount;
         }
 
-        // Update our tracking variables
-        lastAndroidStepCount = currentSteps
-        androidStepsSinceReboot += stepDelta
+        lastAndroidStepCount = currentSteps;
+        androidStepsSinceReboot += stepDelta;
 
-        // Save the latest values
-        await AsyncStorage.setItem("androidLastStepCount", JSON.stringify(currentSteps))
-        await AsyncStorage.setItem("androidStepsSinceReboot", JSON.stringify(androidStepsSinceReboot))
+        await AsyncStorage.setItem("androidLastStepCount", JSON.stringify(currentSteps));
+        await AsyncStorage.setItem("androidStepsSinceReboot", JSON.stringify(androidStepsSinceReboot));
 
-        // Get stored total steps
-        const storedSteps = await AsyncStorage.getItem("stepCount")
-        const currentTotalSteps = storedSteps ? JSON.parse(storedSteps) : 0
+        const storedSteps = await AsyncStorage.getItem("stepCount");
+        const currentTotalSteps = storedSteps ? JSON.parse(storedSteps) : 0;
+        const updatedTotalSteps = currentTotalSteps + stepDelta;
 
-        // Add new steps to total
-        const updatedTotalSteps = currentTotalSteps + stepDelta
+        await AsyncStorage.setItem("stepCount", JSON.stringify(updatedTotalSteps));
 
-        // Store updated total
-        await AsyncStorage.setItem("stepCount", JSON.stringify(updatedTotalSteps))
-
-        // Update today's history
-        const today = new Date().toISOString().split("T")[0]
-        const stepHistoryKey = `stepHistory_${today}`
+        const today = new Date().toISOString().split("T")[0];
+        const stepHistoryKey = `stepHistory_${today}`;
         const storedHistorySteps = await AsyncStorage.getItem(stepHistoryKey)
-        const currentHistorySteps = storedHistorySteps ? JSON.parse(storedHistorySteps) : 0
-        const updatedHistorySteps = currentHistorySteps + stepDelta
+          ? JSON.parse(await AsyncStorage.getItem(stepHistoryKey))
+          : 0;
+        const updatedHistorySteps = storedHistorySteps + stepDelta;
+        await AsyncStorage.setItem(stepHistoryKey, JSON.stringify(updatedHistorySteps));
 
-        await AsyncStorage.setItem(stepHistoryKey, JSON.stringify(updatedHistorySteps))
+        // Sync with backend
+        await axios.post(
+          "http://localhost:4000/step-activity",
+          {
+            stepCount: updatedTotalSteps,
+            distance: null,
+            timestamp: new Date(),
+          },
+          { withCredentials: true }
+        );
 
-        // Update UI
-        setStepCount(updatedTotalSteps)
-
+        setStepCount(updatedTotalSteps);
         console.log(
           "Android updated stepCount:",
           updatedTotalSteps,
           "New steps:",
           stepDelta,
           "History steps for today:",
-          updatedHistorySteps,
-        )
+          updatedHistorySteps
+        );
       } catch (error) {
-        console.error("Error handling Android step update:", error)
-      }
-    }
-
-    // Handle app state changes (foreground/background)
-    const handleAppStateChange = (nextAppState) => {
-      if (appState.match(/inactive|background/) && nextAppState === "active") {
-        console.log("App has come to the foreground!")
-        // When app comes to foreground, check for new steps
-        if (Platform.OS === "android" && subscription) {
-          // For Android, we'll get an update when the app comes to foreground
-          console.log("Checking for new steps after app resumed")
+        console.error("Error handling Android step update:", error);
+        if (error.response && error.response.status === 500) {
+          Alert.alert("Server Error", "Unable to save step data. Please try again later.");
         }
       }
-      setAppState(nextAppState)
-    }
+    };
+
+    const handleAppStateChange = (nextAppState) => {
+      if (appState.match(/inactive|background/) && nextAppState === "active") {
+        console.log("App has come to the foreground!");
+        if (Platform.OS === "android" && subscription) {
+          console.log("Checking for new steps after app resumed");
+        }
+      }
+      setAppState(nextAppState);
+    };
 
     const setupStepCounting = async () => {
-      const available = await checkPedometerAvailability()
+      const available = await checkPedometerAvailability();
       if (!available) {
-        console.log("Pedometer is not available on this device")
-        return
+        console.log("Pedometer is not available on this device");
+        return;
       }
 
-      await loadInitialData()
+      await loadInitialData();
 
-      // Set up app state change listener
-      appStateSubscription = AppState.addEventListener("change", handleAppStateChange)
+      appStateSubscription = AppState.addEventListener("change", handleAppStateChange);
 
       try {
         if (Platform.OS === "ios") {
-          // iOS: Use watchStepCount for real-time updates
           subscription = Pedometer.watchStepCount((result) => {
-            console.log("iOS steps reported by pedometer:", result.steps)
-            updateStepCountInStorage(result.steps)
-          })
+            console.log("iOS steps reported by pedometer:", result.steps);
+            updateStepCountInStorage(result.steps);
+          });
         } else {
-          // Android: Use watchStepCount but handle differently
-          // Get the last recorded Android step count
-          const storedLastCount = await AsyncStorage.getItem("androidLastStepCount")
+          const storedLastCount = await AsyncStorage.getItem("androidLastStepCount");
           if (storedLastCount) {
-            lastAndroidStepCount = JSON.parse(storedLastCount)
+            lastAndroidStepCount = JSON.parse(storedLastCount);
           }
 
           subscription = Pedometer.watchStepCount((result) => {
-            console.log("Android steps reported by pedometer:", result.steps)
-            handleAndroidStepUpdate(result)
-          })
+            console.log("Android steps reported by pedometer:", result.steps);
+            handleAndroidStepUpdate(result);
+          });
         }
       } catch (error) {
-        console.error("Error setting up step counter:", error)
+        console.error("Error setting up step counter:", error);
       }
-    }
+    };
 
-    setupStepCounting()
+    if (userId) setupStepCounting();
 
-    // Cleanup
     return () => {
-      if (subscription) {
-        subscription.remove()
-      }
-      if (appStateSubscription) {
-        appStateSubscription.remove()
-      }
-    }
-  }, [setStepCount])
+      if (subscription) subscription.remove();
+      if (appStateSubscription) appStateSubscription.remove();
+    };
+  }, [userId, setStepCount]);
 
-  return null
+  return null;
 }
-

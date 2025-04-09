@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useContext } from "react";
 import {
   View,
   Text,
@@ -9,6 +9,7 @@ import {
   Alert,
 } from "react-native";
 import axios from "axios";
+import { UserContext } from "../context/UserContext"; // Create this context
 
 const { width } = Dimensions.get("window");
 const PRIMARY_COLOR = "#48CAB2";
@@ -18,6 +19,7 @@ export default function login({ navigation }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPasswordField, setShowPasswordField] = useState(false);
+  const { setUserId } = useContext(UserContext); // Use context to set userId
 
   const handleEmailChange = (text) => {
     setEmail(text);
@@ -39,14 +41,15 @@ export default function login({ navigation }) {
       const response = await axios.post("http://localhost:4000/login", {
         email,
         password,
-      });
+      }, { withCredentials: true }); // Ensure cookies are sent
 
       if (response.data.success) {
+        setUserId(response.data.userId); // Store userId in context
         Alert.alert("Success", "Login successful");
-        navigation.replace("MainApp"); // Navigate to MainApp on success
+        navigation.replace("MainApp");
       }
     } catch (error) {
-      console.log("Login error:", error.response?.data); // Debug log
+      console.log("Login error:", error.response?.data);
       Alert.alert("Error", error.response?.data?.message || "Login failed");
     }
   };
@@ -108,6 +111,7 @@ export default function login({ navigation }) {
     </View>
   );
 }
+
 
 const styles = StyleSheet.create({
   container: {
