@@ -54,34 +54,34 @@ jobs:
           if [ ! -f "web.config" ]; then
             echo "Creating web.config file..."
             cat > web.config << EOL
-            |<?xml version="1.0" encoding="utf-8"?>
-            |<configuration>
-            |  <system.webServer>
-            |    <webSocket enabled="false" />
-            |    <handlers>
-            |      <add name="iisnode" path="server.js" verb="*" modules="iisnode" />
-            |    </handlers>
-            |    <rewrite>
-            |      <rules>
-            |        <rule name="Main Rule">
-            |          <match url="/*" />
-            |          <conditions logicalGrouping="MatchAll">
-            |            <add input="{REQUEST_FILENAME}" matchType="IsFile" negate="true" />
-            |          </conditions>
-            |          <action type="Rewrite" url="server.js" />
-            |        </rule>
-            |      </rules>
-            |    </rewrite>
-            |    <iisnode
-            |      nodeProcessCommandLine="node"
-            |      watchedFiles="web.config;*.js"
-            |      loggingEnabled="true"
-            |      debuggingEnabled="true"
-            |      devErrorsEnabled="true"
-            |    />
-            |  </system.webServer>
-            |</configuration>
-            |EOL
+              <?xml version="1.0" encoding="utf-8"?>
+              <configuration>
+                <system.webServer>
+                  <webSocket enabled="false" />
+                  <handlers>
+                    <add name="iisnode" path="server.js" verb="*" modules="iisnode" />
+                  </handlers>
+                  <rewrite>
+                    <rules>
+                      <rule name="Main Rule">
+                        <match url="/*" />
+                        <conditions logicalGrouping="MatchAll">
+                          <add input="{REQUEST_FILENAME}" matchType="IsFile" negate="true" />
+                        </conditions>
+                        <action type="Rewrite" url="server.js" />
+                      </rule>
+                    </rules>
+                  </rewrite>
+                  <iisnode
+                    nodeProcessCommandLine="node"
+                    watchedFiles="web.config;*.js"
+                    loggingEnabled="true"
+                    debuggingEnabled="true"
+                    devErrorsEnabled="true"
+                  />
+                </system.webServer>
+              </configuration>
+              EOL
           fi
         shell: bash
 
