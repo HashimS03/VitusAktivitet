@@ -12,7 +12,7 @@ const config = {
     trustServerCertificate: false,
   },
 };
-
+console.log("🧪 Starting DB connection...");
 const poolPromise = new sql.ConnectionPool(config)
   .connect()
   .then((pool) => {
