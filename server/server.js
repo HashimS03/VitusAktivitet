@@ -1,22 +1,104 @@
 const express = require("express");
 const cors = require("cors");
 const session = require("express-session");
-const { sql, poolPromise } = require("./db"); // Ensure database connection
+const { sql, poolPromise } = require("./db");
+const bcrypt = require("bcrypt");
 require("dotenv").config();
 
 const app = express();
 const PORT = process.env.PORT || 4000;
 
 app.use(express.json());
-app.use(cors());
-// ✅ Fix: Use SESSION_SECRET instead of JWT_SECRET
+// Configure CORS to allow your frontend (e.g., http://localhost:3000 for React Native dev server)
+app.use(cors({ origin: "http://localhost:3000", credentials: true }));
+
+// Use SESSION_SECRET for session management
 app.use(
   session({
-    secret: process.env.SESSION_SECRET,
+    secret: process.env.SESSION_SECRET || "your-secret-key",
     resave: false,
-    saveUninitialized: true,
+    saveUninitialized: false,
   })
 );
+
+// 🔹 Route to Register a User
+app.post("/register", async (req, res) => {
+  console.log("Register request received:", req.body); // Debug log
+  try {
+    const { name, email, password, avatar } = req.body;
+
+    // Validate required fields
+    if (!name || !email || !password) {
+      return res.status(400).json({ success: false, message: "All fields are required" });
+    }
+
+    // Hash the password
+    const saltRounds = 10;
+    const hashedPassword = await bcrypt.hash(password, saltRounds);
+
+    const pool = await poolPromise;
+
+    await pool
+      .request()
+      .input("name", sql.NVarChar, name || null) // Allow null based on schema
+      .input("email", sql.NVarChar, email || null) // Allow null based on schema
+      .input("password", sql.VarChar, hashedPassword) // Updated to VarChar
+      .input("avatar", sql.Image, avatar || null) // Updated to Image type
+      .query(`
+        INSERT INTO [USER] ([name], [email], [password], [avatar], [created_at], [last_login])
+        VALUES (@name, @email, @password, @avatar, GETDATE(), NULL)
+      `);
+
+    console.log("User registered successfully:", { name, email });
+    res.status(201).json({ success: true, message: "User registered successfully" });
+  } catch (err) {
+    console.error("Registration error:", err); // Debug error
+    if (err.number === 2627) {
+      return res.status(400).json({ success: false, message: "Email already exists" });
+    }
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// 🔹 Route to Login
+app.post("/login", async (req, res) => {
+  console.log("Login request received:", req.body); // Debug log
+  try {
+    const { email, password } = req.body;
+
+    if (!email || !password) {
+      return res.status(400).json({ success: false, message: "Email and password are required" });
+    }
+
+    const pool = await poolPromise;
+    const result = await pool
+      .request()
+      .input("email", sql.NVarChar, email)
+      .query("SELECT [Id], [password] FROM [USER] WHERE [email] = @email");
+
+    if (result.recordset.length === 0) {
+      return res.status(401).json({ success: false, message: "Invalid email or password" });
+    }
+
+    const user = result.recordset[0];
+    const match = await bcrypt.compare(password, user.password);
+
+    if (match) {
+      await pool
+        .request()
+        .input("id", sql.Int, user.Id)
+        .query("UPDATE [USER] SET [last_login] = GETDATE() WHERE [Id] = @id");
+
+      req.session.userId = user.Id;
+      res.json({ success: true, message: "Login successful", userId: user.Id });
+    } else {
+      res.status(401).json({ success: false, message: "Invalid email or password" });
+    }
+  } catch (err) {
+    console.error("Login error:", err);
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
 
 // 🔹 Route to Create an Event
 app.post("/events", async (req, res) => {
@@ -37,6 +119,7 @@ app.post("/events", async (req, res) => {
 
     const pool = await poolPromise;
     const result = await pool.request()
+    
       .input("title", sql.NVarChar, title)
       .input("description", sql.NVarChar, description)
       .input("activity", sql.NVarChar, activity)
@@ -65,7 +148,7 @@ app.post("/events", async (req, res) => {
       eventId: eventId 
     });
   } catch (err) {
-    res.status(500).json({ success: false, error: err.message });
+    res.status(500).json({ success: false, message: err.message });
   }
 });
 
@@ -76,77 +159,7 @@ app.get("/events", async (req, res) => {
     const result = await pool.request().query("SELECT * FROM events");
     res.json(result.recordset);
   } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// 🔹 Route to Update an Event
-app.put("/events/:id", async (req, res) => {
-  try {
-    const eventId = req.params.id;
-    const {
-      title,
-      description,
-      activity,
-      goal,
-      start_date,
-      end_date,
-      location,
-      event_type,
-      total_participants,
-      team_count,
-      members_per_team,
-    } = req.body;
-
-    const pool = await poolPromise;
-    await pool.request()
-      .input("id", sql.NVarChar, eventId)
-      .input("title", sql.NVarChar, title)
-      .input("description", sql.NVarChar, description)
-      .input("activity", sql.NVarChar, activity)
-      .input("goal", sql.Int, goal)
-      .input("start_date", sql.DateTime, start_date)
-      .input("end_date", sql.DateTime, end_date)
-      .input("location", sql.NVarChar, location)
-      .input("event_type", sql.NVarChar, event_type)
-      .input("total_participants", sql.Int, total_participants)
-      .input("team_count", sql.Int, team_count)
-      .input("members_per_team", sql.Int, members_per_team)
-      .query(`
-        UPDATE events
-        SET title = @title,
-            description = @description,
-            activity = @activity,
-            goal = @goal,
-            start_date = @start_date,
-            end_date = @end_date,
-            location = @location,
-            event_type = @event_type,
-            total_participants = @total_participants,
-            team_count = @team_count,
-            members_per_team = @members_per_team
-        WHERE id = @id
-      `);
-
-    res.json({ success: true, message: "Event updated successfully" });
-  } catch (err) {
-    res.status(500).json({ success: false, error: err.message });
-  }
-});
-
-// 🔹 Route to Delete an Event
-app.delete("/events/:id", async (req, res) => {
-  try {
-    const eventId = req.params.id;
-    
-    const pool = await poolPromise;
-    await pool.request()
-      .input("id", sql.NVarChar, eventId)
-      .query("DELETE FROM events WHERE id = @id");
-      
-    res.json({ success: true, message: "Event deleted successfully" });
-  } catch (err) {
-    res.status(500).json({ success: false, error: err.message });
+    res.status(500).json({ success: false, message: err.message });
   }
 });
 

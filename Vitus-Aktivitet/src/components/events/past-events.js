@@ -17,22 +17,20 @@ import { useNavigation } from "@react-navigation/native";
 import { Swipeable } from "react-native-gesture-handler";
 
 const PastEvents = () => {
-  const { theme, accentColor } = useTheme(); // Added accentColor
+  const { theme, accentColor } = useTheme();
   const { pastEvents, clearPastEvents, deleteEvent } = useContext(EventContext);
   const navigation = useNavigation();
   const [selectedEvent, setSelectedEvent] = useState(null);
   const [menuVisible, setMenuVisible] = useState(false);
 
-  // Map accent colors to the correct Vitus_Happy images
   const vitusHappyImages = {
-    "#48CAB2": require("../../../assets/Vitus_Happy.png"), 
+    "#48CAB2": require("../../../assets/Vitus_Happy.png"),
     "#FF6B6B": require("../../../assets/Vitus_Happy_Red.png"),
     "#FFD93D": require("../../../assets/Vitus_Happy_Gold.png"),
     "#4C82FB": require("../../../assets/Vitus_Happy_Blue.png"),
     "#8A4FFF": require("../../../assets/Vitus_Happy_Purple.png"),
   };
 
-  // Select the appropriate Vitus_Happy image based on accentColor
   const selectedVitusHappyImage =
     vitusHappyImages[accentColor] || require("../../../assets/Vitus_Happy.png");
 
@@ -97,32 +95,37 @@ const PastEvents = () => {
   const renderRightActions = (progress, dragX, eventId) => {
     const trans = dragX.interpolate({
       inputRange: [0, 80],
-      outputRange: [0, 80],
+      outputRange: [0, 0], // Changed to prevent sliding beyond the card width
       extrapolate: "clamp",
     });
+
     return (
-      <TouchableOpacity
-        style={[
-          styles.swipeButton,
-          { backgroundColor: theme.error || "#FF0000" },
-        ]}
-        onPress={() => {
-          Alert.alert(
-            "Delete Event",
-            "Are you sure you want to delete this past event?",
-            [
-              { text: "Cancel", style: "cancel" },
-              {
-                text: "Delete",
-                style: "destructive",
-                onPress: () => deleteEvent(eventId),
-              },
-            ]
-          );
-        }}
-      >
-        <Text style={styles.swipeButtonText}>Delete</Text>
-      </TouchableOpacity>
+      <View style={styles.swipeContainer}>
+        <TouchableOpacity
+          style={[
+            styles.swipeButton,
+            {
+              backgroundColor: theme.error || "#FF0000",
+            },
+          ]}
+          onPress={() => {
+            Alert.alert(
+              "Delete Event",
+              "Are you sure you want to delete this past event?",
+              [
+                { text: "Cancel", style: "cancel" },
+                {
+                  text: "Delete",
+                  style: "destructive",
+                  onPress: () => deleteEvent(eventId),
+                },
+              ]
+            );
+          }}
+        >
+          <Text style={styles.swipeButtonText}>Delete</Text>
+        </TouchableOpacity>
+      </View>
     );
   };
 
@@ -231,7 +234,7 @@ const PastEvents = () => {
             ]}
           >
             <Image
-              source={selectedVitusHappyImage} // Updated to use dynamic image
+              source={selectedVitusHappyImage}
               style={styles.emptyStateImage}
             />
             <Text style={[styles.emptyStateTitle, { color: theme.text }]}>
@@ -354,11 +357,21 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   clearButtonText: { fontSize: 14, fontWeight: "600" },
+  swipeContainer: {
+    flex: 1,
+    borderRadius: 16, // Match eventCard
+    marginHorizontal: 4, // Match eventCard
+    marginBottom: 16, // Match eventCard
+    overflow: "hidden", // Prevent overflow
+  },
   swipeButton: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    width: 80,
+    padding: 16, // Match eventCard padding
+    borderRadius: 16, // Match eventCard
+    width: "100%", // Ensure it takes full width of swipeContainer
+    height: "100%", // Ensure it takes full height of swipeContainer
   },
   swipeButtonText: {
     color: "#FFFFFF",

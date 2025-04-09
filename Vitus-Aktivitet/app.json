@@ -12,15 +12,32 @@
       "resizeMode": "contain",
       "backgroundColor": "#ffffff"
     },
+    "plugins": [
+      [
+        "expo-sensors",
+        {
+          "motionPermission": "Allow VitusAktivitet to access your device motion."
+        }
+      ]
+    ],
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.sarim3.VitusAktivitet",
+      "infoPlist": {
+        "NSMotionUsageDescription": "This app needs access to your motion data to count steps and track your activity.",
+        "UIBackgroundModes": ["location", "fetch"]
+      }
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "package": "com.sarim3.VitusAktivitet"
+      "package": "com.sarim3.VitusAktivitet",
+      "permissions": [
+        "android.permission.ACTIVITY_RECOGNITION",
+        "android.permission.FOREGROUND_SERVICE"
+      ]
     },
     "web": {
       "favicon": "./assets/favicon.png"

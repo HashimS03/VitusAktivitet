@@ -36,7 +36,7 @@ import { useTheme } from "../context/ThemeContext";
 import { EventContext } from "../events/EventContext";
 import { BlurView } from "expo-blur";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { Swipeable } from "react-native-gesture-handler"; // Riktig import
+import { Swipeable } from "react-native-gesture-handler";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 
 const AnimatedFlatList = Animated.createAnimatedComponent(FlatList);
@@ -53,7 +53,7 @@ const Leaderboard = ({ route }) => {
   const [showFilterModal, setShowFilterModal] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const { theme, isDarkMode, toggleTheme, accentColor } = useTheme();
-  const { activeEvents, pastEvents, deleteEvent } = useContext(EventContext); // Bruk deleteEvent i stedet for removePastEvent
+  const { activeEvents, pastEvents, deleteEvent } = useContext(EventContext);
   const [leaderboardType, setLeaderboardType] = useState("General");
   const [selectedEvent, setSelectedEvent] = useState(
     route.params?.eventId
@@ -327,7 +327,7 @@ const Leaderboard = ({ route }) => {
                   {
                     text: "Slett",
                     style: "destructive",
-                    onPress: () => deleteEvent(item.id), // Bruk deleteEvent
+                    onPress: () => deleteEvent(item.id),
                   },
                 ]
               );
@@ -537,7 +537,7 @@ const Leaderboard = ({ route }) => {
                     ]}
                   >
                     {leaderboardType === "General"
-                      ? "Generell"
+                      ? "Felles"
                       : selectedEvent
                       ? selectedEvent.title
                       : "Hendelser"}
@@ -708,7 +708,10 @@ const Leaderboard = ({ route }) => {
           />
         ) : (
           <View
-            style={[StyleSheet.absoluteFill, { backgroundColor: "#FFFFFF" }]}
+            style={[
+              StyleSheet.absoluteFill,
+              { backgroundColor: isDarkMode ? "#000000" : "#FFFFFF" },
+            ]}
           />
         )}
         <View
@@ -767,7 +770,10 @@ const Leaderboard = ({ route }) => {
         />
       ) : (
         <View
-          style={[StyleSheet.absoluteFill, { backgroundColor: "#FFFFFF" }]}
+          style={[
+            StyleSheet.absoluteFill,
+            { backgroundColor: isDarkMode ? "#1E1E1E" : "#FFFFFF" },
+          ]}
         />
       )}
       <View style={styles.overlayContent}>
@@ -880,7 +886,7 @@ const Leaderboard = ({ route }) => {
                       },
                     ]}
                   >
-                    {option === "General" ? "Generell" : "Hendelse"} Ledertavle
+                    {option === "General" ? "Felles" : "Hendelse"} Ledertavle
                   </Text>
                 </TouchableOpacity>
               ))}
@@ -915,7 +921,10 @@ const Leaderboard = ({ route }) => {
             />
           ) : (
             <View
-              style={[StyleSheet.absoluteFill, { backgroundColor: "#FFFFFF" }]}
+              style={[
+                StyleSheet.absoluteFill,
+                { backgroundColor: isDarkMode ? "#1E1E1E" : "#FFFFFF" },
+              ]}
             />
           )}
           <View

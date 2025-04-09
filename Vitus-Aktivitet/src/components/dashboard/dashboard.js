@@ -58,6 +58,7 @@ const initializeAppForDev = async () => {
         key === "stepCount" ||
         key === "dailyGoal" ||
         key === "currentStreak" ||
+        key === "bestStreak" ||
         key === "lastCompletionDate" ||
         key === "totalSteps" ||
         key === "participatedEvents" ||
@@ -287,52 +288,58 @@ const EnhancedTutorial = ({
   );
 };
 
-const updateStreaks = async (stepCount, dailyGoal) => {
+const updateStreaks = async (stepCount, dailyGoal, isNewDayReset = false) => {
   const today = new Date();
   const todayString = today.toISOString().split("T")[0];
+
   const storedLastDate = await AsyncStorage.getItem("lastCompletionDate");
-  const storedStreak = await AsyncStorage.getItem("currentStreak");
+  const storedStreak = parseInt(
+    (await AsyncStorage.getItem("currentStreak")) || "0",
+    10
+  );
+  const storedBestStreak = parseInt(
+    (await AsyncStorage.getItem("bestStreak")) || "0",
+    10
+  );
 
-  let currentStreak = storedStreak ? parseInt(storedStreak) : 0;
-  let lastDate = storedLastDate ? new Date(storedLastDate) : null;
+  let currentStreak = storedStreak;
+  let lastCompletionDate = storedLastDate || null;
 
-  if (stepCount >= dailyGoal) {
-    if (lastDate) {
-      const diffTime = today - lastDate;
-      const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+  const hasReachedGoal = stepCount >= dailyGoal;
 
-      if (diffDays === 1) {
-        currentStreak += 1;
-      } else if (diffDays > 1) {
-        currentStreak = 1;
-      } else if (diffDays === 0 && currentStreak === 0) {
-        currentStreak = 1;
-      }
-    } else {
-      currentStreak = 1;
-    }
-    lastDate = today;
-  } else if (lastDate) {
-    const diffTime = today - lastDate;
-    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
-    if (diffDays > 1) {
-      currentStreak = 0;
-    }
+  if (
+    isNewDayReset &&
+    lastCompletionDate &&
+    lastCompletionDate !== todayString
+  ) {
+    const lastDate = new Date(lastCompletionDate);
+    const diffDays = Math.floor((today - lastDate) / (1000 * 60 * 60 * 24));
+    if (diffDays > 1) currentStreak = 0; // Reset hvis mer enn én dag er hoppet over
+  } else if (hasReachedGoal && lastCompletionDate !== todayString) {
+    const diffDays = lastCompletionDate
+      ? Math.floor(
+          (today - new Date(lastCompletionDate)) / (1000 * 60 * 60 * 24)
+        )
+      : null;
+    if (!lastCompletionDate || diffDays === 1) currentStreak += 1; // Øk streak
+    else if (diffDays > 1) currentStreak = 1; // Start ny streak
+    lastCompletionDate = todayString;
   }
+
+  const bestStreak = Math.max(currentStreak, storedBestStreak);
 
   await AsyncStorage.setItem("currentStreak", currentStreak.toString());
-  if (lastDate) {
-    await AsyncStorage.setItem(
-      "lastCompletionDate",
-      lastDate.toISOString().split("T")[0]
-    );
+  await AsyncStorage.setItem("bestStreak", bestStreak.toString());
+  if (lastCompletionDate) {
+    await AsyncStorage.setItem("lastCompletionDate", lastCompletionDate);
   }
 
-  return currentStreak;
+  return { currentStreak, bestStreak };
 };
 
 export default function Dashboard() {
   const [stepCount, setStepCount] = useState(0);
+  const [bestStreak, setBestStreak] = useState(0);
   const [streak, setStreak] = useState(0);
   const navigation = useNavigation();
   const { theme, accentColor } = useTheme();
@@ -352,16 +359,14 @@ export default function Dashboard() {
   const [unlockedLevel, setUnlockedLevel] = useState(0);
   const [progress, setProgress] = useState({ current: 0, nextGoal: 0 });
 
-  // Map accent colors to the correct Vitus_Happy images
   const vitusHappyImages = {
     "#48CAB2": require("../../../assets/Vitus_Happy.png"),
     "#FF6B6B": require("../../../assets/Vitus_Happy_Red.png"),
     "#FFD93D": require("../../../assets/Vitus_Happy_Gold.png"),
     "#4C82FB": require("../../../assets/Vitus_Happy_Blue.png"),
-    "#8A4FFF": require("../../../assets/Vitus_Happy_Purple.png"), // Included for completeness
+    "#8A4FFF": require("../../../assets/Vitus_Happy_Purple.png"),
   };
 
-  // Get the correct Vitus_Happy image for the selected accent color
   const selectedVitusHappyImage =
     vitusHappyImages[accentColor] || require("../../../assets/Vitus_Happy.png");
 
@@ -514,58 +519,64 @@ export default function Dashboard() {
     selectRandomTrophyAndLoadProgress();
   }, []);
 
-  // Daglig reset av stepCount og sjekk for ventende mål
-  useEffect(() => {
-    const checkAndResetDailySteps = async () => {
-      try {
-        const today = new Date().toISOString().split("T")[0];
-        const lastDate = await AsyncStorage.getItem("lastStepResetDate");
+  // Daglig reset av stepCount og oppdatering av streaks
+  const checkAndResetDailySteps = async () => {
+    try {
+      const today = new Date();
+      const todayString = today.toISOString().split("T")[0];
+      const lastResetDate = await AsyncStorage.getItem("lastStepResetDate");
 
-        // Sjekk om det finnes et ventende mål som skal aktiveres
+      if (lastResetDate !== todayString) {
+        const storedSteps = await AsyncStorage.getItem("stepCount");
+        const previousSteps = storedSteps ? parseInt(storedSteps, 10) : 0;
+
+        if (lastResetDate && previousSteps > 0) {
+          await AsyncStorage.setItem(
+            `stepHistory_${lastResetDate}`,
+            previousSteps.toString()
+          );
+        }
+
+        await AsyncStorage.setItem("stepCount", "0");
+        setStepCount(0);
+        await AsyncStorage.setItem("lastStepResetDate", todayString);
+
+        const { currentStreak, bestStreak } = await updateStreaks(
+          previousSteps,
+          dailyGoal,
+          true
+        );
+        setStreak(currentStreak);
+        setBestStreak(bestStreak);
+
         const pendingGoal = await AsyncStorage.getItem("pendingDailyGoal");
         const pendingGoalDate = await AsyncStorage.getItem("pendingGoalDate");
-
-        if (pendingGoal && pendingGoalDate && lastDate !== today) {
+        if (pendingGoal && pendingGoalDate === todayString) {
           const newGoal = parseInt(pendingGoal, 10);
           if (!isNaN(newGoal) && newGoal > 0) {
             await AsyncStorage.setItem("dailyGoal", JSON.stringify(newGoal));
             setDailyGoal(newGoal);
             await AsyncStorage.removeItem("pendingDailyGoal");
             await AsyncStorage.removeItem("pendingGoalDate");
-            console.log("✅ Ventende mål aktivert:", newGoal);
           }
         }
 
-        if (lastDate !== today) {
-          // Lagre forrige dags skritt i historikken før reset
-          const storedSteps = await AsyncStorage.getItem("stepCount");
-          const previousSteps = storedSteps ? parseInt(storedSteps) : 0;
-          if (lastDate && previousSteps > 0) {
-            await AsyncStorage.setItem(
-              `stepHistory_${lastDate}`,
-              previousSteps.toString()
-            );
-          }
-
-          // Nullstill stepCount
-          await AsyncStorage.setItem("stepCount", "0");
-          setStepCount(0);
-          await AsyncStorage.setItem("lastStepResetDate", today);
-          console.log("✅ stepCount nullstilt for ny dag:", today);
-
-          // Oppdater streak basert på forrige dags data
-          const updatedStreak = await updateStreaks(previousSteps, dailyGoal);
-          setStreak(updatedStreak);
-        }
-      } catch (error) {
-        console.error("❌ Feil ved daglig reset av stepCount:", error);
+        console.log(`✅ Daglig reset utført for: ${todayString}`);
       }
-    };
+    } catch (error) {
+      console.error("❌ Feil ved daglig reset:", error);
+    }
+  };
 
-    checkAndResetDailySteps();
-    const interval = setInterval(checkAndResetDailySteps, 60 * 60 * 1000); // Sjekk hver time
-    return () => clearInterval(interval);
+  useEffect(() => {
+    checkAndResetDailySteps(); // Kjør ved oppstart
   }, [dailyGoal]);
+
+  useFocusEffect(
+    useCallback(() => {
+      checkAndResetDailySteps(); // Kjør når skjermen kommer i fokus
+    }, [dailyGoal])
+  );
 
   useEffect(() => {
     const loadData = async () => {
@@ -577,11 +588,15 @@ export default function Dashboard() {
         setDailyGoal(initialGoal);
 
         const storedSteps = await AsyncStorage.getItem("stepCount");
-        const initialSteps = storedSteps ? parseInt(storedSteps) : 0;
+        const initialSteps = storedSteps ? parseInt(storedSteps, 10) : 0;
         setStepCount(initialSteps);
 
-        const initialStreak = await updateStreaks(initialSteps, initialGoal);
-        setStreak(initialStreak);
+        const { currentStreak, bestStreak } = await updateStreaks(
+          initialSteps,
+          initialGoal
+        );
+        setStreak(currentStreak);
+        setBestStreak(bestStreak);
 
         const totalSteps = parseInt(
           (await AsyncStorage.getItem("totalSteps")) || "0",
@@ -613,7 +628,7 @@ export default function Dashboard() {
       const updateSteps = async () => {
         try {
           const storedSteps = await AsyncStorage.getItem("stepCount");
-          let previousSteps = storedSteps ? parseInt(storedSteps) : 0;
+          let previousSteps = storedSteps ? parseInt(storedSteps, 10) : 0;
 
           if (
             route.params?.addedSteps &&
@@ -632,12 +647,18 @@ export default function Dashboard() {
             const newTotalSteps = totalSteps + newSteps;
             await AsyncStorage.setItem("totalSteps", newTotalSteps.toString());
 
-            const today = new Date().toISOString().split("T")[0];
-            const stepHistoryKey = `stepHistory_${today}`;
-            await AsyncStorage.setItem(stepHistoryKey, newStepCount.toString());
+            const todayString = new Date().toISOString().split("T")[0];
+            await AsyncStorage.setItem(
+              `stepHistory_${todayString}`,
+              newStepCount.toString()
+            );
 
-            const updatedStreak = await updateStreaks(newStepCount, dailyGoal);
-            setStreak(updatedStreak);
+            const { currentStreak, bestStreak } = await updateStreaks(
+              newStepCount,
+              dailyGoal
+            );
+            setStreak(currentStreak);
+            setBestStreak(bestStreak);
 
             if (randomTrophy) {
               let level = 0;
@@ -678,7 +699,7 @@ export default function Dashboard() {
                   }
                   break;
                 case "Streak Star":
-                  currentProgress = updatedStreak;
+                  currentProgress = currentStreak;
                   if (currentProgress >= 15) {
                     level = 3;
                     nextGoal = 15;
@@ -1031,6 +1052,7 @@ export default function Dashboard() {
       setStepCount(0);
       setDailyGoal(DAILY_STEP_GOAL);
       setStreak(0);
+      setBestStreak(0);
       console.log("App data reset after tutorial completion");
     } catch (error) {
       console.error("❌ Feil ved nullstilling av app-data:", error);
@@ -1041,48 +1063,57 @@ export default function Dashboard() {
     navigation.navigate("History");
   };
 
-  const handleSetDailyGoal = async () => {
-    const goal = Number.parseInt(newGoal, 10);
-    if (!isNaN(goal) && goal > 0) {
-      try {
-        const today = new Date().toISOString().split("T")[0];
-        const lastGoalUpdateDate = await AsyncStorage.getItem(
-          "lastGoalUpdateDate"
-        );
-
-        if (lastGoalUpdateDate === today) {
-          // Brukeren har allerede oppdatert målet i dag, lagre som ventende
-          await AsyncStorage.setItem("pendingDailyGoal", JSON.stringify(goal));
-          await AsyncStorage.setItem("pendingGoalDate", today);
-          Alert.alert(
-            "Mål lagret for i morgen",
-            `Du kan kun endre målet én gang per dag. Ditt nye mål (${goal} skritt) vil tre i kraft i morgen.`,
-            [{ text: "OK" }]
-          );
-        } else {
-          // Oppdater målet som normalt
-          await AsyncStorage.setItem("dailyGoal", JSON.stringify(goal));
-          await AsyncStorage.setItem("lastGoalUpdateDate", today);
-          setDailyGoal(goal);
-        }
-
-        setShowGoalModal(false);
-        setNewGoal("");
-      } catch (error) {
-        console.error("❌ Feil ved oppdatering av daglig mål:", error);
-      }
-    } else {
-      Alert.alert(
-        "Ugyldig mål",
-        "Vennligst skriv inn et gyldig tall større enn 0."
+const handleSetDailyGoal = async () => {
+  const goal = Number.parseInt(newGoal, 10);
+  if (!isNaN(goal) && goal > 0) {
+    try {
+      const today = new Date();
+      const tomorrow = new Date(today);
+      tomorrow.setDate(today.getDate() + 1); // Sett til neste dag
+      const tomorrowString = tomorrow.toISOString().split("T")[0];
+      const lastGoalUpdateDate = await AsyncStorage.getItem(
+        "lastGoalUpdateDate"
       );
+
+      if (lastGoalUpdateDate === today.toISOString().split("T")[0]) {
+        await AsyncStorage.setItem("pendingDailyGoal", JSON.stringify(goal));
+        await AsyncStorage.setItem("pendingGoalDate", tomorrowString);
+        Alert.alert(
+          "Mål lagret for i morgen",
+          `Du kan kun endre målet én gang per dag. Ditt nye mål (${goal} skritt) vil tre i kraft i morgen.`,
+          [{ text: "OK" }]
+        );
+      } else {
+        await AsyncStorage.setItem("pendingDailyGoal", JSON.stringify(goal));
+        await AsyncStorage.setItem("pendingGoalDate", tomorrowString);
+        await AsyncStorage.setItem(
+          "lastGoalUpdateDate",
+          today.toISOString().split("T")[0]
+        );
+        Alert.alert(
+          "Mål lagret for i morgen",
+          `Ditt nye mål (${goal} skritt) vil tre i kraft i morgen.`,
+          [{ text: "OK" }]
+        );
+      }
+
+      setShowGoalModal(false);
+      setNewGoal("");
+    } catch (error) {
+      console.error("❌ Feil ved oppdatering av daglig mål:", error);
     }
-  };
+  } else {
+    Alert.alert(
+      "Ugyldig mål",
+      "Vennligst skriv inn et gyldig tall større enn 0."
+    );
+  }
+};
 
   const handleCalculatorConfirm = async (steps) => {
     try {
       const storedSteps = await AsyncStorage.getItem("stepCount");
-      let previousSteps = storedSteps ? parseInt(storedSteps) : 0;
+      let previousSteps = storedSteps ? parseInt(storedSteps, 10) : 0;
       const newStepCount = previousSteps + steps;
 
       await AsyncStorage.setItem("stepCount", newStepCount.toString());
@@ -1099,8 +1130,12 @@ export default function Dashboard() {
       const stepHistoryKey = `stepHistory_${today}`;
       await AsyncStorage.setItem(stepHistoryKey, newStepCount.toString());
 
-      const updatedStreak = await updateStreaks(newStepCount, dailyGoal);
-      setStreak(updatedStreak);
+      const { currentStreak, bestStreak } = await updateStreaks(
+        newStepCount,
+        dailyGoal
+      );
+      setStreak(currentStreak);
+      setBestStreak(bestStreak);
 
       if (randomTrophy) {
         let level = 0;
@@ -1139,14 +1174,14 @@ export default function Dashboard() {
             }
             break;
           case "Streak Star":
-            currentProgress = updatedStreak;
-            if (updatedStreak >= 15) {
+            currentProgress = currentStreak;
+            if (currentProgress >= 15) {
               level = 3;
               nextGoal = 15;
-            } else if (updatedStreak >= 10) {
+            } else if (currentProgress >= 10) {
               level = 2;
               nextGoal = 15;
-            } else if (updatedStreak >= 5) {
+            } else if (currentProgress >= 5) {
               level = 1;
               nextGoal = 10;
             } else {
@@ -1284,10 +1319,7 @@ export default function Dashboard() {
             accentColor={accentColor}
           />
           <View style={styles.progressContent}>
-            <Image
-              source={selectedVitusHappyImage} // Use the dynamically selected image
-              style={styles.runnerIcon}
-            />
+            <Image source={selectedVitusHappyImage} style={styles.runnerIcon} />
             <TouchableOpacity
               style={[
                 styles.stepsTouchable,
