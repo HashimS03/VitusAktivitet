@@ -5,7 +5,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import axios from "axios";
 import { UserContext } from "../context/UserContext";
 import { Alert } from "react-native";
-import { SERVER_CONFIG } from "../../config/serverConfig";
+import { SERVER_CONFIG } from "../../config/serverConfig"; 
 
 
 export default function StepCounter({ setStepCount }) {

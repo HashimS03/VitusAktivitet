@@ -31,7 +31,7 @@ import { trophyData } from "../profile/achievements";
 import StepCalculator from "../dashboard/StepCalculator";
 import { UserContext } from "../context/UserContext";
 import axios from "axios";
-import { SERVER_CONFIG } from "../../config/serverConfig";
+import { SERVER_CONFIG } from "../../config/serverConfig"; 
 
 
 const SCREEN_WIDTH = Dimensions.get("window").width;
