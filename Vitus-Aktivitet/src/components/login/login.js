@@ -10,6 +10,7 @@ import {
 } from "react-native";
 import axios from "axios";
 import { UserContext } from "../context/UserContext"; // Create this context
+import { SERVER_CONFIG } from "../../config/serverConfig"; // Import the serverConfig
 
 const { width } = Dimensions.get("window");
 const PRIMARY_COLOR = "#48CAB2";
@@ -38,7 +39,8 @@ export default function login({ navigation }) {
     }
 
     try {
-      const response = await axios.post("http://localhost:4000/login", {
+      // Use the serverConfig base URL instead of hardcoded localhost
+      const response = await axios.post(`${SERVER_CONFIG.getBaseUrl()}/login`, {
         email,
         password,
       }, { withCredentials: true }); // Ensure cookies are sent
@@ -49,8 +51,11 @@ export default function login({ navigation }) {
         navigation.replace("MainApp");
       }
     } catch (error) {
-      console.log("Login error:", error.response?.data);
-      Alert.alert("Error", error.response?.data?.message || "Login failed");
+      console.log("Login error:", error);
+      Alert.alert(
+        "Error", 
+        error.response?.data?.message || "Login failed. Please check your connection."
+      );
     }
   };
 

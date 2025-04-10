@@ -41,7 +41,8 @@ app.post("/register", async (req, res) => {
     }
 
     const saltRounds = 10;
-    const hashedPassword = await bcrypt.hash(password, saltRounds);
+    const salt = await bcrypt.genSalt(saltRounds);
+    const hashedPassword = await bcrypt.hash(password, salt);
 
     const pool = await poolPromise;
     await pool
@@ -59,10 +60,18 @@ app.post("/register", async (req, res) => {
     res.status(201).json({ success: true, message: "User registered successfully" });
   } catch (err) {
     console.error("Registration error:", err);
+    const errorDetails = {
+      message: err.message,
+      stack: process.env.NODE_ENV !== 'production' ? err.stack : undefined,
+      code: err.code,
+      number: err.number
+    };
+    console.error("Error details:", errorDetails);
+    
     if (err.number === 2627) {
       return res.status(400).json({ success: false, message: "Email already exists" });
     }
-    res.status(500).json({ success: false, message: err.message });
+    res.status(500).json({ success: false, message: `Registration failed: ${err.message}` });
   }
 });
 
@@ -102,7 +111,14 @@ app.post("/login", async (req, res) => {
     }
   } catch (err) {
     console.error("Login error:", err);
-    res.status(500).json({ success: false, message: err.message });
+    const errorDetails = {
+      message: err.message,
+      stack: process.env.NODE_ENV !== 'production' ? err.stack : undefined,
+      code: err.code,
+      errno: err.errno
+    };
+    console.error("Error details:", errorDetails);
+    res.status(500).json({ success: false, message: `Login failed: ${err.message}` });
   }
 });
 
@@ -275,6 +291,49 @@ app.get("/events", authenticateUser, async (req, res) => {
     res.json(result.recordset);
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// Basic test endpoint
+app.get("/test", (req, res) => {
+  res.json({ message: "API is working!", timestamp: new Date().toISOString() });
+});
+
+// Health check endpoint 
+app.get("/health", async (req, res) => {
+  try {
+    // Test DB connection
+    let dbStatus = "unknown";
+    let dbError = null;
+    
+    try {
+      const pool = await poolPromise;
+      const result = await pool.request().query("SELECT 1 as test");
+      dbStatus = result.recordset[0].test === 1 ? "connected" : "error";
+    } catch (err) {
+      dbStatus = "error";
+      dbError = err.message;
+    }
+    
+    res.json({
+      status: "up",
+      database: dbStatus,
+      dbError: dbError,
+      environment: process.env.NODE_ENV || "unknown",
+      bcryptLoaded: typeof bcrypt !== 'undefined',
+      time: new Date().toISOString(),
+      env_vars: {
+        NODE_ENV: process.env.NODE_ENV,
+        PORT: process.env.PORT,
+        DB_CONFIG_EXISTS: !!process.env.MSSQL_USER,
+        SESSION_SECRET_EXISTS: !!process.env.SESSION_SECRET
+      }
+    });
+  } catch (error) {
+    res.status(500).json({
+      status: "error",
+      message: error.message
+    });
   }
 });
 
