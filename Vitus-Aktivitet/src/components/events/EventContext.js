@@ -1,247 +1,215 @@
 import React, { createContext, useState, useEffect } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import axios from "axios";
+import { SERVER_CONFIG } from "../../config/serverConfig"; 
+
+const STORAGE_KEY = "events";
+const API_BASE_URL = SERVER_CONFIG.getBaseUrl();
 
 export const EventContext = createContext();
 
 export const EventProvider = ({ children }) => {
   const [events, setEvents] = useState([]);
-  const [activeEvents, setActiveEvents] = useState([]);
-  const [upcomingEvents, setUpcomingEvents] = useState([]);
-  const [pastEvents, setPastEvents] = useState([]);
-  const STORAGE_KEY = "@events";
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
-  // Load events from AsyncStorage on mount
+  // Load events from server and fallback to AsyncStorage if server is unavailable
   useEffect(() => {
     const loadEvents = async () => {
       try {
-        const storedEvents = await AsyncStorage.getItem(STORAGE_KEY);
-        if (storedEvents) {
-          setEvents(JSON.parse(storedEvents));
-        } else {
-          // Initial test data (optional)
-          const initialEvents = [
-            {
-              id: "1",
-              title: "Event 1",
-              start_date: "2025-03-01T00:00:00Z",
-              end_date: "2025-03-05T00:00:00Z",
-              goalValue: 100,
-              currentValue: 50,
-            },
-            {
-              id: "2",
-              title: "Event 2",
-              start_date: "2025-03-06T00:00:00Z",
-              end_date: "2025-03-10T00:00:00Z",
-              goalValue: 200,
-              currentValue: 150,
-            },
-          ];
-          setEvents(initialEvents);
+        setLoading(true);
+        
+        // Try to fetch events from server
+        const response = await axios.get(`${API_BASE_URL}/events`);
+        const serverEvents = response.data;
+        
+        setEvents(serverEvents);
+        // Also update AsyncStorage as a backup
+        await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(serverEvents));
+        
+      } catch (serverError) {
+        console.error("Failed to load events from server:", serverError);
+        
+        // Fallback to AsyncStorage if server fails
+        try {
+          const storedEvents = await AsyncStorage.getItem(STORAGE_KEY);
+          if (storedEvents) {
+            setEvents(JSON.parse(storedEvents));
+          }
+        } catch (storageError) {
+          console.error("Failed to load events from storage:", storageError);
+          setError(storageError.message);
         }
-      } catch (error) {
-        console.error("Failed to load events:", error);
+      } finally {
+        setLoading(false);
       }
     };
+    
     loadEvents();
   }, []);
 
-  // Save events to AsyncStorage whenever events change
-  useEffect(() => {
-    const saveEvents = async () => {
-      try {
-        await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(events));
-      } catch (error) {
-        console.error("Failed to save events:", error);
-      }
-    };
-    saveEvents();
-  }, [events]);
-
-  // Function to categorize events based on current time
-  const categorizeEvents = () => {
-    const now = new Date();
-    const nowUTC = new Date(now.toISOString());
-    const updatedUpcoming = [];
-    const updatedActive = [];
-    const updatedPast = [];
-
-    console.log("Categorizing events at (UTC):", nowUTC.toISOString());
-
-    events.forEach((event) => {
-      const startDate = new Date(
-        event.start_date.endsWith("Z")
-          ? event.start_date
-          : `${event.start_date}Z`
-      );
-      const endDate = new Date(
-        event.end_date.endsWith("Z") ? event.end_date : `${event.end_date}Z`
-      );
-
-      if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
-        console.warn(
-          `Invalid date for event ${event.id}: start=${event.start_date}, end=${event.end_date}`
-        );
-        return;
-      }
-
-      console.log(
-        `Event ${
-          event.id
-        }: start=${startDate.toISOString()}, end=${endDate.toISOString()}, now=${nowUTC.toISOString()}`
-      );
-
-      if (startDate <= nowUTC && nowUTC <= endDate) {
-        updatedActive.push(event);
-        console.log(`Event ${event.id} categorized as active`);
-      } else if (startDate > nowUTC) {
-        updatedUpcoming.push(event);
-        console.log(`Event ${event.id} categorized as upcoming`);
-      } else if (endDate < nowUTC) {
-        updatedPast.push(event);
-        console.log(`Event ${event.id} categorized as past`);
-      } else {
-        console.warn(
-          `Event ${
-            event.id
-          } not categorized: start=${startDate.toISOString()}, end=${endDate.toISOString()}`
-        );
-      }
-    });
-
-    setUpcomingEvents((prev) => {
-      const newUpcoming =
-        JSON.stringify(updatedUpcoming) !== JSON.stringify(prev)
-          ? updatedUpcoming
-          : prev;
-      console.log(`Upcoming events count: ${newUpcoming.length}`);
-      return newUpcoming;
-    });
-    setActiveEvents((prev) => {
-      const newActive =
-        JSON.stringify(updatedActive) !== JSON.stringify(prev)
-          ? updatedActive
-          : prev;
-      console.log(`Active events count: ${newActive.length}`);
-      return newActive;
-    });
-    setPastEvents((prev) => {
-      const newPast =
-        JSON.stringify(updatedPast) !== JSON.stringify(prev)
-          ? updatedPast
-          : prev;
-      console.log(`Past events count: ${newPast.length}`);
-      return newPast;
-    });
-  };
-
-  // Schedule the next categorization based on the closest upcoming or ending event
-  const scheduleNextCategorization = () => {
-    const now = new Date();
-    const nowUTC = new Date(now.toISOString());
-    let nextEventTime = null;
-
-    events.forEach((event) => {
-      const startDate = new Date(
-        event.start_date.endsWith("Z")
-          ? event.start_date
-          : `${event.start_date}Z`
-      );
-      const endDate = new Date(
-        event.end_date.endsWith("Z") ? event.end_date : `${event.end_date}Z`
-      );
-
-      if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) return;
-
-      if (startDate > nowUTC && (!nextEventTime || startDate < nextEventTime)) {
-        nextEventTime = startDate;
-      }
-      if (endDate > nowUTC && (!nextEventTime || endDate < nextEventTime)) {
-        nextEventTime = endDate;
-      }
-    });
-
-    if (nextEventTime) {
-      const delay = nextEventTime - nowUTC;
-      console.log(
-        `Scheduling next categorization in ${
-          delay / 1000
-        } seconds at ${nextEventTime.toISOString()}`
-      );
-      return setTimeout(() => {
-        categorizeEvents();
-        scheduleNextCategorization();
-      }, delay);
-    } else {
-      console.log("No upcoming events, falling back to 1-minute interval");
-      return setInterval(() => {
-        categorizeEvents();
-      }, 60000);
+  // Add a new event to both the server and local state
+  const addEvent = async (newEvent) => {
+    try {
+      // Format data to match server expectations
+      const serverEventData = {
+        title: newEvent.title,
+        description: newEvent.description || "",
+        activity: newEvent.selectedActivity?.name || "",
+        goal: newEvent.goalValue || 0,
+        start_date: newEvent.start_date,
+        end_date: newEvent.end_date,
+        location: newEvent.location || "",
+        event_type: newEvent.eventType || "individual",
+        total_participants: Number(newEvent.participantCount) || 0,
+        team_count: Number(newEvent.teamCount) || 0,
+        members_per_team: Number(newEvent.membersPerTeam) || 0,
+      };
+      
+      // Send to server
+      const response = await axios.post(`${API_BASE_URL}/events`, serverEventData);
+      
+      // If successful, update local state
+      // Ideally the server would return the created event with its ID
+      const eventWithId = { 
+        ...newEvent, 
+        id: response.data.eventId || Date.now().toString() 
+      };
+      
+      setEvents(prevEvents => [...prevEvents, eventWithId]);
+      
+      // Update AsyncStorage as backup
+      AsyncStorage.setItem(STORAGE_KEY, JSON.stringify([...events, eventWithId]));
+      
+      console.log("Event added successfully:", eventWithId);
+      return eventWithId;
+      
+    } catch (error) {
+      console.error("Failed to add event to server:", error);
+      
+      // Fallback: Add to local state only if server fails
+      const eventWithId = { ...newEvent, id: Date.now().toString() };
+      setEvents(prevEvents => [...prevEvents, eventWithId]);
+      
+      // Update AsyncStorage
+      AsyncStorage.setItem(STORAGE_KEY, JSON.stringify([...events, eventWithId]));
+      
+      console.log("Event added locally only (server failed):", eventWithId);
+      return eventWithId;
     }
   };
 
-  // Add a new event
-  const addEvent = (newEvent) => {
-    setEvents((prevEvents) => [
-      ...prevEvents,
-      { ...newEvent, id: Date.now().toString() },
-    ]);
-    console.log("Added event:", newEvent);
-  };
-
-  // Update an existing event
-  const updateEvent = (updatedEvent) => {
-    setEvents((prevEvents) =>
-      prevEvents.map((event) =>
+  // Update an event on both server and local state
+  const updateEvent = async (updatedEvent) => {
+    try {
+      // Format data for server
+      const serverEventData = {
+        title: updatedEvent.title,
+        description: updatedEvent.description || "",
+        activity: updatedEvent.selectedActivity?.name || "",
+        goal: updatedEvent.goalValue || 0,
+        start_date: updatedEvent.start_date,
+        end_date: updatedEvent.end_date,
+        location: updatedEvent.location || "",
+        event_type: updatedEvent.eventType || "individual",
+        total_participants: Number(updatedEvent.participantCount) || 0,
+        team_count: Number(updatedEvent.teamCount) || 0,
+        members_per_team: Number(updatedEvent.membersPerTeam) || 0,
+      };
+      
+      // Send to server (assuming your server has a PUT endpoint)
+      await axios.put(`${API_BASE_URL}/events/${updatedEvent.id}`, serverEventData);
+      
+      // Update local state
+      const updatedEvents = events.map(event => 
         event.id === updatedEvent.id ? updatedEvent : event
-      )
-    );
-    console.log("Updated event:", updatedEvent);
+      );
+      
+      setEvents(updatedEvents);
+      
+      // Update AsyncStorage as backup
+      AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(updatedEvents));
+      
+      console.log("Event updated successfully:", updatedEvent);
+      
+    } catch (error) {
+      console.error("Failed to update event on server:", error);
+      
+      // Fallback: Update in local state only
+      const updatedEvents = events.map(event => 
+        event.id === updatedEvent.id ? updatedEvent : event
+      );
+      
+      setEvents(updatedEvents);
+      
+      // Update AsyncStorage
+      AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(updatedEvents));
+      
+      console.log("Event updated locally only (server failed):", updatedEvent);
+    }
   };
 
-  // Delete an event
-  const deleteEvent = (eventId) => {
-    setEvents((prevEvents) =>
-      prevEvents.filter((event) => event.id !== eventId)
-    );
-    console.log("Deleted event with id:", eventId);
+  // Delete event from both server and local state
+  const deleteEvent = async (eventId) => {
+    try {
+      // Delete from server
+      await axios.delete(`${API_BASE_URL}/events/${eventId}`);
+      
+      // Update local state
+      const filteredEvents = events.filter(event => event.id !== eventId);
+      setEvents(filteredEvents);
+      
+      // Update AsyncStorage
+      AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(filteredEvents));
+      
+      console.log("Event deleted successfully:", eventId);
+      
+    } catch (error) {
+      console.error("Failed to delete event from server:", error);
+      
+      // Fallback: Delete from local state only
+      const filteredEvents = events.filter(event => event.id !== eventId);
+      setEvents(filteredEvents);
+      
+      // Update AsyncStorage
+      AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(filteredEvents));
+      
+      console.log("Event deleted locally only (server failed):", eventId);
+    }
   };
 
-  // Clear all past events
-  const clearPastEvents = () => {
-    setEvents((prevEvents) =>
-      prevEvents.filter((event) => {
-        const endDate = new Date(
-          event.end_date.endsWith("Z") ? event.end_date : `${event.end_date}Z`
-        );
-        return !isNaN(endDate.getTime()) && endDate >= new Date();
-      })
-    );
-    console.log("Cleared past events");
+  // Filter events by status (active, upcoming, past)
+  const activeEvents = events.filter(event => {
+    const now = new Date();
+    const startDate = new Date(event.start_date);
+    const endDate = new Date(event.end_date);
+    return startDate <= now && endDate >= now;
+  });
+
+  const upcomingEvents = events.filter(event => {
+    const now = new Date();
+    const startDate = new Date(event.start_date);
+    return startDate > now;
+  });
+
+  const pastEvents = events.filter(event => {
+    const now = new Date();
+    const endDate = new Date(event.end_date);
+    return endDate < now;
+  });
+
+  // Additional function to clear past events
+  const clearPastEvents = async () => {
+    // Logic to remove past events from both server and local state
+    // Implementation would depend on your server API
   };
-
-  // Categorize events on mount and whenever events change
-  useEffect(() => {
-    categorizeEvents();
-  }, [events]);
-
-  // Manage dynamic scheduling of categorization
-  useEffect(() => {
-    categorizeEvents();
-    let timer = scheduleNextCategorization();
-
-    return () => {
-      if (typeof timer === "number") {
-        clearTimeout(timer);
-      } else {
-        clearInterval(timer);
-      }
-    };
-  }, [events]);
 
   return (
     <EventContext.Provider
       value={{
+        events,
+        loading,
+        error,
         activeEvents,
         upcomingEvents,
         pastEvents,

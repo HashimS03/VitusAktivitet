@@ -9,6 +9,7 @@ import {
   Alert,
 } from "react-native";
 import axios from "axios";
+import { SERVER_CONFIG } from "../../config/serverConfig";
 
 const { width } = Dimensions.get("window");
 
@@ -31,7 +32,7 @@ export default function opprett({ navigation }) {
 
     try {
       console.log("Sending registration data:", { name, email, password }); // Debug log
-      const response = await axios.post("http://localhost:4000/register", {
+      const response = await axios.post(`${SERVER_CONFIG.getBaseUrl()}/register`, {
         name,
         email,
         password,
@@ -43,8 +44,11 @@ export default function opprett({ navigation }) {
         navigation.replace("GenderSelection");
       }
     } catch (error) {
-      console.log("Registration error:", error.response?.data); // Debug log
-      Alert.alert("Error", error.response?.data?.message || "Registration failed");
+      console.log("Registration error:", error);
+      Alert.alert(
+        "Error", 
+        error.response?.data?.message || "Registration failed. Please try again."
+      );
     }
   };
 
