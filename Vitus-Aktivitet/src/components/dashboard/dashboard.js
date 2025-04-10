@@ -31,6 +31,8 @@ import { trophyData } from "../profile/achievements";
 import StepCalculator from "../dashboard/StepCalculator";
 import { UserContext } from "../context/UserContext";
 import axios from "axios";
+import { SERVER_CONFIG } from "../../config/serverConfig";
+
 
 const SCREEN_WIDTH = Dimensions.get("window").width;
 const SCREEN_HEIGHT = Dimensions.get("window").height;
@@ -323,7 +325,7 @@ export default function Dashboard() {
 
       if (!userId) return;
       try {
-        const response = await axios.get("http://localhost:4000/step-activity", {
+        const response = await axios.get(`${SERVER_CONFIG.getBaseUrl()}/step-activity`, {
           withCredentials: true,
         });
         const latestActivity = response.data.data[0];
@@ -475,7 +477,7 @@ export default function Dashboard() {
       const lastResetDate = await AsyncStorage.getItem("lastStepResetDate");
 
       if (lastResetDate !== todayString && userId) {
-        const response = await axios.get("http://localhost:4000/step-activity", {
+        const response = await axios.get(`${SERVER_CONFIG.getBaseUrl()}/step-activity`, {
           withCredentials: true,
         });
         const latestActivity = response.data.data[0];
@@ -489,7 +491,7 @@ export default function Dashboard() {
         }
 
         await axios.post(
-          "http://localhost:4000/step-activity",
+          `${SERVER_CONFIG.getBaseUrl()}/step-activity`,
           { stepCount: 0, distance: null, timestamp: new Date() },
           { withCredentials: true }
         );
@@ -545,7 +547,7 @@ export default function Dashboard() {
         const initialGoal = storedGoal ? JSON.parse(storedGoal) : DAILY_STEP_GOAL;
         setDailyGoal(initialGoal);
 
-        const response = await axios.get("http://localhost:4000/step-activity", {
+        const response = await axios.get(`${SERVER_CONFIG.getBaseUrl()}/step-activity`, {
           withCredentials: true,
         });
         const latestActivity = response.data.data[0];
@@ -583,7 +585,7 @@ export default function Dashboard() {
       const updateSteps = async () => {
         if (!userId) return;
         try {
-          const response = await axios.get("http://localhost:4000/step-activity", {
+          const response = await axios.get(`${SERVER_CONFIG.getBaseUrl()}/step-activity`, {
             withCredentials: true,
           });
           const latestActivity = response.data.data[0];
@@ -594,7 +596,7 @@ export default function Dashboard() {
             const newStepCount = previousSteps + newSteps;
 
             await axios.post(
-              "http://localhost:4000/step-activity",
+              `${SERVER_CONFIG.getBaseUrl()}/step-activity`,
               { stepCount: newStepCount, distance: null, timestamp: new Date() },
               { withCredentials: true }
             );
@@ -871,7 +873,7 @@ export default function Dashboard() {
       }
       if (userId) {
         await axios.post(
-          "http://localhost:4000/step-activity",
+          `${SERVER_CONFIG.getBaseUrl()}/step-activity`,
           { stepCount: 0, distance: null, timestamp: new Date() },
           { withCredentials: true }
         ).catch(error => {
@@ -929,7 +931,7 @@ export default function Dashboard() {
 
   const handleCalculatorConfirm = async (steps) => {
     try {
-      const response = await axios.get("http://localhost:4000/step-activity", {
+      const response = await axios.get(`${SERVER_CONFIG.getBaseUrl()}/step-activity`, {
         withCredentials: true,
       });
       const latestActivity = response.data.data[0];
@@ -937,7 +939,7 @@ export default function Dashboard() {
       const newStepCount = previousSteps + steps;
 
       await axios.post(
-        "http://localhost:4000/step-activity",
+        `${SERVER_CONFIG.getBaseUrl()}/step-activity`,
         { stepCount: newStepCount, distance: null, timestamp: new Date() },
         { withCredentials: true }
       );
