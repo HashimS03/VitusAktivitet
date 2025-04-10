@@ -5,6 +5,8 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import axios from "axios";
 import { UserContext } from "../context/UserContext";
 import { Alert } from "react-native";
+import { SERVER_CONFIG } from "../../config/serverConfig";
+
 
 export default function StepCounter({ setStepCount }) {
   const { userId } = useContext(UserContext);
@@ -31,7 +33,7 @@ export default function StepCounter({ setStepCount }) {
     const loadInitialData = async () => {
       if (!userId) return; // Wait for userId to be available
       try {
-        const response = await axios.get("http://localhost:4000/step-activity", {
+        const response = await axios.get(`${SERVER_CONFIG.getBaseUrl()}/step-activity`, {
           withCredentials: true,
         });
         const latestActivity = response.data.data[0];
@@ -75,7 +77,7 @@ export default function StepCounter({ setStepCount }) {
 
         // Sync with backend
         await axios.post(
-          "http://localhost:4000/step-activity",
+          `${SERVER_CONFIG.getBaseUrl()}/step-activity`,
           {
             stepCount: updatedTotalSteps,
             distance: null, // Add distance if available
@@ -142,7 +144,7 @@ export default function StepCounter({ setStepCount }) {
 
         // Sync with backend
         await axios.post(
-          "http://localhost:4000/step-activity",
+          `${SERVER_CONFIG.getBaseUrl()}/step-activity`,
           {
             stepCount: updatedTotalSteps,
             distance: null,
