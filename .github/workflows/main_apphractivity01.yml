@@ -6,7 +6,7 @@ name: Build and deploy Node.js app to Azure Web App - apphractivity01
 on:
   push:
     branches:
-      - main
+      [ "main", "Daniel's-new-branch"]
   workflow_dispatch:
 
 jobs:

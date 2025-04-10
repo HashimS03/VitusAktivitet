@@ -31,7 +31,7 @@ export default function opprett({ navigation }) {
 
     try {
       console.log("Sending registration data:", { name, email, password }); // Debug log
-      const response = await axios.post("http://localhost:4000/register", {
+      const response = await axios.post(`${API_BASE_URL}/register`, {
         name,
         email,
         password,
