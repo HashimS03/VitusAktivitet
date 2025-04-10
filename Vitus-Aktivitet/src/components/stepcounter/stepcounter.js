@@ -31,7 +31,7 @@ export default function StepCounter({ setStepCount }) {
     };
 
     const loadInitialData = async () => {
-      if (!userId) return;
+      if (!userId) return; // Ensure user is authenticated
       try {
         const response = await axios.get(`${SERVER_CONFIG.getBaseUrl()}/step-activity`, {
           withCredentials: true,
@@ -49,6 +49,8 @@ export default function StepCounter({ setStepCount }) {
         console.error("Error loading initial step data:", error);
         if (error.response && error.response.status === 500) {
           Alert.alert("Server Error", "Unable to load step data. Please try again later.");
+        } else if (error.response && error.response.status === 401) {
+          Alert.alert("Authentication Error", "Please log in to sync step data.");
         } else if (error.response && error.response.status === 503) {
           Alert.alert(
             "Server Problem",
@@ -60,7 +62,7 @@ export default function StepCounter({ setStepCount }) {
     };
 
     const updateStepCountInStorage = async (newPhysicalSteps) => {
-      if (!userId) return;
+      if (!userId) return; // Ensure user is authenticated
       try {
         const storedSteps = await AsyncStorage.getItem("stepCount");
         const currentTotalSteps = storedSteps ? JSON.parse(storedSteps) : 0;
@@ -82,7 +84,7 @@ export default function StepCounter({ setStepCount }) {
         await AsyncStorage.setItem(stepHistoryKey, JSON.stringify(updatedHistorySteps));
 
         // Sync with backend with retry
-        const maxRetries = 3;
+        const maxRetries = 5; // Increased to 5 attempts
         let attempt = 0;
         while (attempt < maxRetries) {
           try {
@@ -100,11 +102,13 @@ export default function StepCounter({ setStepCount }) {
             attempt++;
             console.error(`Attempt ${attempt} failed:`, error);
             if (error.response && error.response.status === 503 && attempt < maxRetries) {
-              await new Promise((resolve) => setTimeout(resolve, 2000 * attempt));
+              await new Promise((resolve) => setTimeout(resolve, 3000 * attempt)); // Backoff: 3s, 6s, 9s, 12s, 15s
               continue;
             } else {
               if (error.response && error.response.status === 500) {
                 Alert.alert("Server Error", "Unable to save step data. Please try again later.");
+              } else if (error.response && error.response.status === 401) {
+                Alert.alert("Authentication Error", "Please log in to sync step data.");
               } else if (error.response && error.response.status === 503) {
                 queueRequest("POST", `${SERVER_CONFIG.getBaseUrl()}/step-activity`, {
                   stepCount: updatedTotalSteps,
@@ -132,7 +136,7 @@ export default function StepCounter({ setStepCount }) {
     };
 
     const handleAndroidStepUpdate = async (stepData) => {
-      if (!userId) return;
+      if (!userId) return; // Ensure user is authenticated
       try {
         const currentSteps = stepData.steps;
 
@@ -168,6 +172,8 @@ export default function StepCounter({ setStepCount }) {
         console.error("Error handling Android step update:", error);
         if (error.response && error.response.status === 500) {
           Alert.alert("Server Error", "Unable to save step data. Please try again later.");
+        } else if (error.response && error.response.status === 401) {
+          Alert.alert("Authentication Error", "Please log in to sync step data.");
         } else if (error.response && error.response.status === 503) {
           const storedSteps = await AsyncStorage.getItem("stepCount");
           const currentTotalSteps = storedSteps ? JSON.parse(storedSteps) : 0;

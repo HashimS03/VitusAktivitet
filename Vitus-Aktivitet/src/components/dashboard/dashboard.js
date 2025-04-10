@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useContext, useRef } from "react";
-import { AppState } from "react-native"; // Added import for AppState
+import { AppState } from "react-native";
 import { useRoute, useFocusEffect } from "@react-navigation/native";
 import {
   SafeAreaView,
@@ -460,6 +460,8 @@ export default function Dashboard() {
         console.error("Error loading trophy progress:", error);
         if (error.response && error.response.status === 500) {
           Alert.alert("Server Error", "Unable to load trophy progress. Please try again later.");
+        } else if (error.response && error.response.status === 401) {
+          Alert.alert("Authentication Error", "Please log in to sync data.");
         } else if (error.response && error.response.status === 503) {
           Alert.alert(
             "Server Problem",
@@ -503,6 +505,8 @@ export default function Dashboard() {
               distance: null,
               timestamp: new Date(),
             });
+          } else if (error.response && error.response.status === 401) {
+            Alert.alert("Authentication Error", "Please log in to reset steps.");
           }
         });
         setStepCount(0);
@@ -535,6 +539,8 @@ export default function Dashboard() {
       console.error("❌ Feil ved daglig reset:", error);
       if (error.response && error.response.status === 500) {
         Alert.alert("Server Error", "Unable to reset daily steps. Please try again later.");
+      } else if (error.response && error.response.status === 401) {
+        Alert.alert("Authentication Error", "Please log in to reset steps.");
       } else if (error.response && error.response.status === 503) {
         Alert.alert(
           "Server Problem",
@@ -590,6 +596,8 @@ export default function Dashboard() {
         console.error("Error loading data:", error);
         if (error.response && error.response.status === 500) {
           Alert.alert("Server Error", "Unable to load data. Please try again later.");
+        } else if (error.response && error.response.status === 401) {
+          Alert.alert("Authentication Error", "Please log in to load data.");
         } else if (error.response && error.response.status === 503) {
           Alert.alert(
             "Server Problem",
@@ -606,7 +614,7 @@ export default function Dashboard() {
     useCallback(() => {
       const updateSteps = async () => {
         if (!userId) return;
-        const maxRetries = 3;
+        const maxRetries = 5; // Increased to 5 attempts
         let attempt = 0;
 
         while (attempt < maxRetries) {
@@ -635,17 +643,24 @@ export default function Dashboard() {
             attempt++;
             console.error(`Attempt ${attempt} failed:`, error);
             if (error.response && error.response.status === 503 && attempt < maxRetries) {
-              await new Promise((resolve) => setTimeout(resolve, 2000 * attempt));
+              await new Promise((resolve) => setTimeout(resolve, 3000 * attempt)); // Backoff: 3s, 6s, 9s, 12s, 15s
               continue;
             } else {
               if (error.response && error.response.status === 500) {
                 Alert.alert("Server Error", "Unable to update step count. Please try again later.");
+              } else if (error.response && error.response.status === 401) {
+                Alert.alert("Authentication Error", "Please log in to sync step data.");
               } else if (error.response && error.response.status === 503) {
                 queueRequest("POST", `${SERVER_CONFIG.getBaseUrl()}/step-activity`, {
                   stepCount: previousSteps + (route.params?.addedSteps || 0),
                   distance: null,
                   timestamp: new Date(),
                 });
+                Alert.alert(
+                  "Server Problem",
+                  "The server is temporarily unavailable. Steps are saved locally, and we'll sync when the server is back.",
+                  [{ text: "OK" }]
+                );
               }
               break;
             }
@@ -923,6 +938,8 @@ export default function Dashboard() {
               distance: null,
               timestamp: new Date(),
             });
+          } else if (error.response && error.response.status === 401) {
+            Alert.alert("Authentication Error", "Please log in to reset steps.");
           }
         });
       }
@@ -1065,6 +1082,8 @@ export default function Dashboard() {
       console.error("❌ Feil ved oppdatering av skritt fra kalkulator:", error);
       if (error.response && error.response.status === 500) {
         Alert.alert("Server Error", "Unable to update steps from calculator. Please try again later.");
+      } else if (error.response && error.response.status === 401) {
+        Alert.alert("Authentication Error", "Please log in to sync steps.");
       } else if (error.response && error.response.status === 503) {
         queueRequest("POST", `${SERVER_CONFIG.getBaseUrl()}/step-activity`, {
           stepCount: previousSteps + steps,
