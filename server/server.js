@@ -7,19 +7,11 @@ const { sql, poolPromise } = require("./db");
 const bcrypt = require("bcryptjs");
 require("dotenv").config();
 
-console.log("Starting server...");
-console.log("NODE_ENV:", process.env.NODE_ENV);
-console.log("PORT:", process.env.PORT || 4000);
-console.log("Current working directory:", process.cwd());
-
 const app = express();
 const PORT = process.env.PORT || 4000;
 
 app.use(express.json());
-app.use(cors({
-  origin: "*", // Replace with your frontend's URL
-  credentials: true
-}));
+app.use(cors({ origin: "*", credentials: true }));
 
 app.use(
   session({
@@ -29,6 +21,14 @@ app.use(
     cookie: { secure: false, maxAge: 24 * 60 * 60 * 1000 },
   })
 );
+
+// Middleware to check if user is authenticated
+const authenticateUser = (req, res, next) => {
+  if (!req.session.userId) {
+    return res.status(401).json({ success: false, message: "Unauthorized" });
+  }
+  next();
+};
 
 // 🔹 Route to Register a User
 app.post("/register", async (req, res) => {
@@ -237,8 +237,8 @@ app.post("/events", authenticateUser, async (req, res) => {
     } = req.body;
 
     const pool = await poolPromise;
-    const result = await pool.request()
-
+    await pool
+      .request()
       .input("title", sql.NVarChar, title)
       .input("description", sql.NVarChar, description)
       .input("activity", sql.NVarChar, activity)
@@ -253,19 +253,12 @@ app.post("/events", authenticateUser, async (req, res) => {
       .input("userId", sql.Int, req.session.userId)
       .query(`
         INSERT INTO events 
-        (title, description, activity, goal, start_date, end_date, location, event_type, total_participants, team_count, members_per_team)
+        (title, description, activity, goal, start_date, end_date, location, event_type, total_participants, team_count, members_per_team, user_id)
         VALUES 
         (@title, @description, @activity, @goal, @start_date, @end_date, @location, @event_type, @total_participants, @team_count, @members_per_team, @userId)
       `);
 
-    // Return the ID of the newly created event
-    const eventId = result.recordset[0].id;
-    
-    res.status(201).json({ 
-      success: true, 
-      message: "Event created successfully", 
-      eventId: eventId 
-    });
+    res.status(201).json({ success: true, message: "Event created successfully" });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }
@@ -284,6 +277,11 @@ app.get("/events", authenticateUser, async (req, res) => {
     res.status(500).json({ success: false, message: err.message });
   }
 });
+
+app.get("/", (req, res) => {
+  res.send("API is running ✅");
+});
+
 
 // Start Server
 app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));
