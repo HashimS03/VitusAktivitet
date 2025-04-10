@@ -5,8 +5,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import axios from "axios";
 import { UserContext } from "../context/UserContext";
 import { Alert } from "react-native";
-import { SERVER_CONFIG } from "../../config/serverConfig"; 
-
+import { SERVER_CONFIG } from "../../config/serverConfig";
 
 export default function StepCounter({ setStepCount }) {
   const { userId } = useContext(UserContext);
@@ -18,6 +17,7 @@ export default function StepCounter({ setStepCount }) {
     let lastAndroidStepCount = 0;
     let androidStepsSinceReboot = 0;
     let appStateSubscription;
+    let stepUpdateTimeout = null;
 
     const checkPedometerAvailability = async () => {
       try {
@@ -31,7 +31,7 @@ export default function StepCounter({ setStepCount }) {
     };
 
     const loadInitialData = async () => {
-      if (!userId) return; // Wait for userId to be available
+      if (!userId) return;
       try {
         const response = await axios.get(`${SERVER_CONFIG.getBaseUrl()}/step-activity`, {
           withCredentials: true,
@@ -49,6 +49,12 @@ export default function StepCounter({ setStepCount }) {
         console.error("Error loading initial step data:", error);
         if (error.response && error.response.status === 500) {
           Alert.alert("Server Error", "Unable to load step data. Please try again later.");
+        } else if (error.response && error.response.status === 503) {
+          Alert.alert(
+            "Server Problem",
+            "The server is temporarily unavailable. Data is saved locally, and we'll sync when the server is back.",
+            [{ text: "OK" }]
+          );
         }
       }
     };
@@ -75,16 +81,41 @@ export default function StepCounter({ setStepCount }) {
         const updatedHistorySteps = storedHistorySteps + newStepsDelta;
         await AsyncStorage.setItem(stepHistoryKey, JSON.stringify(updatedHistorySteps));
 
-        // Sync with backend
-        await axios.post(
-          `${SERVER_CONFIG.getBaseUrl()}/step-activity`,
-          {
-            stepCount: updatedTotalSteps,
-            distance: null, // Add distance if available
-            timestamp: new Date(),
-          },
-          { withCredentials: true }
-        );
+        // Sync with backend with retry
+        const maxRetries = 3;
+        let attempt = 0;
+        while (attempt < maxRetries) {
+          try {
+            await axios.post(
+              `${SERVER_CONFIG.getBaseUrl()}/step-activity`,
+              {
+                stepCount: updatedTotalSteps,
+                distance: null,
+                timestamp: new Date(),
+              },
+              { withCredentials: true }
+            );
+            break;
+          } catch (error) {
+            attempt++;
+            console.error(`Attempt ${attempt} failed:`, error);
+            if (error.response && error.response.status === 503 && attempt < maxRetries) {
+              await new Promise((resolve) => setTimeout(resolve, 2000 * attempt));
+              continue;
+            } else {
+              if (error.response && error.response.status === 500) {
+                Alert.alert("Server Error", "Unable to save step data. Please try again later.");
+              } else if (error.response && error.response.status === 503) {
+                queueRequest("POST", `${SERVER_CONFIG.getBaseUrl()}/step-activity`, {
+                  stepCount: updatedTotalSteps,
+                  distance: null,
+                  timestamp: new Date(),
+                });
+              }
+              break;
+            }
+          }
+        }
 
         setStepCount(updatedTotalSteps);
         console.log(
@@ -97,9 +128,6 @@ export default function StepCounter({ setStepCount }) {
         );
       } catch (error) {
         console.error("Error updating step count in storage:", error);
-        if (error.response && error.response.status === 500) {
-          Alert.alert("Server Error", "Unable to save step data. Please try again later.");
-        }
       }
     };
 
@@ -128,44 +156,26 @@ export default function StepCounter({ setStepCount }) {
         await AsyncStorage.setItem("androidLastStepCount", JSON.stringify(currentSteps));
         await AsyncStorage.setItem("androidStepsSinceReboot", JSON.stringify(androidStepsSinceReboot));
 
-        const storedSteps = await AsyncStorage.getItem("stepCount");
-        const currentTotalSteps = storedSteps ? JSON.parse(storedSteps) : 0;
-        const updatedTotalSteps = currentTotalSteps + stepDelta;
+        if (stepUpdateTimeout) clearTimeout(stepUpdateTimeout);
+        stepUpdateTimeout = setTimeout(async () => {
+          const storedSteps = await AsyncStorage.getItem("stepCount");
+          const currentTotalSteps = storedSteps ? JSON.parse(storedSteps) : 0;
+          const updatedTotalSteps = currentTotalSteps + stepDelta;
 
-        await AsyncStorage.setItem("stepCount", JSON.stringify(updatedTotalSteps));
-
-        const today = new Date().toISOString().split("T")[0];
-        const stepHistoryKey = `stepHistory_${today}`;
-        const storedHistorySteps = await AsyncStorage.getItem(stepHistoryKey)
-          ? JSON.parse(await AsyncStorage.getItem(stepHistoryKey))
-          : 0;
-        const updatedHistorySteps = storedHistorySteps + stepDelta;
-        await AsyncStorage.setItem(stepHistoryKey, JSON.stringify(updatedHistorySteps));
-
-        // Sync with backend
-        await axios.post(
-          `${SERVER_CONFIG.getBaseUrl()}/step-activity`,
-          {
-            stepCount: updatedTotalSteps,
-            distance: null,
-            timestamp: new Date(),
-          },
-          { withCredentials: true }
-        );
-
-        setStepCount(updatedTotalSteps);
-        console.log(
-          "Android updated stepCount:",
-          updatedTotalSteps,
-          "New steps:",
-          stepDelta,
-          "History steps for today:",
-          updatedHistorySteps
-        );
+          await updateStepCountInStorage(updatedTotalSteps);
+        }, 15000); // Update every 15 seconds
       } catch (error) {
         console.error("Error handling Android step update:", error);
         if (error.response && error.response.status === 500) {
           Alert.alert("Server Error", "Unable to save step data. Please try again later.");
+        } else if (error.response && error.response.status === 503) {
+          const storedSteps = await AsyncStorage.getItem("stepCount");
+          const currentTotalSteps = storedSteps ? JSON.parse(storedSteps) : 0;
+          queueRequest("POST", `${SERVER_CONFIG.getBaseUrl()}/step-activity`, {
+            stepCount: currentTotalSteps + (stepData.steps - lastAndroidStepCount),
+            distance: null,
+            timestamp: new Date(),
+          });
         }
       }
     };
@@ -173,11 +183,29 @@ export default function StepCounter({ setStepCount }) {
     const handleAppStateChange = (nextAppState) => {
       if (appState.match(/inactive|background/) && nextAppState === "active") {
         console.log("App has come to the foreground!");
-        if (Platform.OS === "android" && subscription) {
-          console.log("Checking for new steps after app resumed");
-        }
+        syncQueue();
       }
       setAppState(nextAppState);
+    };
+
+    const queueRequest = async (method, url, data) => {
+      const queue = JSON.parse(await AsyncStorage.getItem("requestQueue") || "[]");
+      queue.push({ method, url, data, timestamp: new Date() });
+      await AsyncStorage.setItem("requestQueue", JSON.stringify(queue));
+    };
+
+    const syncQueue = async () => {
+      const queue = JSON.parse(await AsyncStorage.getItem("requestQueue") || "[]");
+      for (const request of queue) {
+        try {
+          await axios[request.method.toLowerCase()](request.url, request.data, { withCredentials: true });
+          const updatedQueue = queue.filter((r) => r.timestamp !== request.timestamp);
+          await AsyncStorage.setItem("requestQueue", JSON.stringify(updatedQueue));
+        } catch (error) {
+          console.error("Failed to sync queued request:", error);
+          break;
+        }
+      }
     };
 
     const setupStepCounting = async () => {
@@ -218,6 +246,7 @@ export default function StepCounter({ setStepCount }) {
     return () => {
       if (subscription) subscription.remove();
       if (appStateSubscription) appStateSubscription.remove();
+      if (stepUpdateTimeout) clearTimeout(stepUpdateTimeout);
     };
   }, [userId, setStepCount]);
 

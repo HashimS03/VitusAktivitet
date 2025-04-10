@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useContext, useRef } from "react";
+import { AppState } from "react-native"; // Added import for AppState
 import { useRoute, useFocusEffect } from "@react-navigation/native";
 import {
   SafeAreaView,
@@ -31,18 +32,13 @@ import { trophyData } from "../profile/achievements";
 import StepCalculator from "../dashboard/StepCalculator";
 import { UserContext } from "../context/UserContext";
 import axios from "axios";
-import { SERVER_CONFIG } from "../../config/serverConfig"; 
-
+import { SERVER_CONFIG } from "../../config/serverConfig";
 
 const SCREEN_WIDTH = Dimensions.get("window").width;
 const SCREEN_HEIGHT = Dimensions.get("window").height;
 const DAILY_STEP_GOAL = 7500;
 const PROGRESS_RING_SIZE = 300;
 const PROGRESS_RING_THICKNESS = 30;
-
-
-
-
 
 const CustomProgressCircle = ({ progress, accentColor }) => {
   const radius = (PROGRESS_RING_SIZE - PROGRESS_RING_THICKNESS) / 2;
@@ -464,6 +460,12 @@ export default function Dashboard() {
         console.error("Error loading trophy progress:", error);
         if (error.response && error.response.status === 500) {
           Alert.alert("Server Error", "Unable to load trophy progress. Please try again later.");
+        } else if (error.response && error.response.status === 503) {
+          Alert.alert(
+            "Server Problem",
+            "The server is temporarily unavailable. Data is saved locally, and we'll sync when the server is back.",
+            [{ text: "OK" }]
+          );
         }
       }
     };
@@ -494,7 +496,15 @@ export default function Dashboard() {
           `${SERVER_CONFIG.getBaseUrl()}/step-activity`,
           { stepCount: 0, distance: null, timestamp: new Date() },
           { withCredentials: true }
-        );
+        ).catch((error) => {
+          if (error.response && error.response.status === 503) {
+            queueRequest("POST", `${SERVER_CONFIG.getBaseUrl()}/step-activity`, {
+              stepCount: 0,
+              distance: null,
+              timestamp: new Date(),
+            });
+          }
+        });
         setStepCount(0);
         await AsyncStorage.setItem("stepCount", "0");
         await AsyncStorage.setItem("lastStepResetDate", todayString);
@@ -525,6 +535,12 @@ export default function Dashboard() {
       console.error("❌ Feil ved daglig reset:", error);
       if (error.response && error.response.status === 500) {
         Alert.alert("Server Error", "Unable to reset daily steps. Please try again later.");
+      } else if (error.response && error.response.status === 503) {
+        Alert.alert(
+          "Server Problem",
+          "The server is temporarily unavailable. Reset is saved locally, and we'll sync when the server is back.",
+          [{ text: "OK" }]
+        );
       }
     }
   };
@@ -553,7 +569,7 @@ export default function Dashboard() {
         const latestActivity = response.data.data[0];
         const initialSteps = latestActivity ? latestActivity.step_count : 0;
         setStepCount(initialSteps);
-        await AsyncStorage.setItem("stepCount", JSON.stringify(initialSteps)); // Sync with AsyncStorage
+        await AsyncStorage.setItem("stepCount", JSON.stringify(initialSteps));
 
         const { currentStreak, bestStreak } = await updateStreaks(initialSteps, initialGoal);
         setStreak(currentStreak);
@@ -574,6 +590,12 @@ export default function Dashboard() {
         console.error("Error loading data:", error);
         if (error.response && error.response.status === 500) {
           Alert.alert("Server Error", "Unable to load data. Please try again later.");
+        } else if (error.response && error.response.status === 503) {
+          Alert.alert(
+            "Server Problem",
+            "The server is temporarily unavailable. Data is saved locally, and we'll sync when the server is back.",
+            [{ text: "OK" }]
+          );
         }
       }
     };
@@ -584,31 +606,49 @@ export default function Dashboard() {
     useCallback(() => {
       const updateSteps = async () => {
         if (!userId) return;
-        try {
-          const response = await axios.get(`${SERVER_CONFIG.getBaseUrl()}/step-activity`, {
-            withCredentials: true,
-          });
-          const latestActivity = response.data.data[0];
-          let previousSteps = latestActivity ? latestActivity.step_count : 0;
+        const maxRetries = 3;
+        let attempt = 0;
 
-          if (route.params?.addedSteps && typeof route.params.addedSteps === "number") {
-            const newSteps = route.params.addedSteps;
-            const newStepCount = previousSteps + newSteps;
+        while (attempt < maxRetries) {
+          try {
+            const response = await axios.get(`${SERVER_CONFIG.getBaseUrl()}/step-activity`, {
+              withCredentials: true,
+            });
+            const latestActivity = response.data.data[0];
+            let previousSteps = latestActivity ? latestActivity.step_count : 0;
 
-            await axios.post(
-              `${SERVER_CONFIG.getBaseUrl()}/step-activity`,
-              { stepCount: newStepCount, distance: null, timestamp: new Date() },
-              { withCredentials: true }
-            );
-            setStepCount(newStepCount);
-            await AsyncStorage.setItem("stepCount", JSON.stringify(newStepCount)); // Sync with AsyncStorage
+            if (route.params?.addedSteps && typeof route.params.addedSteps === "number") {
+              const newSteps = route.params.addedSteps;
+              const newStepCount = previousSteps + newSteps;
 
-            navigation.setParams({ addedSteps: null });
-          }
-        } catch (error) {
-          console.error("❌ Feil ved oppdatering av stepCount:", error);
-          if (error.response && error.response.status === 500) {
-            Alert.alert("Server Error", "Unable to update step count. Please try again later.");
+              await axios.post(
+                `${SERVER_CONFIG.getBaseUrl()}/step-activity`,
+                { stepCount: newStepCount, distance: null, timestamp: new Date() },
+                { withCredentials: true }
+              );
+              setStepCount(newStepCount);
+              await AsyncStorage.setItem("stepCount", JSON.stringify(newStepCount));
+              navigation.setParams({ addedSteps: null });
+            }
+            break;
+          } catch (error) {
+            attempt++;
+            console.error(`Attempt ${attempt} failed:`, error);
+            if (error.response && error.response.status === 503 && attempt < maxRetries) {
+              await new Promise((resolve) => setTimeout(resolve, 2000 * attempt));
+              continue;
+            } else {
+              if (error.response && error.response.status === 500) {
+                Alert.alert("Server Error", "Unable to update step count. Please try again later.");
+              } else if (error.response && error.response.status === 503) {
+                queueRequest("POST", `${SERVER_CONFIG.getBaseUrl()}/step-activity`, {
+                  stepCount: previousSteps + (route.params?.addedSteps || 0),
+                  distance: null,
+                  timestamp: new Date(),
+                });
+              }
+              break;
+            }
           }
         }
       };
@@ -876,8 +916,14 @@ export default function Dashboard() {
           `${SERVER_CONFIG.getBaseUrl()}/step-activity`,
           { stepCount: 0, distance: null, timestamp: new Date() },
           { withCredentials: true }
-        ).catch(error => {
-          console.error("Error resetting step data:", error);
+        ).catch((error) => {
+          if (error.response && error.response.status === 503) {
+            queueRequest("POST", `${SERVER_CONFIG.getBaseUrl()}/step-activity`, {
+              stepCount: 0,
+              distance: null,
+              timestamp: new Date(),
+            });
+          }
         });
       }
       setStepCount(0);
@@ -944,7 +990,7 @@ export default function Dashboard() {
         { withCredentials: true }
       );
       setStepCount(newStepCount);
-      await AsyncStorage.setItem("stepCount", JSON.stringify(newStepCount)); // Sync with AsyncStorage
+      await AsyncStorage.setItem("stepCount", JSON.stringify(newStepCount));
 
       const totalSteps = parseInt((await AsyncStorage.getItem("totalSteps")) || "0", 10);
       const newTotalSteps = totalSteps + steps;
@@ -1019,6 +1065,17 @@ export default function Dashboard() {
       console.error("❌ Feil ved oppdatering av skritt fra kalkulator:", error);
       if (error.response && error.response.status === 500) {
         Alert.alert("Server Error", "Unable to update steps from calculator. Please try again later.");
+      } else if (error.response && error.response.status === 503) {
+        queueRequest("POST", `${SERVER_CONFIG.getBaseUrl()}/step-activity`, {
+          stepCount: previousSteps + steps,
+          distance: null,
+          timestamp: new Date(),
+        });
+        Alert.alert(
+          "Server Problem",
+          "The server is temporarily unavailable. Steps are saved locally, and we'll sync when the server is back.",
+          [{ text: "OK" }]
+        );
       }
     }
   };
@@ -1088,6 +1145,36 @@ export default function Dashboard() {
   const handleHistoryPress = () => {
     navigation.navigate("History");
   };
+
+  const queueRequest = async (method, url, data) => {
+    const queue = JSON.parse(await AsyncStorage.getItem("requestQueue") || "[]");
+    queue.push({ method, url, data, timestamp: new Date() });
+    await AsyncStorage.setItem("requestQueue", JSON.stringify(queue));
+  };
+
+  const syncQueue = async () => {
+    const queue = JSON.parse(await AsyncStorage.getItem("requestQueue") || "[]");
+    for (const request of queue) {
+      try {
+        await axios[request.method.toLowerCase()](request.url, request.data, { withCredentials: true });
+        const updatedQueue = queue.filter((r) => r.timestamp !== request.timestamp);
+        await AsyncStorage.setItem("requestQueue", JSON.stringify(updatedQueue));
+      } catch (error) {
+        console.error("Failed to sync queued request:", error);
+        break;
+      }
+    }
+  };
+
+  useEffect(() => {
+    const handleAppStateChange = (nextAppState) => {
+      if (nextAppState === "active") {
+        syncQueue();
+      }
+    };
+    const subscription = AppState.addEventListener("change", handleAppStateChange);
+    return () => subscription.remove();
+  }, []);
 
   return (
     <SafeAreaView
