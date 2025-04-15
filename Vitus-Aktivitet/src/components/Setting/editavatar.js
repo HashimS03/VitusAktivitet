@@ -1,68 +1,74 @@
-"use client"
+"use client";
 
-import { useState, useEffect } from "react"
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Image, SafeAreaView, Modal } from "react-native"
-import { Ionicons } from "@expo/vector-icons"
-import { Camera } from "lucide-react-native"
-import * as ImagePicker from "expo-image-picker"
-import AsyncStorage from "@react-native-async-storage/async-storage"
-import { useNavigation } from "@react-navigation/native"
-import { useTheme } from "../context/ThemeContext"
+import { useState, useEffect, useContext } from "react";
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Image, SafeAreaView, Modal } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
+import { Camera } from "lucide-react-native";
+import * as ImagePicker from "expo-image-picker";
+import { useNavigation } from "@react-navigation/native";
+import { useTheme } from "../context/ThemeContext";
+import { UserContext } from "../context/UserContext";
+import axios from "axios";
+import { SERVER_CONFIG } from "../../config/serverConfig";
 
 export default function EditAvatar() {
-  const navigation = useNavigation()
-  const { theme, isDarkMode } = useTheme()
-  const [selectedMode, setSelectedMode] = useState("avatar")
-  const [selectedAvatar, setSelectedAvatar] = useState(null)
-  const [photo, setPhoto] = useState(null)
-  const [isModalVisible, setIsModalVisible] = useState(false)
+  const navigation = useNavigation();
+  const { theme, isDarkMode } = useTheme();
+  const { userId } = useContext(UserContext);
+  const [selectedMode, setSelectedMode] = useState("avatar");
+  const [selectedAvatar, setSelectedAvatar] = useState(null);
+  const [photo, setPhoto] = useState(null);
+  const [isModalVisible, setIsModalVisible] = useState(false);
+  const [currentAvatar, setCurrentAvatar] = useState(null); // To store the current avatar from DB
 
-  // Load the current selection when the component mounts
   useEffect(() => {
     const loadSelection = async () => {
+      if (!userId) return;
       try {
-        const selection = await AsyncStorage.getItem("userAvatarSelection")
-        if (selection) {
-          const parsedSelection = JSON.parse(selection)
-          if (parsedSelection.type === "avatar") {
-            setSelectedMode("avatar")
-            setSelectedAvatar(parsedSelection.value)
-            setPhoto(null)
-          } else if (parsedSelection.type === "photo") {
-            setSelectedMode("picture")
-            setPhoto(parsedSelection.value)
-            setSelectedAvatar(null)
-          }
+        const response = await axios.get(`${SERVER_CONFIG.getBaseUrl()}/user`, {
+          withCredentials: true,
+        });
+        const userData = response.data.user;
+        if (userData.avatar) {
+          setSelectedMode("picture");
+          setPhoto(userData.avatar);
+          setSelectedAvatar(null);
+        } else {
+          setSelectedMode("avatar");
+          setPhoto(null);
+          setSelectedAvatar(null); // Default to null until user selects
         }
+        setCurrentAvatar(userData.avatar || null);
       } catch (error) {
-        console.error("Error loading avatar selection:", error)
+        console.error("Error loading avatar selection:", error);
+        Alert.alert("Error", "Unable to load avatar. Using default.");
       }
-    }
-    loadSelection()
-  }, [])
+    };
+    loadSelection();
+  }, [userId]);
 
   const handleTakePhoto = async () => {
-    const { status } = await ImagePicker.requestCameraPermissionsAsync()
+    const { status } = await ImagePicker.requestCameraPermissionsAsync();
 
     if (status === "granted") {
       const result = await ImagePicker.launchCameraAsync({
         allowsEditing: true,
         aspect: [1, 1],
         quality: 1,
-      })
+      });
 
       if (!result.canceled) {
-        setPhoto(result.assets[0].uri)
-        setSelectedAvatar(null)
+        setPhoto(result.assets[0].uri);
+        setSelectedAvatar(null);
       }
     } else {
-      alert("Camera permission is required to take a photo.")
+      Alert.alert("Camera permission is required to take a photo.");
     }
-    setIsModalVisible(false)
-  }
+    setIsModalVisible(false);
+  };
 
   const handleChooseFromGallery = async () => {
-    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync()
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
 
     if (status === "granted") {
       const result = await ImagePicker.launchImageLibraryAsync({
@@ -70,32 +76,40 @@ export default function EditAvatar() {
         allowsEditing: true,
         aspect: [1, 1],
         quality: 1,
-      })
+      });
 
       if (!result.canceled) {
-        setPhoto(result.assets[0].uri)
-        setSelectedAvatar(null)
+        setPhoto(result.assets[0].uri);
+        setSelectedAvatar(null);
       }
     } else {
-      alert("Gallery permission is required to choose a photo.")
+      Alert.alert("Gallery permission is required to choose a photo.");
     }
-    setIsModalVisible(false)
-  }
+    setIsModalVisible(false);
+  };
 
   const handleContinue = async () => {
+    if (!userId) {
+      Alert.alert("Error", "User not logged in.");
+      return;
+    }
     if (selectedAvatar || photo) {
       try {
-        const selection = {
-          type: selectedAvatar ? "avatar" : "photo",
-          value: selectedAvatar ? selectedAvatar : photo,
-        }
-        await AsyncStorage.setItem("userAvatarSelection", JSON.stringify(selection))
-        navigation.goBack()
+        await axios.put(
+          `${SERVER_CONFIG.getBaseUrl()}/user`,
+          {
+            avatar: photo || null, // Send photo URI or null if avatar is selected
+          },
+          { withCredentials: true }
+        );
+        Alert.alert("Success", "Avatar updated successfully!");
+        navigation.goBack();
       } catch (error) {
-        console.error("Error saving avatar selection:", error)
+        console.error("Error saving avatar selection:", error);
+        Alert.alert("Error", "Failed to update avatar. Please try again.");
       }
     }
-  }
+  };
 
   const avatars = [
     { id: 1, source: require("../../../assets/avatars/Avatar_Asian.png") },
@@ -108,9 +122,9 @@ export default function EditAvatar() {
     { id: 8, source: require("../../../assets/avatars/Avatar_Smirk.png") },
     { id: 9, source: require("../../../assets/avatars/Avatar_Hijabi.png") },
     { id: 10, source: require("../../../assets/avatars/Avatar_Silly.png") },
-  ]
+  ];
 
-  const selectedAvatarObj = avatars.find((avatar) => avatar.id === selectedAvatar)
+  const selectedAvatarObj = avatars.find((avatar) => avatar.id === selectedAvatar);
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]}>
@@ -119,7 +133,7 @@ export default function EditAvatar() {
           <Ionicons name="chevron-back" size={24} color={theme.text} />
         </TouchableOpacity>
         <Text style={[styles.headerTitle, { color: theme.text }]}>Rediger Avatar</Text>
-        <View style={{ width: 24 }}>{/* Spacer for symmetry */}</View>
+        <View style={{ width: 24 }} />
       </View>
 
       <View style={styles.content}>
@@ -133,6 +147,8 @@ export default function EditAvatar() {
             <Image source={{ uri: photo }} style={[styles.previewImage, { borderColor: theme.primary }]} />
           ) : selectedAvatarObj ? (
             <Image source={selectedAvatarObj.source} style={[styles.previewImage, { borderColor: theme.primary }]} />
+          ) : currentAvatar ? (
+            <Image source={{ uri: currentAvatar }} style={[styles.previewImage, { borderColor: theme.primary }]} />
           ) : (
             <View
               style={[
@@ -198,8 +214,8 @@ export default function EditAvatar() {
                   selectedAvatar === avatar.id && [styles.selectedAvatar, { backgroundColor: theme.primary + "20" }],
                 ]}
                 onPress={() => {
-                  setSelectedAvatar(avatar.id)
-                  setPhoto(null)
+                  setSelectedAvatar(avatar.id);
+                  setPhoto(null);
                 }}
               >
                 <Image source={avatar.source} style={styles.avatar} />
@@ -287,7 +303,7 @@ export default function EditAvatar() {
         </View>
       </Modal>
     </SafeAreaView>
-  )
+  );
 }
 
 const styles = StyleSheet.create({
@@ -499,5 +515,4 @@ const styles = StyleSheet.create({
   cancelButtonText: {
     color: "#00B6AA",
   },
-})
-
+});

@@ -10,6 +10,7 @@ import {
   Image,
   Dimensions,
   ScrollView,
+  Alert,
 } from "react-native";
 import {
   ChevronLeft,
@@ -21,99 +22,163 @@ import {
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useNavigation, useRoute } from "@react-navigation/native";
 import { useTheme } from "../context/ThemeContext";
-import AsyncStorage from "@react-native-async-storage/async-storage";
-import { EventContext } from "../events/EventContext";
+import { UserContext } from "../context/UserContext";
+import axios from "axios";
+import { SERVER_CONFIG } from "../../config/serverConfig";
 import Achievements from "./achievements";
-import Activity from "./activity";
-
-// Define the avatars list (same as in AvatarSelection)
-const avatars = [
-  { id: 1, source: require("../../../assets/avatars/Avatar_Asian.png") },
-  { id: 2, source: require("../../../assets/avatars/Avatar_Athlete.png") },
-  { id: 3, source: require("../../../assets/avatars/Avatar_Dizzy.png") },
-  { id: 4, source: require("../../../assets/avatars/Avatar_Gangster.png") },
-  { id: 5, source: require("../../../assets/avatars/Avatar_Happy.png") },
-  { id: 6, source: require("../../../assets/avatars/Avatar_Love.png") },
-  { id: 7, source: require("../../../assets/avatars/Avatar_Sikh.png") },
-  { id: 8, source: require("../../../assets/avatars/Avatar_Smirk.png") },
-];
 
 const TABS = ["STATS", "MILEPÆLER"];
 
 const Stats = () => {
+  const { userId } = useContext(UserContext); // Get the logged-in user's ID
   const [activeTab, setActiveTab] = useState("STATS");
   const [totalSteps, setTotalSteps] = useState(0);
   const [bestStreak, setBestStreak] = useState(0);
-  const [eventsParticipated, setEventsParticipated] = useState(0);
+  const [eventsParticipated, setEventsParticipated] = useState(0); // Default to 0 since events are commented out
   const [dailyGoalProgress, setDailyGoalProgress] = useState(0);
   const [dailyGoal, setDailyGoal] = useState(7500);
-  const [avatarSelection, setAvatarSelection] = useState(null); // State for avatar/photo
+  const [avatarSelection, setAvatarSelection] = useState(null);
+  const [userName, setUserName] = useState(""); // State to store the user's name
   const navigation = useNavigation();
   const route = useRoute();
   const { theme, accentColor } = useTheme();
-  const { activeEvents } = useContext(EventContext);
 
   useEffect(() => {
     if (route.params?.initialTab && TABS.includes(route.params.initialTab)) {
       setActiveTab(route.params.initialTab);
     }
-    loadStatsData();
-    loadAvatarSelection(); // Load avatar selection
-  }, [route.params?.initialTab]);
+    if (userId) {
+      loadStatsData();
+      loadAvatarSelection();
+    }
+  }, [route.params?.initialTab, userId]);
 
   const loadStatsData = async () => {
-    try {
-      const allKeys = await AsyncStorage.getAllKeys();
-      const stepHistoryKeys = allKeys.filter((key) =>
-        key.startsWith("stepHistory_")
-      );
-      let totalHistoricalSteps = 0;
-      for (const key of stepHistoryKeys) {
-        const steps = await AsyncStorage.getItem(key);
-        totalHistoricalSteps += steps ? parseInt(steps) : 0;
+    if (!userId) return;
+
+    const maxRetries = 5;
+    let attempt = 0;
+
+    while (attempt < maxRetries) {
+      try {
+        // Fetch user data (including avatar and name)
+        let userData = { user: { avatar: null, name: "Unknown" } }; // Default fallback
+        try {
+          const userResponse = await axios.get(`${SERVER_CONFIG.getBaseUrl()}/user`, {
+            withCredentials: true,
+          });
+          userData = userResponse.data;
+          console.log("User data fetched successfully:", userData.user);
+        } catch (userError) {
+          console.error("Failed to fetch user data:", userError);
+          if (userError.response && userError.response.status === 500) {
+            Alert.alert("Server Error", "Unable to load user data. Using default values.");
+          }
+        }
+        setAvatarSelection(userData.user.avatar ? { type: "photo", value: userData.user.avatar } : null);
+        setUserName(userData.user.name || "Unknown"); // Set the user's name
+
+        // Fetch step activity
+        let stepActivities = []; // Default fallback
+        try {
+          const stepResponse = await axios.get(`${SERVER_CONFIG.getBaseUrl()}/step-activity`, {
+            withCredentials: true,
+          });
+          stepActivities = stepResponse.data.data;
+          console.log("Step activity fetched successfully:", stepActivities);
+        } catch (stepError) {
+          console.error("Failed to fetch step activity:", stepError);
+          if (stepError.response && stepError.response.status === 500) {
+            Alert.alert("Server Error", "Unable to load step activity. Using default values.");
+          }
+        }
+        const totalHistoricalSteps = stepActivities.reduce((sum, activity) => sum + (activity.step_count || 0), 0);
+        setTotalSteps(totalHistoricalSteps);
+
+        // Comment out events fetch and use fallback
+        // let userEvents = []; // Default fallback
+        // try {
+        //   const eventsResponse = await axios.get(`${SERVER_CONFIG.getBaseUrl()}/events`, {
+        //     withCredentials: true,
+        //   });
+        //   userEvents = eventsResponse.data;
+        //   console.log("Events fetched successfully:", userEvents);
+        // } catch (eventsError) {
+        //   console.error("Failed to fetch events:", eventsError);
+        //   if (eventsError.response && eventsError.response.status === 500) {
+        //     Alert.alert("Server Error", "Unable to load events. Using default values.");
+        //   }
+        // }
+        // setEventsParticipated(userEvents.length);
+        setEventsParticipated(0); // Temporary fallback since events are commented out
+
+        // Assume daily goal (fetch from user data if stored in DB)
+        setDailyGoal(7500); // Default, adjust if stored in [USER] table
+
+        // Calculate daily progress
+        const latestActivity = stepActivities[0] || { step_count: 0 };
+        const currentSteps = latestActivity.step_count || 0;
+        setDailyGoalProgress(Math.min((currentSteps / dailyGoal) * 100, 100));
+
+        // Comment out streaks fetch and use fallback
+        // const streakResponse = await axios.get(`${SERVER_CONFIG.getBaseUrl()}/user/streaks`, { withCredentials: true });
+        // setBestStreak(streakResponse.data.bestStreak || 0);
+        setBestStreak(0); // Temporary fallback until server streak endpoint is fixed
+
+        break;
+      } catch (error) {
+        attempt++;
+        console.error(`Attempt ${attempt} failed:`, error);
+        if (error.response && error.response.status === 503 && attempt < maxRetries) {
+          await new Promise((resolve) => setTimeout(resolve, 3000 * attempt)); // Backoff
+          continue;
+        } else {
+          if (error.response && error.response.status === 401) {
+            Alert.alert("Authentication Error", "Please log in to view stats.");
+          } else if (error.response && error.response.status === 500) {
+            Alert.alert("Server Error", "Unable to load stats. Please try again later.");
+          } else if (error.response && error.response.status === 503) {
+            Alert.alert(
+              "Server Problem",
+              "The server is temporarily unavailable. Stats will sync when the server is back.",
+              [{ text: "OK" }]
+            );
+          }
+          break;
+        }
       }
-      setTotalSteps(totalHistoricalSteps);
-
-      const currentStreak = await AsyncStorage.getItem("currentStreak");
-      const storedBestStreak =
-        (await AsyncStorage.getItem("bestStreak")) || currentStreak || "0";
-      setBestStreak(parseInt(storedBestStreak) || 0);
-
-      const participatedEvents = JSON.parse(
-        (await AsyncStorage.getItem("participatedEvents")) || "[]"
-      );
-      setEventsParticipated(participatedEvents.length);
-
-      const storedGoal = await AsyncStorage.getItem("dailyGoal");
-      const goal = storedGoal ? JSON.parse(storedGoal) : 7500;
-      setDailyGoal(goal);
-
-      const stepCount = await AsyncStorage.getItem("stepCount");
-      const currentSteps = stepCount ? parseInt(stepCount) : 0;
-      setDailyGoalProgress(Math.min((currentSteps / goal) * 100, 100));
-    } catch (error) {
-      console.error("Error loading stats data:", error);
     }
   };
 
   const loadAvatarSelection = async () => {
+    if (!userId) return;
+
     try {
-      const selection = await AsyncStorage.getItem("userAvatarSelection");
-      if (selection) {
-        setAvatarSelection(JSON.parse(selection));
-      }
+      const response = await axios.get(`${SERVER_CONFIG.getBaseUrl()}/user`, {
+        withCredentials: true,
+      });
+      const userData = response.data.user;
+      setAvatarSelection(userData.avatar ? { type: "photo", value: userData.avatar } : null);
+      setUserName(userData.name || "Unknown"); // Update name here too for consistency
     } catch (error) {
       console.error("Error loading avatar selection:", error);
+      if (error.response && error.response.status === 401) {
+        Alert.alert("Authentication Error", "Please log in to load avatar.");
+      } else if (error.response && error.response.status === 500) {
+        Alert.alert("Server Error", "Unable to load avatar. Please try again later.");
+      }
     }
   };
 
   useEffect(() => {
     const subscription = navigation.addListener("focus", () => {
-      loadStatsData();
-      loadAvatarSelection(); // Reload avatar selection when screen is focused
+      if (userId) {
+        loadStatsData();
+        loadAvatarSelection();
+      }
     });
     return subscription;
-  }, [navigation]);
+  }, [navigation, userId]);
 
   const renderHeader = () => (
     <View style={styles.header}>
@@ -133,21 +198,11 @@ const Stats = () => {
   );
 
   const renderProfileSection = () => {
-    // Find the selected avatar object if type is "avatar"
-    const selectedAvatarObj = avatarSelection?.type === "avatar"
-      ? avatars.find((avatar) => avatar.id === avatarSelection.value)
-      : null;
-
     return (
       <View style={styles.profileSection}>
         {avatarSelection?.type === "photo" ? (
           <Image
             source={{ uri: avatarSelection.value }}
-            style={styles.avatar}
-          />
-        ) : selectedAvatarObj ? (
-          <Image
-            source={selectedAvatarObj.source}
             style={styles.avatar}
           />
         ) : (
@@ -156,7 +211,7 @@ const Stats = () => {
             style={styles.avatar}
           />
         )}
-        <Text style={[styles.name, { color: theme.text }]}>Navn</Text>
+        <Text style={[styles.name, { color: theme.text }]}>{userName}</Text>
       </View>
     );
   };
@@ -290,7 +345,8 @@ const Stats = () => {
           </TouchableOpacity>
         ))}
       </View>
-      <View style={styles.eventsSection}>
+      {/* Events section commented out for now */}
+      {/* <View style={styles.eventsSection}>
         <View style={styles.eventsHeader}>
           <Text style={[styles.sectionTitle, { color: theme.text }]}>
             Nylige hendelser
@@ -360,7 +416,7 @@ const Stats = () => {
             </Text>
           </View>
         )}
-      </View>
+      </View> */}
     </ScrollView>
   );
 
@@ -501,76 +557,74 @@ const styles = StyleSheet.create({
     height: "100%",
     borderRadius: 3,
   },
-  eventsSection: {
-    paddingHorizontal: 16,
-    marginTop: 16,
-  },
-  eventsHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 12,
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: "600",
-  },
-  seeAllButton: {
-    padding: 8,
-  },
-  seeAllText: {
-    fontSize: 14,
-    fontWeight: "500",
-  },
-  eventCard: {
-    borderRadius: 20,
-    padding: 16,
-    marginBottom: 12,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  eventContent: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-  },
-  eventIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 8,
-  },
-  eventTextContainer: {
-    flex: 1,
-  },
-  eventTitle: {
-    fontSize: 16,
-    fontWeight: "600",
-    marginBottom: 4,
-  },
-  eventProgress: {
-    fontSize: 14,
-    opacity: 0.7,
-  },
-  emptyEventCard: {
-    borderRadius: 20,
-    padding: 16,
-    marginBottom: 12,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  emptyEventText: {
-    fontSize: 16,
-    textAlign: "center",
-  },
-  scrollContent: {
-    paddingBottom: 32,
-  },
+  // Events-related styles commented out
+  // eventsSection: {
+  //   paddingHorizontal: 16,
+  //   marginTop: 16,
+  // },
+  // eventsHeader: {
+  //   flexDirection: "row",
+  //   justifyContent: "space-between",
+  //   alignItems: "center",
+  //   marginBottom: 12,
+  // },
+  // sectionTitle: {
+  //   fontSize: 18,
+  //   fontWeight: "600",
+  // },
+  // seeAllButton: {
+  //   padding: 8,
+  // },
+  // seeAllText: {
+  //   fontSize: 14,
+  //   fontWeight: "500",
+  // },
+  // eventCard: {
+  //   borderRadius: 20,
+  //   padding: 16,
+  //   marginBottom: 12,
+  //   shadowColor: "#000",
+  //   shadowOffset: { width: 0, height: 2 },
+  //   shadowOpacity: 0.1,
+  //   shadowRadius: 4,
+  //   elevation: 3,
+  // },
+  // eventContent: {
+  //   flexDirection: "row",
+  //   alignItems: "center",
+  //   gap: 12,
+  // },
+  // eventIcon: {
+  //   width: 40,
+  //   height: 40,
+  //   borderRadius: 8,
+  // },
+  // eventTextContainer: {
+  //   flex: 1,
+  // },
+  // eventTitle: {
+  //   fontSize: 16,
+  //   fontWeight: "600",
+  //   marginBottom: 4,
+  // },
+  // eventProgress: {
+  //   fontSize: 14,
+  //   opacity: 0.7,
+  // },
+  // emptyEventCard: {
+  //   borderRadius: 20,
+  //   padding: 16,
+  //   marginBottom: 12,
+  //   shadowColor: "#000",
+  //   shadowOffset: { width: 0, height: 2 },
+  //   shadowOpacity: 0.1,
+  //   shadowRadius: 4,
+  //   elevation: 3,
+  // },
+  // emptyEventText: {
+  //   fontSize: 16,
+  //   textAlign: "center",
+  // },
 });
 
 export default Stats;

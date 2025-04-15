@@ -1,11 +1,13 @@
-"use client"
+"use client";
 
-import { useState, useEffect } from "react"
-import { View, Text, StyleSheet, Image, TouchableOpacity, SafeAreaView, ScrollView, Alert } from "react-native"
-import { Ionicons } from "@expo/vector-icons"
-import { useNavigation } from "@react-navigation/native"
-import { useTheme } from "../context/ThemeContext"
-import AsyncStorage from "@react-native-async-storage/async-storage"
+import { useState, useEffect, useContext } from "react";
+import { View, Text, StyleSheet, Image, TouchableOpacity, SafeAreaView, ScrollView, Alert } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
+import { useNavigation } from "@react-navigation/native";
+import { useTheme } from "../context/ThemeContext";
+import { UserContext } from "../context/UserContext";
+import axios from "axios";
+import { SERVER_CONFIG } from "../../config/serverConfig";
 
 // Define the avatars list (same as in EditAvatar)
 const avatars = [
@@ -19,11 +21,11 @@ const avatars = [
   { id: 8, source: require("../../../assets/avatars/Avatar_Smirk.png") },
   { id: 9, source: require("../../../assets/avatars/Avatar_Hijabi.png") },
   { id: 10, source: require("../../../assets/avatars/Avatar_Silly.png") },
-]
+];
 
 const SettingsRow = ({ icon, title, value, onPress, isLastItem }) => {
-  const { theme } = useTheme()
-  const accentColor = theme.primary
+  const { theme } = useTheme();
+  const accentColor = theme.primary;
 
   return (
     <TouchableOpacity
@@ -46,51 +48,68 @@ const SettingsRow = ({ icon, title, value, onPress, isLastItem }) => {
         </Text>
       )}
     </TouchableOpacity>
-  )
-}
+  );
+};
 
 const SettingsSection = ({ children }) => {
-  const { theme } = useTheme()
-  return <View style={[styles.settingsSection, { backgroundColor: theme.surface }]}>{children}</View>
-}
+  const { theme } = useTheme();
+  return <View style={[styles.settingsSection, { backgroundColor: theme.surface }]}>{children}</View>;
+};
 
 export default function SettingScreen() {
-  const navigation = useNavigation()
-  const { theme, isDarkMode } = useTheme()
-  const [avatarSelection, setAvatarSelection] = useState(null)
+  const navigation = useNavigation();
+  const { theme, isDarkMode } = useTheme();
+  const { userId } = useContext(UserContext);
+  const [avatarSelection, setAvatarSelection] = useState(null);
+  const [userData, setUserData] = useState({ name: "Unknown", email: "", phone: "", address: "" });
 
-  // Load the avatar selection when the component mounts
   useEffect(() => {
-    const loadAvatarSelection = async () => {
+    const loadUserData = async () => {
+      if (!userId) return;
       try {
-        const selection = await AsyncStorage.getItem("userAvatarSelection")
-        if (selection) {
-          setAvatarSelection(JSON.parse(selection))
-        }
+        const response = await axios.get(`${SERVER_CONFIG.getBaseUrl()}/user`, {
+          withCredentials: true,
+        });
+        const data = response.data.user;
+        setUserData({
+          name: data.name || "Unknown",
+          email: data.email || "",
+          phone: data.phone || "",
+          address: data.address || "",
+        });
+        setAvatarSelection(data.avatar ? { type: "photo", value: data.avatar } : null);
       } catch (error) {
-        console.error("Error loading avatar selection:", error)
+        console.error("Error loading user data:", error);
+        Alert.alert("Error", "Unable to load settings data. Please try again.");
       }
-    }
-    loadAvatarSelection()
-  }, [])
+    };
+    loadUserData();
+  }, [userId]);
 
-  // Reload avatar selection when the screen is focused
   useEffect(() => {
     const subscription = navigation.addListener("focus", () => {
-      const loadAvatarSelection = async () => {
+      const loadUserData = async () => {
+        if (!userId) return;
         try {
-          const selection = await AsyncStorage.getItem("userAvatarSelection")
-          if (selection) {
-            setAvatarSelection(JSON.parse(selection))
-          }
+          const response = await axios.get(`${SERVER_CONFIG.getBaseUrl()}/user`, {
+            withCredentials: true,
+          });
+          const data = response.data.user;
+          setUserData({
+            name: data.name || "Unknown",
+            email: data.email || "",
+            phone: data.phone || "",
+            address: data.address || "",
+          });
+          setAvatarSelection(data.avatar ? { type: "photo", value: data.avatar } : null);
         } catch (error) {
-          console.error("Error loading avatar selection:", error)
+          console.error("Error loading user data on focus:", error);
         }
-      }
-      loadAvatarSelection()
-    })
-    return subscription
-  }, [navigation])
+      };
+      loadUserData();
+    });
+    return subscription;
+  }, [navigation, userId]);
 
   const handleLogout = () => {
     Alert.alert("Logg ut", "Er du sikker på at du vil logge ut?", [
@@ -99,26 +118,23 @@ export default function SettingScreen() {
         text: "Logg ut",
         style: "destructive",
         onPress: () => {
-          // Fikset navigasjon til Start-skjermen
           navigation.reset({
             index: 0,
             routes: [{ name: "Start" }],
-          })
+          });
         },
       },
-    ])
-  }
+    ]);
+  };
 
-  const themeMode = isDarkMode ? "Mørk Modus" : "Lys Modus"
+  const themeMode = isDarkMode ? "Mørk Modus" : "Lys Modus";
 
-  // Find the selected avatar object if type is "avatar"
   const selectedAvatarObj =
-    avatarSelection?.type === "avatar" ? avatars.find((avatar) => avatar.id === avatarSelection.value) : null
+    avatarSelection?.type === "avatar" ? avatars.find((avatar) => avatar.id === avatarSelection.value) : null;
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]}>
       <ScrollView>
-        {/* Header Section */}
         <View style={styles.headerContainer}>
           <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
             <Ionicons name="chevron-back" size={24} color={theme.text} />
@@ -127,7 +143,6 @@ export default function SettingScreen() {
           <View style={{ width: 24 }} />
         </View>
 
-        {/* Avatar Section */}
         <View style={styles.avatarSection}>
           <View style={styles.avatarContainer}>
             {avatarSelection?.type === "photo" ? (
@@ -142,16 +157,17 @@ export default function SettingScreen() {
             )}
             <TouchableOpacity
               style={[styles.editButton, { backgroundColor: theme.surface }]}
-              onPress={() => navigation.navigate("EditAvatar")} // Navigate within SettingsStack
+              onPress={() => navigation.navigate("EditAvatar")}
             >
               <Ionicons name="pencil" size={20} color={theme.text} />
             </TouchableOpacity>
           </View>
-          <Text style={[styles.name, { color: theme.text }]}>Navn</Text>
-          <Text style={[styles.contact, { color: theme.textSecondary }]}>youremail@domain.com | +47 256 27 189</Text>
+          <Text style={[styles.name, { color: theme.text }]}>{userData.name}</Text>
+          <Text style={[styles.contact, { color: theme.textSecondary }]}>
+            {userData.email} | {userData.phone || "+47 256 27 189"}
+          </Text>
         </View>
 
-        {/* Settings Sections */}
         <SettingsSection>
           {[
             {
@@ -177,7 +193,7 @@ export default function SettingScreen() {
               icon={item.icon}
               title={item.title}
               value={item.value}
-              onPress={() => navigation.navigate(item.route)} // Navigate within SettingsStack
+              onPress={() => navigation.navigate(item.route)}
               isLastItem={index === array.length - 1}
             />
           ))}
@@ -202,7 +218,7 @@ export default function SettingScreen() {
               icon={item.icon}
               title={item.title}
               value={item.value}
-              onPress={() => navigation.navigate(item.route)} // Navigate within SettingsStack
+              onPress={() => navigation.navigate(item.route)}
               isLastItem={index === array.length - 1}
             />
           ))}
@@ -223,7 +239,7 @@ export default function SettingScreen() {
               icon={item.icon}
               title={item.title}
               onPress={
-                item.onPress ? item.onPress : () => navigation.navigate(item.route) // Navigate within SettingsStack
+                item.onPress ? item.onPress : () => navigation.navigate(item.route)
               }
               isLastItem={index === array.length - 1}
             />
@@ -231,7 +247,7 @@ export default function SettingScreen() {
         </SettingsSection>
       </ScrollView>
     </SafeAreaView>
-  )
+  );
 }
 
 const styles = StyleSheet.create({
@@ -289,5 +305,4 @@ const styles = StyleSheet.create({
   settingsText: { fontSize: 16 },
   settingsValue: { fontSize: 16 },
   activeValue: { fontWeight: "600" },
-})
-
+});

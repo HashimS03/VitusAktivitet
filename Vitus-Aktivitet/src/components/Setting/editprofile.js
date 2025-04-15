@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useContext } from "react";
 import {
   View,
   Text,
@@ -8,41 +8,99 @@ import {
   ScrollView,
   KeyboardAvoidingView,
   Platform,
+  Alert,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
-import { useTheme } from "../context/ThemeContext"; // 🌙 Import Theme Support
+import { useTheme } from "../context/ThemeContext";
+import { UserContext } from "../context/UserContext";
+import axios from "axios";
+import { SERVER_CONFIG } from "../../config/serverConfig";
 
 const EditProfile = () => {
   const navigation = useNavigation();
-  const { theme, accentColor } = useTheme(); // Get theme and accent color
+  const { theme, accentColor } = useTheme();
+  const { userId } = useContext(UserContext);
+  const [fullName, setFullName] = useState("");
+  const [nickname, setNickname] = useState("");
+  const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
+  const [address, setAddress] = useState("");
 
-  // State variables for input fields
-  const [fullName, setFullName] = useState("Hashem Sheikh");
-  const [nickname, setNickname] = useState("Hashem Sheikh");
-  const [email, setEmail] = useState("youremail@domain.com");
-  const [phone, setPhone] = useState("256 27 189");
-  const [address, setAddress] = useState("Alf Bjerkes Vei 28");
+  useEffect(() => {
+    const loadUserData = async () => {
+      if (!userId) return;
+      try {
+        const response = await axios.get(`${SERVER_CONFIG.getBaseUrl()}/user`, {
+          withCredentials: true,
+        });
+        const userData = response.data.user;
+        setFullName(userData.name || "");
+        setEmail(userData.email || "");
+        setPhone(userData.phone || "");
+        setAddress(userData.address || "");
+        setNickname(userData.name || ""); // Assuming nickname is the same as name for now
+        console.log("Loaded user data:", userData);
+      } catch (error) {
+        console.error("Error loading user data:", error);
+        Alert.alert("Error", "Unable to load profile data. Please try again.");
+      }
+    };
+    loadUserData();
+  }, [userId]);
+
+  const handleSubmit = async () => {
+    if (!userId) {
+      Alert.alert("Error", "User not logged in.");
+      return;
+    }
+    const url = `${SERVER_CONFIG.getBaseUrl()}/user`.replace(/\/$/, ""); // Remove trailing slash
+    console.log("Sending PUT request to:", url, "with userId:", userId, "and body:", {
+      name: fullName,
+      email,
+      phone,
+      address,
+    });
+    try {
+      const response = await axios.put(
+        url,
+        {
+          name: fullName,
+          email,
+          phone,
+          address,
+        },
+        { withCredentials: true }
+      );
+      console.log("Server response:", response.data);
+      Alert.alert("Success", "Profile updated successfully!");
+      navigation.goBack();
+    } catch (error) {
+      console.error("Error updating profile:", error);
+      if (error.response && error.response.status === 404) {
+        console.log("404 Response details:", error.response);
+        Alert.alert("Error", "Server endpoint not found. Please ensure the server is running at " + url);
+      } else if (error.response && error.response.status === 400) {
+        Alert.alert("Error", error.response.data.message || "Invalid input data.");
+      } else {
+        Alert.alert("Error", "Failed to update profile. Please try again.");
+      }
+    }
+  };
 
   return (
     <KeyboardAvoidingView
       style={[styles.container, { backgroundColor: theme.background }]}
       behavior={Platform.OS === "ios" ? "padding" : "height"}
     >
-      {/* Header Section */}
       <View style={[styles.headerWrapper, { borderBottomColor: theme.border }]}>
-        {/* Back Button */}
         <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
           <Ionicons name="chevron-back" size={28} color={theme.text} />
         </TouchableOpacity>
-
-        {/* Header Title */}
         <Text style={[styles.header, { color: theme.text }]}>Rediger Profil</Text>
       </View>
 
-      {/* Scrollable Form */}
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-        {/* Full Name */}
         <View style={styles.inputContainer}>
           <Text style={[styles.label, { color: theme.textSecondary }]}>Navn</Text>
           <TextInput
@@ -52,7 +110,6 @@ const EditProfile = () => {
           />
         </View>
 
-        {/* Email */}
         <View style={styles.inputContainer}>
           <Text style={[styles.label, { color: theme.textSecondary }]}>E-post</Text>
           <TextInput
@@ -63,7 +120,6 @@ const EditProfile = () => {
           />
         </View>
 
-        {/* Phone Number */}
         <View style={styles.inputContainer}>
           <Text style={[styles.label, { color: theme.textSecondary }]}>Telefon Nummer</Text>
           <View style={[styles.phoneInputContainer, { backgroundColor: theme.surface }]}>
@@ -77,7 +133,6 @@ const EditProfile = () => {
           </View>
         </View>
 
-        {/* Address */}
         <View style={styles.inputContainer}>
           <Text style={[styles.label, { color: theme.textSecondary }]}>Adresse</Text>
           <TextInput
@@ -87,8 +142,7 @@ const EditProfile = () => {
           />
         </View>
 
-        {/* Submit Button */}
-        <TouchableOpacity style={[styles.submitButton, { backgroundColor: accentColor }]} onPress={() => alert("Profil oppdatert!")}>
+        <TouchableOpacity style={[styles.submitButton, { backgroundColor: accentColor }]} onPress={handleSubmit}>
           <Text style={styles.submitText}>SUBMIT</Text>
         </TouchableOpacity>
       </ScrollView>
@@ -96,7 +150,6 @@ const EditProfile = () => {
   );
 };
 
-// Styles
 const styles = StyleSheet.create({
   container: {
     flex: 1,

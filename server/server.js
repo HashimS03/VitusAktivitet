@@ -10,6 +10,7 @@ require("dotenv").config();
 const app = express();
 const PORT = process.env.PORT || 4000;
 
+console.log("Registering middleware...");
 app.use(express.json());
 app.use(cors({ origin: "*", credentials: true }));
 
@@ -22,8 +23,11 @@ app.use(
   })
 );
 
+console.log("Defining routes...");
+
 // Middleware to check if user is authenticated
 const authenticateUser = (req, res, next) => {
+  console.log("Authenticating user, session userId:", req.session.userId, "Method:", req.method, "Path:", req.path);
   if (!req.session.userId) {
     return res.status(401).json({ success: false, message: "Unauthorized" });
   }
@@ -59,7 +63,7 @@ app.post("/register", async (req, res) => {
     console.log("User registered successfully:", { name, email });
     res.status(201).json({ success: true, message: "User registered successfully" });
   } catch (err) {
-    console.error("Registration error:", err);
+    console.error("Registration error:", err.message, err.stack);
     const errorDetails = {
       message: err.message,
       stack: process.env.NODE_ENV !== 'production' ? err.stack : undefined,
@@ -110,7 +114,7 @@ app.post("/login", async (req, res) => {
       res.status(401).json({ success: false, message: "Invalid email or password" });
     }
   } catch (err) {
-    console.error("Login error:", err);
+    console.error("Login error:", err.message, err.stack);
     const errorDetails = {
       message: err.message,
       stack: process.env.NODE_ENV !== 'production' ? err.stack : undefined,
@@ -126,6 +130,7 @@ app.post("/login", async (req, res) => {
 app.post("/logout", (req, res) => {
   req.session.destroy((err) => {
     if (err) {
+      console.error("Logout error:", err.message, err.stack);
       return res.status(500).json({ success: false, message: "Logout failed" });
     }
     res.json({ success: true, message: "Logged out successfully" });
@@ -135,19 +140,21 @@ app.post("/logout", (req, res) => {
 // 🔹 Route to Fetch User Data
 app.get("/user", authenticateUser, async (req, res) => {
   try {
+    console.log("Fetching user data for userId:", req.session.userId);
     const pool = await poolPromise;
     const result = await pool
       .request()
       .input("id", sql.Int, req.session.userId)
-      .query("SELECT [Id], [name], [email], [avatar], [created_at], [last_login] FROM [USER] WHERE [Id] = @id");
+      .query("SELECT [Id], [name], [email], [avatar], [phone], [address], [created_at], [last_login] FROM [USER] WHERE [Id] = @id");
 
     if (result.recordset.length === 0) {
       return res.status(404).json({ success: false, message: "User not found" });
     }
 
+    console.log("User data fetched:", result.recordset[0]);
     res.json({ success: true, user: result.recordset[0] });
   } catch (err) {
-    console.error("User fetch error:", err);
+    console.error("User fetch error:", err.message, err.stack);
     res.status(500).json({ success: false, message: err.message });
   }
 });
@@ -213,7 +220,7 @@ app.post("/step-activity", authenticateUser, async (req, res) => {
 
     res.status(201).json({ success: true, message: "Step activity saved successfully" });
   } catch (err) {
-    console.error("Step activity error:", err);
+    console.error("Step activity error:", err.message, err.stack);
     res.status(500).json({ success: false, message: err.message });
   }
 });
@@ -221,16 +228,17 @@ app.post("/step-activity", authenticateUser, async (req, res) => {
 // 🔹 Route to Fetch Step Activity for User
 app.get("/step-activity", authenticateUser, async (req, res) => {
   try {
+    console.log("Fetching step activity for userId:", req.session.userId);
     const pool = await poolPromise;
-    const userId = req.session.userId;
     const result = await pool
       .request()
-      .input("userId", sql.Int, userId)
+      .input("userId", sql.Int, req.session.userId)
       .query("SELECT * FROM [STEPACTIVITY] WHERE userId = @userId ORDER BY [timestamp] DESC");
 
+    console.log("Step activity query result:", result.recordset);
     res.json({ success: true, data: result.recordset });
   } catch (err) {
-    console.error("Step activity fetch error:", err);
+    console.error("Step activity fetch error:", err.message, err.stack);
     res.status(500).json({ success: false, message: err.message });
   }
 });
@@ -238,6 +246,7 @@ app.get("/step-activity", authenticateUser, async (req, res) => {
 // 🔹 Route to Create an Event
 app.post("/events", authenticateUser, async (req, res) => {
   try {
+    console.log("Create event request received:", req.body);
     const {
       title,
       description,
@@ -274,8 +283,10 @@ app.post("/events", authenticateUser, async (req, res) => {
         (@title, @description, @activity, @goal, @start_date, @end_date, @location, @event_type, @total_participants, @team_count, @members_per_team, @userId)
       `);
 
+    console.log("Event created successfully for userId:", req.session.userId);
     res.status(201).json({ success: true, message: "Event created successfully" });
   } catch (err) {
+    console.error("Event creation error:", err.message, err.stack);
     res.status(500).json({ success: false, message: err.message });
   }
 });
@@ -283,14 +294,89 @@ app.post("/events", authenticateUser, async (req, res) => {
 // 🔹 Route to Fetch All Events for a User
 app.get("/events", authenticateUser, async (req, res) => {
   try {
+    console.log("Fetching events for userId:", req.session.userId);
     const pool = await poolPromise;
     const result = await pool
       .request()
       .input("userId", sql.Int, req.session.userId)
       .query("SELECT * FROM events WHERE user_id = @userId");
+    console.log("Events query result:", result.recordset);
     res.json(result.recordset);
   } catch (err) {
+    console.error("Events fetch error:", err.message, err.stack);
     res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// 🔹 Route to Calculate User Streaks
+app.get("/user/streaks", authenticateUser, async (req, res) => {
+  try {
+    console.log("Fetching streaks for userId:", req.session.userId);
+    const pool = await poolPromise;
+    const result = await pool
+      .request()
+      .input("userId", sql.Int, req.session.userId)
+      .query(`
+        SELECT MAX(consecutive_days) as bestStreak
+        FROM (
+          SELECT 
+            COUNT(*) as consecutive_days
+          FROM [STEPACTIVITY]
+          WHERE userId = @userId
+          AND step_count >= 7500
+          GROUP BY DATEADD(day, DATEDIFF(day, 0, timestamp), 0)
+        ) as streaks
+      `);
+    const bestStreak = result.recordset[0].bestStreak || 0;
+    console.log("Streak calculation result:", { bestStreak });
+    res.json({ success: true, bestStreak });
+  } catch (err) {
+    console.error("Streak fetch error:", err.message, err.stack);
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// 🔹 Route to Update User Data
+app.put("/user", authenticateUser, async (req, res) => {
+  console.log("PUT /user route hit for userId:", req.session.userId, "with method:", req.method, "and body:", req.body);
+  try {
+    console.log("Update user request received for userId:", req.session.userId, "with body:", req.body);
+    const { name, email, phone, address, avatar } = req.body;
+    const userId = req.session.userId;
+
+    if (!name && !email && !phone && !address && !avatar) {
+      return res.status(400).json({ success: false, message: "At least one field is required to update" });
+    }
+
+    const pool = await poolPromise;
+    const updateQuery = `
+      UPDATE [USER]
+      SET 
+        [name] = COALESCE(@name, [name]),
+        [email] = COALESCE(@email, [email]),
+        [phone] = COALESCE(@phone, [phone]),
+        [address] = COALESCE(@address, [address]),
+        [avatar] = COALESCE(@avatar, [avatar])
+      WHERE [Id] = @id
+    `;
+    await pool
+      .request()
+      .input("id", sql.Int, userId)
+      .input("name", sql.NVarChar, name || null)
+      .input("email", sql.NVarChar, email || null)
+      .input("phone", sql.NVarChar, phone || null)
+      .input("address", sql.NVarChar, address || null)
+      .input("avatar", sql.Image, avatar || null)
+      .query(updateQuery);
+
+    console.log("User updated successfully for userId:", userId);
+    res.json({ success: true, message: "User profile updated successfully" });
+  } catch (err) {
+    console.error("User update error:", err.message, err.stack);
+    if (err.number === 2627) { // Unique constraint violation (e.g., email)
+      return res.status(400).json({ success: false, message: "Email already exists" });
+    }
+    res.status(500).json({ success: false, message: `Update failed: ${err.message}` });
   }
 });
 
@@ -330,6 +416,7 @@ app.get("/health", async (req, res) => {
       }
     });
   } catch (error) {
+    console.error("Health check error:", error.message, error.stack);
     res.status(500).json({
       status: "error",
       message: error.message
@@ -340,7 +427,6 @@ app.get("/health", async (req, res) => {
 app.get("/", (req, res) => {
   res.send("API is running ✅");
 });
-
 
 // Start Server
 app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));
