@@ -37,7 +37,9 @@ app.post("/register", async (req, res) => {
     const { name, email, password, avatar } = req.body;
 
     if (!name || !email || !password) {
-      return res.status(400).json({ success: false, message: "All fields are required" });
+      return res
+        .status(400)
+        .json({ success: false, message: "All fields are required" });
     }
 
     const saltRounds = 10;
@@ -50,28 +52,33 @@ app.post("/register", async (req, res) => {
       .input("name", sql.NVarChar, name || null)
       .input("email", sql.NVarChar, email || null)
       .input("password", sql.VarChar, hashedPassword)
-      .input("avatar", sql.Image, avatar || null)
-      .query(`
+      .input("avatar", sql.Image, avatar || null).query(`
         INSERT INTO [USER] ([name], [email], [password], [avatar], [created_at], [last_login])
         VALUES (@name, @email, @password, @avatar, GETDATE(), NULL)
       `);
 
     console.log("User registered successfully:", { name, email });
-    res.status(201).json({ success: true, message: "User registered successfully" });
+    res
+      .status(201)
+      .json({ success: true, message: "User registered successfully" });
   } catch (err) {
     console.error("Registration error:", err);
     const errorDetails = {
       message: err.message,
-      stack: process.env.NODE_ENV !== 'production' ? err.stack : undefined,
+      stack: process.env.NODE_ENV !== "production" ? err.stack : undefined,
       code: err.code,
-      number: err.number
+      number: err.number,
     };
     console.error("Error details:", errorDetails);
-    
+
     if (err.number === 2627) {
-      return res.status(400).json({ success: false, message: "Email already exists" });
+      return res
+        .status(400)
+        .json({ success: false, message: "Email already exists" });
     }
-    res.status(500).json({ success: false, message: `Registration failed: ${err.message}` });
+    res
+      .status(500)
+      .json({ success: false, message: `Registration failed: ${err.message}` });
   }
 });
 
@@ -82,7 +89,9 @@ app.post("/login", async (req, res) => {
     const { email, password } = req.body;
 
     if (!email || !password) {
-      return res.status(400).json({ success: false, message: "Email and password are required" });
+      return res
+        .status(400)
+        .json({ success: false, message: "Email and password are required" });
     }
 
     const pool = await poolPromise;
@@ -92,7 +101,9 @@ app.post("/login", async (req, res) => {
       .query("SELECT [Id], [password] FROM [USER] WHERE [email] = @email");
 
     if (result.recordset.length === 0) {
-      return res.status(401).json({ success: false, message: "Invalid email or password" });
+      return res
+        .status(401)
+        .json({ success: false, message: "Invalid email or password" });
     }
 
     const user = result.recordset[0];
@@ -107,18 +118,22 @@ app.post("/login", async (req, res) => {
       req.session.userId = user.Id;
       res.json({ success: true, message: "Login successful", userId: user.Id });
     } else {
-      res.status(401).json({ success: false, message: "Invalid email or password" });
+      res
+        .status(401)
+        .json({ success: false, message: "Invalid email or password" });
     }
   } catch (err) {
     console.error("Login error:", err);
     const errorDetails = {
       message: err.message,
-      stack: process.env.NODE_ENV !== 'production' ? err.stack : undefined,
+      stack: process.env.NODE_ENV !== "production" ? err.stack : undefined,
       code: err.code,
-      errno: err.errno
+      errno: err.errno,
     };
     console.error("Error details:", errorDetails);
-    res.status(500).json({ success: false, message: `Login failed: ${err.message}` });
+    res
+      .status(500)
+      .json({ success: false, message: `Login failed: ${err.message}` });
   }
 });
 
@@ -139,10 +154,14 @@ app.get("/user", authenticateUser, async (req, res) => {
     const result = await pool
       .request()
       .input("id", sql.Int, req.session.userId)
-      .query("SELECT [Id], [name], [email], [avatar], [created_at], [last_login] FROM [USER] WHERE [Id] = @id");
+      .query(
+        "SELECT [Id], [name], [email], [avatar], [created_at], [last_login] FROM [USER] WHERE [Id] = @id"
+      );
 
     if (result.recordset.length === 0) {
-      return res.status(404).json({ success: false, message: "User not found" });
+      return res
+        .status(404)
+        .json({ success: false, message: "User not found" });
     }
 
     res.json({ success: true, user: result.recordset[0] });
@@ -161,7 +180,9 @@ app.post("/step-activity", authenticateUser, async (req, res) => {
     const userId = req.session.userId;
 
     if (!stepCount && stepCount !== 0) {
-      return res.status(400).json({ success: false, message: "stepCount is required" });
+      return res
+        .status(400)
+        .json({ success: false, message: "stepCount is required" });
     }
 
     // Validate userId exists in [USER] table
@@ -171,14 +192,19 @@ app.post("/step-activity", authenticateUser, async (req, res) => {
       .input("userId", sql.Int, userId)
       .query("SELECT Id FROM [USER] WHERE Id = @userId");
     if (userCheck.recordset.length === 0) {
-      return res.status(400).json({ success: false, message: `Invalid userId: ${userId} not found in [USER]` });
+      return res.status(400).json({
+        success: false,
+        message: `Invalid userId: ${userId} not found in [USER]`,
+      });
     }
     console.log("UserId validated:", userId);
 
     const existingRecord = await pool
       .request()
       .input("userId", sql.Int, userId)
-      .query("SELECT TOP 1 Id FROM [STEPACTIVITY] WHERE userId = @userId ORDER BY timestamp DESC");
+      .query(
+        "SELECT TOP 1 Id FROM [STEPACTIVITY] WHERE userId = @userId ORDER BY timestamp DESC"
+      );
     console.log("Existing record check result:", existingRecord.recordset);
 
     if (existingRecord.recordset.length > 0) {
@@ -189,8 +215,7 @@ app.post("/step-activity", authenticateUser, async (req, res) => {
         .input("id", sql.Int, recordId)
         .input("stepCount", sql.Int, stepCount)
         .input("distance", sql.Float, distance || null)
-        .input("timestamp", sql.DateTime, timestamp || new Date())
-        .query(`
+        .input("timestamp", sql.DateTime, timestamp || new Date()).query(`
           UPDATE [STEPACTIVITY]
           SET step_count = @stepCount, distance = @distance, timestamp = @timestamp
           WHERE Id = @id
@@ -203,15 +228,16 @@ app.post("/step-activity", authenticateUser, async (req, res) => {
         .input("userId", sql.Int, userId)
         .input("stepCount", sql.Int, stepCount)
         .input("distance", sql.Float, distance || null)
-        .input("timestamp", sql.DateTime, timestamp || new Date())
-        .query(`
+        .input("timestamp", sql.DateTime, timestamp || new Date()).query(`
           INSERT INTO [STEPACTIVITY] (userId, step_count, distance, timestamp)
           VALUES (@userId, @stepCount, @distance, @timestamp)
         `);
       console.log("Insert query executed for userId:", userId);
     }
 
-    res.status(201).json({ success: true, message: "Step activity saved successfully" });
+    res
+      .status(201)
+      .json({ success: true, message: "Step activity saved successfully" });
   } catch (err) {
     console.error("Step activity error:", err);
     res.status(500).json({ success: false, message: err.message });
@@ -226,7 +252,9 @@ app.get("/step-activity", authenticateUser, async (req, res) => {
     const result = await pool
       .request()
       .input("userId", sql.Int, userId)
-      .query("SELECT * FROM [STEPACTIVITY] WHERE userId = @userId ORDER BY [timestamp] DESC");
+      .query(
+        "SELECT * FROM [STEPACTIVITY] WHERE userId = @userId ORDER BY [timestamp] DESC"
+      );
 
     res.json({ success: true, data: result.recordset });
   } catch (err) {
@@ -266,15 +294,16 @@ app.post("/events", authenticateUser, async (req, res) => {
       .input("total_participants", sql.Int, total_participants)
       .input("team_count", sql.Int, team_count)
       .input("members_per_team", sql.Int, members_per_team)
-      .input("userId", sql.Int, req.session.userId)
-      .query(`
+      .input("userId", sql.Int, req.session.userId).query(`
         INSERT INTO events 
         (title, description, activity, goal, start_date, end_date, location, event_type, total_participants, team_count, members_per_team, user_id)
         VALUES 
         (@title, @description, @activity, @goal, @start_date, @end_date, @location, @event_type, @total_participants, @team_count, @members_per_team, @userId)
       `);
 
-    res.status(201).json({ success: true, message: "Event created successfully" });
+    res
+      .status(201)
+      .json({ success: true, message: "Event created successfully" });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }
@@ -299,13 +328,21 @@ app.get("/test", (req, res) => {
   res.json({ message: "API is working!", timestamp: new Date().toISOString() });
 });
 
-// Health check endpoint 
+// Basic test endpoint
+app.get("/hest", (req, res) => {
+  res.json({
+    message: "API is working (hest)",
+    timestamp: new Date().toISOString(),
+  });
+});
+
+// Health check endpoint
 app.get("/health", async (req, res) => {
   try {
     // Test DB connection
     let dbStatus = "unknown";
     let dbError = null;
-    
+
     try {
       const pool = await poolPromise;
       const result = await pool.request().query("SELECT 1 as test");
@@ -314,25 +351,25 @@ app.get("/health", async (req, res) => {
       dbStatus = "error";
       dbError = err.message;
     }
-    
+
     res.json({
       status: "up",
       database: dbStatus,
       dbError: dbError,
       environment: process.env.NODE_ENV || "unknown",
-      bcryptLoaded: typeof bcrypt !== 'undefined',
+      bcryptLoaded: typeof bcrypt !== "undefined",
       time: new Date().toISOString(),
       env_vars: {
         NODE_ENV: process.env.NODE_ENV,
         PORT: process.env.PORT,
         DB_CONFIG_EXISTS: !!process.env.MSSQL_USER,
-        SESSION_SECRET_EXISTS: !!process.env.SESSION_SECRET
-      }
+        SESSION_SECRET_EXISTS: !!process.env.SESSION_SECRET,
+      },
     });
   } catch (error) {
     res.status(500).json({
       status: "error",
-      message: error.message
+      message: error.message,
     });
   }
 });
@@ -340,7 +377,6 @@ app.get("/health", async (req, res) => {
 app.get("/", (req, res) => {
   res.send("API is running ✅");
 });
-
 
 // Start Server
 app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));
