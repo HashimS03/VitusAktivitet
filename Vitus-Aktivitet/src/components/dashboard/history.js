@@ -179,47 +179,18 @@ const fetchStepHistory = async (period) => {
   try {
     const userId = await AsyncStorage.getItem("userId");
     if (!userId) {
-      throw new Error("User not logged in");
+      console.warn("User not logged in");
+      return {
+        total: 0,
+        labels: ["Ingen data"],
+        values: [0],
+        maxValue: 2000,
+        error: "User not logged in",
+      };
     }
 
     const response = await fetch(
       `https://apphractivity01-dqcuh0g2epgsgfeq.westeurope-01.azurewebsites.net/user-history?period=${period}`,
-      {
-        method: "GET",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        credentials: "include", // Include session cookies for authentication
-      }
-    );
-
-    const result = await response.json();
-    if (!result.success) {
-      throw new Error(result.message || "Failed to fetch step history");
-    }
-
-    return result.data;
-  } catch (error) {
-    console.error("Feil ved henting av step history:", error);
-    return {
-      total: 0,
-      labels: ["Ingen data"],
-      values: [0],
-      maxValue: 2000,
-    };
-  }
-};
-
-// Forenklet calculateStreaks til kun å hente lagrede verdier
-const fetchStreaks = async () => {
-  try {
-    const userId = await AsyncStorage.getItem("userId");
-    if (!userId) {
-      throw new Error("User not logged in");
-    }
-
-    const response = await fetch(
-      `https://apphractivity01-dqcuh0g2epgsgfeq.westeurope-01.azurewebsites.net/step-activity`,
       {
         method: "GET",
         headers: {
@@ -231,13 +202,58 @@ const fetchStreaks = async () => {
 
     const result = await response.json();
     if (!result.success) {
-      throw new Error(result.message || "Failed to fetch step activity");
+      console.error("Failed to fetch step history:", result.message);
+      return {
+        total: 0,
+        labels: ["Ingen data"],
+        values: [0],
+        maxValue: 2000,
+        error: result.message,
+      };
     }
 
-    const latestActivity = result.data[0] || {};
-    const currentStreak = latestActivity.streak || 0;
+    return { ...result.data, error: null };
+  } catch (error) {
+    console.error("Feil ved henting av step history:", error.message);
+    return {
+      total: 0,
+      labels: ["Ingen data"],
+      values: [0],
+      maxValue: 2000,
+      error:
+        "Kunne ikke koble til serveren. Sjekk internettforbindelsen eller prøv igjen senere.",
+    };
+  }
+};
 
-    // Fetch best streak by querying USER_HISTORY
+const fetchStreaks = async () => {
+  try {
+    const userId = await AsyncStorage.getItem("userId");
+    if (!userId) {
+      console.warn("User not logged in");
+      return { currentStreak: 0, bestStreak: 0, error: "User not logged in" };
+    }
+
+    const response = await fetch(
+      `https://apphractivity01-dqcuh0g2epgsgfeq.westeurope-01.azurewebsites.net/user-history?period=day`,
+      {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        credentials: "include",
+      }
+    );
+
+    const result = await response.json();
+    if (!result.success) {
+      console.error("Failed to fetch user history:", result.message);
+      return { currentStreak: 0, bestStreak: 0, error: result.message };
+    }
+
+    const currentStreak =
+      result.data.values[result.data.values.length - 1] || 0;
+
     const historyResponse = await fetch(
       `https://apphractivity01-dqcuh0g2epgsgfeq.westeurope-01.azurewebsites.net/user-history?period=year`,
       {
@@ -251,7 +267,8 @@ const fetchStreaks = async () => {
 
     const historyResult = await historyResponse.json();
     if (!historyResult.success) {
-      throw new Error(historyResult.message || "Failed to fetch user history");
+      console.error("Failed to fetch user history:", historyResult.message);
+      return { currentStreak, bestStreak: 0, error: historyResult.message };
     }
 
     const bestStreak = Math.max(
@@ -259,10 +276,15 @@ const fetchStreaks = async () => {
       0
     );
 
-    return { currentStreak, bestStreak };
+    return { currentStreak, bestStreak, error: null };
   } catch (error) {
-    console.error("Feil ved henting av streaks:", error);
-    return { currentStreak: 0, bestStreak: 0 };
+    console.error("Feil ved henting av streaks:", error.message);
+    return {
+      currentStreak: 0,
+      bestStreak: 0,
+      error:
+        "Kunne ikke koble til serveren. Sjekk internettforbindelsen eller prøv igjen senere.",
+    };
   }
 };
 
