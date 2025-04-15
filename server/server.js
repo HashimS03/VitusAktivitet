@@ -1,5 +1,3 @@
-console.log("LOOK FOR ME IN THE LOGS");
-
 const express = require("express");
 const cors = require("cors");
 const session = require("express-session");
@@ -11,7 +9,14 @@ const app = express();
 const PORT = process.env.PORT || 4000;
 
 app.use(express.json());
-app.use(cors({ origin: "*", credentials: true }));
+app.use(
+  cors({
+    origin: "*",
+    credentials: true,
+    methods: ["GET", "POST", "PUT", "DELETE"],
+    allowedHeaders: ["Content-Type", "Authorization"],
+  })
+);
 
 app.use(
   session({
@@ -47,14 +52,28 @@ app.post("/register", async (req, res) => {
     const hashedPassword = await bcrypt.hash(password, salt);
 
     const pool = await poolPromise;
-    await pool
+    // Sett inn ny bruker i [USER]-tabellen
+    const userResult = await pool
       .request()
       .input("name", sql.NVarChar, name || null)
       .input("email", sql.NVarChar, email || null)
       .input("password", sql.VarChar, hashedPassword)
       .input("avatar", sql.Image, avatar || null).query(`
         INSERT INTO [USER] ([name], [email], [password], [avatar], [created_at], [last_login])
+        OUTPUT INSERTED.Id
         VALUES (@name, @email, @password, @avatar, GETDATE(), NULL)
+      `);
+
+    const newUserId = userResult.recordset[0].Id;
+
+    // Sett inn ny bruker i [LEADERBOARD]-tabellen
+    await pool
+      .request()
+      .input("userId", sql.Int, newUserId)
+      .input("steps", sql.Int, 0)
+      .input("timestamp", sql.DateTime, new Date()).query(`
+        INSERT INTO [LEADERBOARD] (user_id, steps, timestamp)
+        VALUES (@userId, @steps, @timestamp)
       `);
 
     console.log("User registered successfully:", { name, email });
@@ -137,6 +156,85 @@ app.post("/login", async (req, res) => {
   }
 });
 
+// 🔹 Route to Fetch Leaderboard Data (original endpoint)
+app.get("/leaderboard", async (req, res) => {
+  try {
+    const pool = await poolPromise;
+    const result = await pool.request().query(`
+      SELECT 
+        u.Id AS userId,
+        u.name,
+        u.avatar,
+        l.steps,
+        l.timestamp
+      FROM [USER] u
+      LEFT JOIN [LEADERBOARD] l ON u.Id = l.user_id
+      ORDER BY l.steps DESC
+    `);
+
+    const leaderboardData = result.recordset.map((row, index) => ({
+      id: row.userId.toString(),
+      name: row.name || "Ukjent bruker",
+      points: row.steps || 0,
+      department: "Ukjent avdeling",
+      avatar:
+        row.avatar && Buffer.isBuffer(row.avatar)
+          ? `data:image/jpeg;base64,${Buffer.from(row.avatar).toString(
+              "base64"
+            )}`
+          : null,
+      change: 0,
+    }));
+
+    res.json({ success: true, data: leaderboardData });
+  } catch (err) {
+    console.error("Leaderboard fetch error:", err.stack);
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+app.get("/leaderboard", async (req, res) => {
+  console.log("Leaderboard request received");
+  try {
+    const pool = await poolPromise;
+    const result = await pool.request().query(`
+      SELECT 
+        u.Id AS userId,
+        u.name,
+        u.avatar,
+        l.steps,
+        l.timestamp
+      FROM [USER] u
+      LEFT JOIN [LEADERBOARD] l ON u.Id = l.user_id
+      ORDER BY l.steps DESC
+    `);
+
+    const leaderboardData = result.recordset.map((row, index) => ({
+      id: row.userId.toString(),
+      name: row.name || "Ukjent bruker",
+      points: row.steps || 0,
+      department: "Ukjent avdeling",
+      avatar:
+        row.avatar && Buffer.isBuffer(row.avatar)
+          ? `data:image/jpeg;base64,${Buffer.from(row.avatar).toString(
+              "base64"
+            )}`
+          : null,
+      change: 0,
+    }));
+
+    console.log(`Returning ${leaderboardData.length} leaderboard entries`);
+    res.json({ success: true, data: leaderboardData });
+  } catch (err) {
+    console.error("Leaderboard fetch error:", err.stack);
+    res.status(500).json({
+      success: false,
+      message: "Kunne ikke hente ledertavle. Prøv igjen senere.",
+      error: process.env.NODE_ENV === "development" ? err.stack : undefined,
+    });
+  }
+});
+
 // 🔹 Route to Logout
 app.post("/logout", (req, res) => {
   req.session.destroy((err) => {
@@ -174,7 +272,7 @@ app.get("/user", authenticateUser, async (req, res) => {
 // 🔹 Route to Create or Update Step Activity
 app.post("/step-activity", authenticateUser, async (req, res) => {
   console.log("Step activity request received:", req.body);
-  console.log("Session userId:", req.session.userId); // Debug userId
+  console.log("Session userId:", req.session.userId);
   try {
     const { stepCount, distance, timestamp } = req.body;
     const userId = req.session.userId;
@@ -185,7 +283,6 @@ app.post("/step-activity", authenticateUser, async (req, res) => {
         .json({ success: false, message: "stepCount is required" });
     }
 
-    // Validate userId exists in [USER] table
     const pool = await poolPromise;
     const userCheck = await pool
       .request()
@@ -233,6 +330,33 @@ app.post("/step-activity", authenticateUser, async (req, res) => {
           VALUES (@userId, @stepCount, @distance, @timestamp)
         `);
       console.log("Insert query executed for userId:", userId);
+    }
+
+    // Oppdater [LEADERBOARD]
+    const existingLeaderboard = await pool
+      .request()
+      .input("userId", sql.Int, userId)
+      .query("SELECT Id FROM [LEADERBOARD] WHERE user_id = @userId");
+
+    if (existingLeaderboard.recordset.length > 0) {
+      await pool
+        .request()
+        .input("userId", sql.Int, userId)
+        .input("steps", sql.Int, stepCount)
+        .input("timestamp", sql.DateTime, timestamp || new Date()).query(`
+          UPDATE [LEADERBOARD]
+          SET steps = @steps, timestamp = @timestamp
+          WHERE user_id = @userId
+        `);
+    } else {
+      await pool
+        .request()
+        .input("userId", sql.Int, userId)
+        .input("steps", sql.Int, stepCount)
+        .input("timestamp", sql.DateTime, timestamp || new Date()).query(`
+          INSERT INTO [LEADERBOARD] (user_id, steps, timestamp)
+          VALUES (@userId, @steps, @timestamp)
+        `);
     }
 
     res
@@ -328,14 +452,6 @@ app.get("/test", (req, res) => {
   res.json({ message: "API is working!", timestamp: new Date().toISOString() });
 });
 
-// Basic test endpoint
-app.get("/hest", (req, res) => {
-  res.json({
-    message: "API is working (hest)",
-    timestamp: new Date().toISOString(),
-  });
-});
-
 // Health check endpoint
 app.get("/health", async (req, res) => {
   try {
@@ -372,6 +488,16 @@ app.get("/health", async (req, res) => {
       message: error.message,
     });
   }
+});
+
+// NEW API status endpoint for debugging
+app.get("/api/status", (req, res) => {
+  res.json({
+    status: "online",
+    timestamp: new Date().toISOString(),
+    environment: process.env.NODE_ENV || "development",
+    version: "1.0.0",
+  });
 });
 
 app.get("/", (req, res) => {

@@ -38,6 +38,8 @@ import { BlurView } from "expo-blur";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Swipeable } from "react-native-gesture-handler";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
+import axios from "axios";
+import { SERVER_CONFIG } from "../../config/serverConfig";
 
 const AnimatedFlatList = Animated.createAnimatedComponent(FlatList);
 
@@ -67,9 +69,49 @@ const Leaderboard = ({ route }) => {
   const [hasJoinedLeaderboard, setHasJoinedLeaderboard] = useState(false);
   const [showJoinAlert, setShowJoinAlert] = useState(false);
   const [testMode, setTestMode] = useState(true);
+  const [generalLeaderboardData, setGeneralLeaderboardData] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   const searchAnimation = useRef(new Animated.Value(0)).current;
 
+  // Hent leaderboard-data fra API
+  useEffect(() => {
+    const fetchLeaderboardData = async () => {
+      try {
+        setIsLoading(true);
+        setError(null);
+        console.log(
+          "Fetching leaderboard data from:",
+          `${SERVER_CONFIG.getBaseUrl()}/leaderboard`
+        ); // Logg URL-en
+        const response = await axios.get(
+          `${SERVER_CONFIG.getBaseUrl()}/leaderboard`,
+          { withCredentials: true }
+        );
+        console.log("Leaderboard API response:", response.data); // Logg responsen
+        if (response.data.success) {
+          setGeneralLeaderboardData(response.data.data);
+        } else {
+          setError(response.data.message || "Kunne ikke hente ledertavle.");
+        }
+      } catch (error) {
+        console.error(
+          "Leaderboard fetch error:",
+          error.response?.data || error.message
+        );
+        setError("Kunne ikke hente ledertavle. Prøv igjen senere.");
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchLeaderboardData();
+    const intervalId = setInterval(fetchLeaderboardData, 30000);
+    return () => clearInterval(intervalId);
+  }, []);
+
+  // Sjekk om brukeren er førstegangsbruker
   useEffect(() => {
     checkFirstTimeUser();
   }, []);
@@ -105,52 +147,6 @@ const Leaderboard = ({ route }) => {
       console.error("Error saving leaderboard status:", error);
     }
   };
-
-  const generalLeaderboardData = useMemo(
-    () => [
-      {
-        id: "1",
-        name: "Ho Daniel",
-        points: 2000,
-        department: "IT",
-        avatar: require("../../../assets/figure/daniel.png"),
-        change: 0,
-      },
-      {
-        id: "2",
-        name: "Hashem",
-        points: 1500,
-        department: "HR",
-        avatar: require("../../../assets/figure/hashem.png"),
-        change: 2,
-      },
-      {
-        id: "3",
-        name: "Sarim",
-        points: 1200,
-        department: "Finans",
-        avatar: require("../../../assets/figure/sarim.png"),
-        change: -1,
-      },
-      {
-        id: "4",
-        name: "Sjartan",
-        points: 950,
-        department: "IT",
-        avatar: require("../../../assets/figure/avatar1.jpg"),
-        change: 3,
-      },
-      {
-        id: "5",
-        name: "Ahmed",
-        points: 920,
-        department: "HR",
-        avatar: require("../../../assets/figure/avatar2.jpg"),
-        change: -2,
-      },
-    ],
-    []
-  );
 
   const eventLeaderboardData = useMemo(() => {
     const allEvents = [...activeEvents, ...pastEvents];
@@ -254,7 +250,14 @@ const Leaderboard = ({ route }) => {
             {index + 1}
           </Text>
         </View>
-        <Image source={item.avatar} style={styles.avatar} />
+        <Image
+          source={
+            item.avatar
+              ? { uri: item.avatar }
+              : require("../../../assets/figure/avatar1.jpg")
+          }
+          style={styles.avatar}
+        />
         <View style={styles.infoContainer}>
           <Text style={[styles.nameText, { color: theme.text || "#FFFFFF" }]}>
             {item.name}
@@ -394,7 +397,7 @@ const Leaderboard = ({ route }) => {
       <Text style={[styles.sectionTitle, { color: theme.text || "#FFFFFF" }]}>
         {item.title}
       </Text>
-      {item.title === "Utgåtte:" && pastEvents.length > 0 && (
+      {item.title === "Utgåtte hendelser" && pastEvents.length > 0 && (
         <TouchableOpacity
           style={[
             styles.clearButton,
@@ -409,7 +412,8 @@ const Leaderboard = ({ route }) => {
                 {
                   text: "Fjern",
                   style: "destructive",
-                  onPress: clearPastEvents,
+                  onPress: () =>
+                    pastEvents.forEach((event) => deleteEvent(event.id)),
                 },
               ]
             );
@@ -811,6 +815,26 @@ const Leaderboard = ({ route }) => {
       {renderHeader()}
       {leaderboardType === "Event" ? (
         renderEventSection()
+      ) : error ? (
+        <Text
+          style={{
+            color: theme.error || "#EF5350",
+            textAlign: "center",
+            padding: 20,
+          }}
+        >
+          {error}
+        </Text>
+      ) : isLoading ? (
+        <Text
+          style={{
+            color: theme.text || "#FFFFFF",
+            textAlign: "center",
+            padding: 20,
+          }}
+        >
+          Laster ledertavle...
+        </Text>
       ) : (
         <AnimatedFlatList
           data={filteredData}
@@ -823,6 +847,16 @@ const Leaderboard = ({ route }) => {
             { useNativeDriver: true }
           )}
           scrollEventThrottle={16}
+          ListEmptyComponent={
+            <Text
+              style={[
+                styles.emptyText,
+                { color: theme.textSecondary || "#B0B0B0" },
+              ]}
+            >
+              Ingen data tilgjengelig.
+            </Text>
+          }
         />
       )}
       {hasJoinedLeaderboard && (
