@@ -47,17 +47,8 @@ export default function login({ navigation }) {
       }, { withCredentials: true }); // Ensure cookies are sent
 
       if (response.data.success) {
-        // Store the JWT token
         await AsyncStorage.setItem('userToken', response.data.token);
-        
-        // Store user info
-        const userInfo = {
-          id: response.data.userId,
-          email: email
-        };
-        await AsyncStorage.setItem('userInfo', JSON.stringify(userInfo));
-        
-        setUserId(response.data.userId); // Store userId in context
+        setUserId(response.data.userId);
         Alert.alert("Success", "Login successful");
         navigation.replace("MainApp");
       }

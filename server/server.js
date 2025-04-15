@@ -37,7 +37,7 @@ const authenticateUser = (req, res, next) => {
   next();
 };
 
-// Add JWT authentication middleware after the existing authenticateUser middleware
+// Update the authenticateJWT middleware
 const authenticateJWT = (req, res, next) => {
   const authHeader = req.headers.authorization;
 
@@ -50,8 +50,8 @@ const authenticateJWT = (req, res, next) => {
         return res.status(403).json({ success: false, message: "Invalid or expired token" });
       }
 
-      req.user = user;
-      req.session.userId = user.id; // For compatibility with existing code
+      // The token contains user.id but we need to use uppercase Id for SQL Server
+      req.session.userId = user.id; // This works because we sign { id: user.Id }
       next();
     });
   } else {
@@ -481,6 +481,93 @@ app.get("/events", authenticateJWT, async (req, res) => {
       .input("userId", sql.Int, req.session.userId)
       .query("SELECT * FROM events WHERE user_id = @userId");
     res.json(result.recordset);
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// 🔹 Route to Update an Event
+app.put("/events/:id", authenticateJWT, async (req, res) => {
+  try {
+    const eventId = req.params.id;
+    const {
+      title,
+      description,
+      activity,
+      goal,
+      start_date,
+      end_date,
+      location,
+      event_type,
+      total_participants,
+      team_count,
+      members_per_team,
+    } = req.body;
+
+    const pool = await poolPromise;
+    const result = await pool
+      .request()
+      .input("eventId", sql.Int, eventId)
+      .input("userId", sql.Int, req.session.userId)
+      .query("SELECT * FROM events WHERE id = @eventId AND user_id = @userId");
+
+    if (result.recordset.length === 0) {
+      return res.status(404).json({ success: false, message: "Event not found" });
+    }
+
+    await pool
+      .request()
+      .input("eventId", sql.Int, eventId)
+      .input("title", sql.NVarChar, title)
+      .input("description", sql.NVarChar, description)
+      .input("activity", sql.NVarChar, activity)
+      .input("goal", sql.Int, goal)
+      .input("start_date", sql.DateTime, start_date)
+      .input("end_date", sql.DateTime, end_date)
+      .input("location", sql.NVarChar, location)
+      .input("event_type", sql.NVarChar, event_type)
+      .input("total_participants", sql.Int, total_participants)
+      .input("team_count", sql.Int, team_count)
+      .input("members_per_team", sql.Int, members_per_team)
+      .query(`
+        UPDATE events
+        SET title = @title,
+            description = @description,
+            activity = @activity,
+            goal = @goal,
+            start_date = @start_date,
+            end_date = @end_date,
+            location = @location,
+            event_type = @event_type,
+            total_participants = @total_participants,
+            team_count = @team_count,
+            members_per_team = @members_per_team
+        WHERE id = @eventId AND user_id = @userId
+      `);
+
+    res.json({ success: true, message: "Event updated successfully" });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// 🔹 Route to Delete an Event
+app.delete("/events/:id", authenticateJWT, async (req, res) => {
+  try {
+    const eventId = req.params.id;
+
+    const pool = await poolPromise;
+    const result = await pool
+      .request()
+      .input("eventId", sql.Int, eventId)
+      .input("userId", sql.Int, req.session.userId)
+      .query("DELETE FROM events WHERE id = @eventId AND user_id = @userId");
+
+    if (result.rowsAffected[0] === 0) {
+      return res.status(404).json({ success: false, message: "Event not found" });
+    }
+
+    res.json({ success: true, message: "Event deleted successfully" });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }
