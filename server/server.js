@@ -270,6 +270,7 @@ app.get("/user", authenticateUser, async (req, res) => {
 });
 
 // 🔹 Route to Create or Update Step Activity
+// 🔹 Route to Create or Update Step Activity
 app.post("/step-activity", authenticateUser, async (req, res) => {
   console.log("Step activity request received:", req.body);
   console.log("Session userId:", req.session.userId);
@@ -287,7 +288,9 @@ app.post("/step-activity", authenticateUser, async (req, res) => {
     const userCheck = await pool
       .request()
       .input("userId", sql.Int, userId)
-      .query("SELECT Id FROM [USER] WHERE Id = @userId");
+      .query(
+        "SELECT Id, daily_goal, timestamp FROM [dbo].[USER] WHERE Id = @userId"
+      );
     if (userCheck.recordset.length === 0) {
       return res.status(400).json({
         success: false,
@@ -296,55 +299,133 @@ app.post("/step-activity", authenticateUser, async (req, res) => {
     }
     console.log("UserId validated:", userId);
 
+    const user = userCheck.recordset[0];
+    const dailyGoal = user.daily_goal || 10000; // Default to 10,000 if not set
+    const userTimestamp = user.timestamp
+      ? new Date(user.timestamp)
+      : new Date();
+
+    // Convert timestamp to Norwegian time (Europe/Oslo)
+    const providedTimestamp = timestamp ? new Date(timestamp) : new Date();
+    const norwegianDate = new Date(
+      providedTimestamp.toLocaleString("en-US", { timeZone: "Europe/Oslo" })
+    );
+    const dateString = norwegianDate.toISOString().split("T")[0]; // YYYY-MM-DD format
+
+    // Check if a record exists for this user on this day
+    const historyCheck = await pool
+      .request()
+      .input("userId", sql.Int, userId)
+      .input("dateString", sql.NVarChar, dateString).query(`
+        SELECT * FROM [dbo].[USER_HISTORY]
+        WHERE userId = @userId
+        AND CAST(timestamp AS DATE) = @dateString
+      `);
+
+    let streak = 0;
+    if (historyCheck.recordset.length > 0) {
+      // Update existing record
+      const existingRecord = historyCheck.recordset[0];
+      streak = existingRecord.streak || 0;
+      await pool
+        .request()
+        .input("id", sql.Int, existingRecord.id)
+        .input("total_steps", sql.Int, stepCount)
+        .input("timestamp", sql.DateTime, norwegianDate).query(`
+          UPDATE [dbo].[USER_HISTORY]
+          SET total_steps = @total_steps, timestamp = @timestamp
+          WHERE id = @id
+        `);
+    } else {
+      // Check if the user met their daily goal yesterday to calculate streak
+      const yesterday = new Date(norwegianDate);
+      yesterday.setDate(yesterday.getDate() - 1);
+      const yesterdayString = yesterday.toISOString().split("T")[0];
+
+      const yesterdayCheck = await pool
+        .request()
+        .input("userId", sql.Int, userId)
+        .input("yesterdayString", sql.NVarChar, yesterdayString).query(`
+          SELECT total_steps FROM [dbo].[USER_HISTORY]
+          WHERE userId = @userId
+          AND CAST(timestamp AS DATE) = @yesterdayString
+        `);
+
+      if (
+        yesterdayCheck.recordset.length > 0 &&
+        yesterdayCheck.recordset[0].total_steps >= dailyGoal
+      ) {
+        const previousRecord = await pool
+          .request()
+          .input("userId", sql.Int, userId)
+          .input("yesterdayString", sql.NVarChar, yesterdayString).query(`
+            SELECT streak FROM [dbo].[USER_HISTORY]
+            WHERE userId = @userId
+            AND CAST(timestamp AS DATE) = @yesterdayString
+          `);
+        streak = (previousRecord.recordset[0].streak || 0) + 1;
+      } else {
+        streak = stepCount >= dailyGoal ? 1 : 0;
+      }
+
+      // Insert new record
+      await pool
+        .request()
+        .input("userId", sql.Int, userId)
+        .input("total_steps", sql.Int, stepCount)
+        .input("total_conversions", sql.Int, 0) // Placeholder, update if needed
+        .input("streak", sql.Int, streak)
+        .input("timestamp", sql.DateTime, norwegianDate).query(`
+          INSERT INTO [dbo].[USER_HISTORY] (userId, total_steps, total_conversions, streak, timestamp)
+          VALUES (@userId, @total_steps, @total_conversions, @streak, @timestamp)
+        `);
+    }
+
+    // Update STEPACTIVITY (existing logic)
     const existingRecord = await pool
       .request()
       .input("userId", sql.Int, userId)
       .query(
-        "SELECT TOP 1 Id FROM [STEPACTIVITY] WHERE userId = @userId ORDER BY timestamp DESC"
+        "SELECT TOP 1 Id FROM [dbo].[STEPACTIVITY] WHERE userId = @userId ORDER BY timestamp DESC"
       );
-    console.log("Existing record check result:", existingRecord.recordset);
 
     if (existingRecord.recordset.length > 0) {
       const recordId = existingRecord.recordset[0].Id;
-      console.log("Updating existing record with Id:", recordId);
       await pool
         .request()
         .input("id", sql.Int, recordId)
         .input("stepCount", sql.Int, stepCount)
         .input("distance", sql.Float, distance || null)
-        .input("timestamp", sql.DateTime, timestamp || new Date()).query(`
-          UPDATE [STEPACTIVITY]
+        .input("timestamp", sql.DateTime, norwegianDate).query(`
+          UPDATE [dbo].[STEPACTIVITY]
           SET step_count = @stepCount, distance = @distance, timestamp = @timestamp
           WHERE Id = @id
         `);
-      console.log("Update query executed for Id:", recordId);
     } else {
-      console.log("Inserting new record for userId:", userId);
       await pool
         .request()
         .input("userId", sql.Int, userId)
         .input("stepCount", sql.Int, stepCount)
         .input("distance", sql.Float, distance || null)
-        .input("timestamp", sql.DateTime, timestamp || new Date()).query(`
-          INSERT INTO [STEPACTIVITY] (userId, step_count, distance, timestamp)
+        .input("timestamp", sql.DateTime, norwegianDate).query(`
+          INSERT INTO [dbo].[STEPACTIVITY] (userId, step_count, distance, timestamp)
           VALUES (@userId, @stepCount, @distance, @timestamp)
         `);
-      console.log("Insert query executed for userId:", userId);
     }
 
-    // Oppdater [LEADERBOARD]
+    // Update LEADERBOARD (existing logic)
     const existingLeaderboard = await pool
       .request()
       .input("userId", sql.Int, userId)
-      .query("SELECT Id FROM [LEADERBOARD] WHERE user_id = @userId");
+      .query("SELECT Id FROM [dbo].[LEADERBOARD] WHERE user_id = @userId");
 
     if (existingLeaderboard.recordset.length > 0) {
       await pool
         .request()
         .input("userId", sql.Int, userId)
         .input("steps", sql.Int, stepCount)
-        .input("timestamp", sql.DateTime, timestamp || new Date()).query(`
-          UPDATE [LEADERBOARD]
+        .input("timestamp", sql.DateTime, norwegianDate).query(`
+          UPDATE [dbo].[LEADERBOARD]
           SET steps = @steps, timestamp = @timestamp
           WHERE user_id = @userId
         `);
@@ -353,17 +434,210 @@ app.post("/step-activity", authenticateUser, async (req, res) => {
         .request()
         .input("userId", sql.Int, userId)
         .input("steps", sql.Int, stepCount)
-        .input("timestamp", sql.DateTime, timestamp || new Date()).query(`
-          INSERT INTO [LEADERBOARD] (user_id, steps, timestamp)
+        .input("timestamp", sql.DateTime, norwegianDate).query(`
+          INSERT INTO [dbo].[LEADERBOARD] (user_id, steps, timestamp)
           VALUES (@userId, @steps, @timestamp)
         `);
     }
 
-    res
-      .status(201)
-      .json({ success: true, message: "Step activity saved successfully" });
+    // Update user's timestamp
+    await pool
+      .request()
+      .input("userId", sql.Int, userId)
+      .input("timestamp", sql.DateTime, norwegianDate).query(`
+        UPDATE [dbo].[USER]
+        SET timestamp = @timestamp
+        WHERE Id = @userId
+      `);
+
+    res.status(201).json({
+      success: true,
+      message: "Step activity saved successfully",
+      streak,
+    });
   } catch (err) {
     console.error("Step activity error:", err);
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// 🔹 Route to Fetch User Step History
+app.get("/user-history", authenticateUser, async (req, res) => {
+  try {
+    const { period } = req.query; // Expect period as query param (day, week, month, year)
+    const userId = req.session.userId;
+
+    if (!["day", "week", "month", "year"].includes(period)) {
+      return res
+        .status(400)
+        .json({ success: false, message: "Invalid period" });
+    }
+
+    const pool = await poolPromise;
+    let query = "";
+    let startDate;
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const todayString = today.toISOString().split("T")[0];
+
+    switch (period) {
+      case "day":
+        query = `
+          SELECT total_steps, timestamp
+          FROM [dbo].[USER_HISTORY]
+          WHERE userId = @userId
+          AND CAST(timestamp AS DATE) = @todayString
+          ORDER BY timestamp ASC
+        `;
+        break;
+      case "week":
+        startDate = new Date(today);
+        const dayOfWeek = today.getDay();
+        const daysToSubtract = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
+        startDate.setDate(today.getDate() - daysToSubtract);
+        startDate.setHours(0, 0, 0, 0);
+        query = `
+          SELECT total_steps, timestamp
+          FROM [dbo].[USER_HISTORY]
+          WHERE userId = @userId
+          AND timestamp >= @startDate
+          AND timestamp <= @todayString
+          ORDER BY timestamp ASC
+        `;
+        break;
+      case "month":
+        startDate = new Date(today.getFullYear(), today.getMonth(), 1);
+        query = `
+          SELECT total_steps, timestamp
+          FROM [dbo].[USER_HISTORY]
+          WHERE userId = @userId
+          AND timestamp >= @startDate
+          AND timestamp <= @todayString
+          ORDER BY timestamp ASC
+        `;
+        break;
+      case "year":
+        startDate = new Date(today.getFullYear(), 0, 1);
+        query = `
+          SELECT total_steps, timestamp
+          FROM [dbo].[USER_HISTORY]
+          WHERE userId = @userId
+          AND timestamp >= @startDate
+          AND timestamp <= @todayString
+          ORDER BY timestamp ASC
+        `;
+        break;
+    }
+
+    const result = await pool
+      .request()
+      .input("userId", sql.Int, userId)
+      .input("todayString", sql.NVarChar, todayString)
+      .input("startDate", sql.DateTime, startDate)
+      .query(query);
+
+    // Process the data based on the period
+    let total = 0;
+    let labels = [];
+    let values = [];
+    let maxValue = 2000;
+    let average = 0;
+
+    switch (period) {
+      case "day": {
+        const totalSteps =
+          result.recordset.length > 0 ? result.recordset[0].total_steps : 0;
+        const hourlySteps = Array(24).fill(0);
+        if (totalSteps) {
+          const currentHour = today.getHours();
+          hourlySteps[currentHour] = totalSteps;
+        }
+        total = totalSteps;
+        labels = Array.from({ length: 24 }, (_, i) => `${i}`.padStart(2, "0"));
+        values = hourlySteps;
+        maxValue = Math.max(total, 2000);
+        break;
+      }
+      case "week": {
+        const valuesArr = Array(7).fill(0);
+        result.recordset.forEach((entry) => {
+          const entryDate = new Date(entry.timestamp);
+          const diffDays = Math.floor(
+            (entryDate - startDate) / (1000 * 60 * 60 * 24)
+          );
+          if (diffDays >= 0 && diffDays < 7) {
+            valuesArr[diffDays] = entry.total_steps;
+          }
+        });
+        total = valuesArr.reduce((sum, val) => sum + val, 0);
+        labels = ["Man", "Tir", "Ons", "Tor", "Fre", "Lør", "Søn"];
+        values = valuesArr;
+        maxValue = Math.round(Math.max(...values, 3000));
+        average = Math.round(total / 7);
+        break;
+      }
+      case "month": {
+        const daysInMonth = new Date(
+          today.getFullYear(),
+          today.getMonth() + 1,
+          0
+        ).getDate();
+        const valuesArr = Array(daysInMonth).fill(0);
+        result.recordset.forEach((entry) => {
+          const dayIndex = new Date(entry.timestamp).getDate() - 1;
+          valuesArr[dayIndex] = entry.total_steps;
+        });
+        total = valuesArr.reduce((sum, val) => sum + val, 0);
+        labels = Array.from({ length: daysInMonth }, (_, i) => `${i + 1}`);
+        values = valuesArr;
+        maxValue = Math.max(...values, 4000);
+        average = total / daysInMonth;
+        break;
+      }
+      case "year": {
+        const monthlyTotals = Array(12).fill(0);
+        result.recordset.forEach((entry) => {
+          const monthIndex = new Date(entry.timestamp).getMonth();
+          monthlyTotals[monthIndex] += entry.total_steps;
+        });
+        total = monthlyTotals.reduce((sum, val) => sum + val, 0);
+        const dailyAverage = total / 365;
+        labels = [
+          "Jan",
+          "Feb",
+          "Mar",
+          "Apr",
+          "Mai",
+          "Jun",
+          "Jul",
+          "Aug",
+          "Sep",
+          "Okt",
+          "Nov",
+          "Des",
+        ];
+        values = monthlyTotals.map((val) => Math.round(val / 30));
+        maxValue = Math.round(
+          Math.max(...monthlyTotals.map((val) => val / 30), 400)
+        );
+        average = Math.round(dailyAverage);
+        break;
+      }
+    }
+
+    res.json({
+      success: true,
+      data: {
+        total,
+        labels,
+        values,
+        maxValue,
+        average,
+      },
+    });
+  } catch (err) {
+    console.error("User history fetch error:", err);
     res.status(500).json({ success: false, message: err.message });
   }
 });
