@@ -1,6 +1,6 @@
 import React, { createContext, useState, useEffect } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import axios from "axios";
+import apiClient from '../../utils/apiClient';
 import { SERVER_CONFIG } from "../../config/serverConfig"; 
 
 const STORAGE_KEY = "events";
@@ -19,8 +19,8 @@ export const EventProvider = ({ children }) => {
       try {
         setLoading(true);
         
-        // Try to fetch events from server
-        const response = await axios.get(`${API_BASE_URL}/events`);
+        // Try to fetch events from server using apiClient
+        const response = await apiClient.get('/events');
         const serverEvents = response.data;
         
         setEvents(serverEvents);
@@ -66,8 +66,8 @@ export const EventProvider = ({ children }) => {
         members_per_team: Number(newEvent.membersPerTeam) || 0,
       };
       
-      // Send to server
-      const response = await axios.post(`${API_BASE_URL}/events`, serverEventData);
+      // Send to server using apiClient
+      const response = await apiClient.post('/events', serverEventData);
       
       // If successful, update local state
       // Ideally the server would return the created event with its ID
@@ -117,8 +117,8 @@ export const EventProvider = ({ children }) => {
         members_per_team: Number(updatedEvent.membersPerTeam) || 0,
       };
       
-      // Send to server (assuming your server has a PUT endpoint)
-      await axios.put(`${API_BASE_URL}/events/${updatedEvent.id}`, serverEventData);
+      // Send to server using apiClient
+      await apiClient.put(`/events/${updatedEvent.id}`, serverEventData);
       
       // Update local state
       const updatedEvents = events.map(event => 
@@ -152,8 +152,8 @@ export const EventProvider = ({ children }) => {
   // Delete event from both server and local state
   const deleteEvent = async (eventId) => {
     try {
-      // Delete from server
-      await axios.delete(`${API_BASE_URL}/events/${eventId}`);
+      // Delete from server using apiClient
+      await apiClient.delete(`/events/${eventId}`);
       
       // Update local state
       const filteredEvents = events.filter(event => event.id !== eventId);

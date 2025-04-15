@@ -3,10 +3,12 @@ const cors = require("cors");
 const session = require("express-session");
 const { sql, poolPromise } = require("./db");
 const bcrypt = require("bcryptjs");
+const jwt = require('jsonwebtoken');
 require("dotenv").config();
 
 const app = express();
 const PORT = process.env.PORT || 4000;
+const JWT_SECRET = process.env.JWT_SECRET || 'vitus-aktivitet-secret-key-2023';
 
 app.use(express.json());
 app.use(
@@ -20,7 +22,7 @@ app.use(
 
 app.use(
   session({
-    secret: process.env.SESSION_SECRET || "your-secret-key",
+    secret: process.env.SESSION_SECRET || "vitus-aktivitet-secret-key-2023",
     resave: false,
     saveUninitialized: false,
     cookie: { secure: false, maxAge: 24 * 60 * 60 * 1000 },
@@ -33,6 +35,29 @@ const authenticateUser = (req, res, next) => {
     return res.status(401).json({ success: false, message: "Unauthorized" });
   }
   next();
+};
+
+// Add JWT authentication middleware after the existing authenticateUser middleware
+const authenticateJWT = (req, res, next) => {
+  const authHeader = req.headers.authorization;
+
+  if (authHeader) {
+    const token = authHeader.split(' ')[1];
+
+    jwt.verify(token, JWT_SECRET, (err, user) => {
+      if (err) {
+        console.log("JWT verification failed:", err.message);
+        return res.status(403).json({ success: false, message: "Invalid or expired token" });
+      }
+
+      req.user = user;
+      req.session.userId = user.id; // For compatibility with existing code
+      next();
+    });
+  } else {
+    // Fall back to session-based auth
+    authenticateUser(req, res, next);
+  }
 };
 
 // 🔹 Route to Register a User
@@ -134,8 +159,22 @@ app.post("/login", async (req, res) => {
         .input("id", sql.Int, user.Id)
         .query("UPDATE [USER] SET [last_login] = GETDATE() WHERE [Id] = @id");
 
+      // Create JWT token
+      const token = jwt.sign(
+        { id: user.Id, email: email },
+        JWT_SECRET,
+        { expiresIn: '7d' }
+      );
+
+      // Still set the session for backward compatibility
       req.session.userId = user.Id;
-      res.json({ success: true, message: "Login successful", userId: user.Id });
+      
+      res.json({
+        success: true,
+        message: "Login successful",
+        userId: user.Id,
+        token: token // Send the token to the client
+      });
     } else {
       res
         .status(401)
@@ -246,7 +285,7 @@ app.post("/logout", (req, res) => {
 });
 
 // 🔹 Route to Fetch User Data
-app.get("/user", authenticateUser, async (req, res) => {
+app.get("/user", authenticateJWT, async (req, res) => {
   try {
     const pool = await poolPromise;
     const result = await pool
@@ -270,7 +309,7 @@ app.get("/user", authenticateUser, async (req, res) => {
 });
 
 // 🔹 Route to Create or Update Step Activity
-app.post("/step-activity", authenticateUser, async (req, res) => {
+app.post("/step-activity", authenticateJWT, async (req, res) => {
   console.log("Step activity request received:", req.body);
   console.log("Session userId:", req.session.userId);
   try {
@@ -369,7 +408,7 @@ app.post("/step-activity", authenticateUser, async (req, res) => {
 });
 
 // 🔹 Route to Fetch Step Activity for User
-app.get("/step-activity", authenticateUser, async (req, res) => {
+app.get("/step-activity", authenticateJWT, async (req, res) => {
   try {
     const pool = await poolPromise;
     const userId = req.session.userId;
@@ -388,7 +427,7 @@ app.get("/step-activity", authenticateUser, async (req, res) => {
 });
 
 // 🔹 Route to Create an Event
-app.post("/events", authenticateUser, async (req, res) => {
+app.post("/events", authenticateJWT, async (req, res) => {
   try {
     const {
       title,
@@ -434,7 +473,7 @@ app.post("/events", authenticateUser, async (req, res) => {
 });
 
 // 🔹 Route to Fetch All Events for a User
-app.get("/events", authenticateUser, async (req, res) => {
+app.get("/events", authenticateJWT, async (req, res) => {
   try {
     const pool = await poolPromise;
     const result = await pool

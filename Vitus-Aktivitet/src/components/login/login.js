@@ -11,6 +11,7 @@ import {
 import axios from "axios";
 import { UserContext } from "../context/UserContext"; // Create this context
 import { SERVER_CONFIG } from "../../config/serverConfig"; // Import the serverConfig
+import AsyncStorage from '@react-native-async-storage/async-storage'; // Import AsyncStorage
 
 const { width } = Dimensions.get("window");
 const PRIMARY_COLOR = "#48CAB2";
@@ -46,6 +47,16 @@ export default function login({ navigation }) {
       }, { withCredentials: true }); // Ensure cookies are sent
 
       if (response.data.success) {
+        // Store the JWT token
+        await AsyncStorage.setItem('userToken', response.data.token);
+        
+        // Store user info
+        const userInfo = {
+          id: response.data.userId,
+          email: email
+        };
+        await AsyncStorage.setItem('userInfo', JSON.stringify(userInfo));
+        
         setUserId(response.data.userId); // Store userId in context
         Alert.alert("Success", "Login successful");
         navigation.replace("MainApp");
