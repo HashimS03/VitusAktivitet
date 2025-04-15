@@ -8,7 +8,7 @@ require("dotenv").config();
 
 const app = express();
 const PORT = process.env.PORT || 4000;
-const JWT_SECRET = process.env.JWT_SECRET || 'vitus-aktivitet-secret-key-2023';
+const JWT_SECRET = process.env.JWT_SECRET;
 
 app.use(express.json());
 app.use(
@@ -22,7 +22,7 @@ app.use(
 
 app.use(
   session({
-    secret: process.env.SESSION_SECRET || "vitus-aktivitet-secret-key-2023",
+    secret: process.env.SESSION_SECRET,
     resave: false,
     saveUninitialized: false,
     cookie: { secure: false, maxAge: 24 * 60 * 60 * 1000 },
@@ -444,7 +444,7 @@ app.post("/events", authenticateJWT, async (req, res) => {
     } = req.body;
 
     const pool = await poolPromise;
-    await pool
+    const result = await pool
       .request()
       .input("title", sql.NVarChar, title)
       .input("description", sql.NVarChar, description)
@@ -457,16 +457,23 @@ app.post("/events", authenticateJWT, async (req, res) => {
       .input("total_participants", sql.Int, total_participants)
       .input("team_count", sql.Int, team_count)
       .input("members_per_team", sql.Int, members_per_team)
-      .input("userId", sql.Int, req.session.userId).query(`
+      .input("userId", sql.Int, req.session.userId)
+      .query(`
         INSERT INTO events 
         (title, description, activity, goal, start_date, end_date, location, event_type, total_participants, team_count, members_per_team, user_id)
+        OUTPUT INSERTED.id
         VALUES 
         (@title, @description, @activity, @goal, @start_date, @end_date, @location, @event_type, @total_participants, @team_count, @members_per_team, @userId)
       `);
+    
+    // Get the ID of the newly created event
+    const eventId = result.recordset[0].id;
 
-    res
-      .status(201)
-      .json({ success: true, message: "Event created successfully" });
+    res.status(201).json({ 
+      success: true, 
+      message: "Event created successfully",
+      eventId: eventId 
+    });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }
