@@ -37,25 +37,51 @@ const authenticateUser = (req, res, next) => {
   next();
 };
 
-// Update the authenticateJWT middleware
+// Update the authenticateJWT middleware with better logging
 const authenticateJWT = (req, res, next) => {
   const authHeader = req.headers.authorization;
+  
+  console.log("Auth header received:", authHeader ? "Present" : "Missing");
 
   if (authHeader) {
     const token = authHeader.split(' ')[1];
+    
+    console.log("Token extracted:", token ? token.substring(0, 10) + "..." : "Invalid format");
+    
+    // Check if JWT_SECRET is available
+    if (!JWT_SECRET) {
+      console.error("JWT_SECRET is not defined in environment variables");
+      return res.status(500).json({ 
+        success: false, 
+        message: "Server configuration error" 
+      });
+    }
 
     jwt.verify(token, JWT_SECRET, (err, user) => {
       if (err) {
         console.log("JWT verification failed:", err.message);
+        // More specific error messages
+        if (err.name === "TokenExpiredError") {
+          return res.status(401).json({ 
+            success: false, 
+            message: "Token expired, please log in again" 
+          });
+        } else if (err.name === "JsonWebTokenError") {
+          return res.status(403).json({ 
+            success: false, 
+            message: "Invalid token" 
+          });
+        }
         return res.status(403).json({ success: false, message: "Invalid or expired token" });
       }
 
-      // The token contains user.id but we need to use uppercase Id for SQL Server
-      req.session.userId = user.id; // This works because we sign { id: user.Id }
+      console.log("JWT verified successfully for user:", user.id);
+      req.session.userId = user.id; 
       next();
     });
   } else {
     // Fall back to session-based auth
+    console.log("No Authorization header, falling back to session auth");
     authenticateUser(req, res, next);
   }
 };
