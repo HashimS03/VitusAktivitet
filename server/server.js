@@ -724,6 +724,13 @@ app.get("/test", (req, res) => {
   res.json({ message: "API is working!", timestamp: new Date().toISOString() });
 });
 
+
+// Basic test endpoint
+app.get("/duuf", (req, res) => {
+  res.json({ message: "API is working!", timestamp: new Date().toISOString() });
+});
+
+
 // Health check endpoint
 app.get("/health", async (req, res) => {
   try {
