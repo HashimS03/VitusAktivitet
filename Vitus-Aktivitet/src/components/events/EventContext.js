@@ -9,7 +9,7 @@ const API_BASE_URL = SERVER_CONFIG.getBaseUrl();
 export const EventContext = createContext();
 
 export const EventProvider = ({ children }) => {
-  const [events, setEvents] = useState([]);
+  const [events, setEvents] = useState([]);  // Initialize with empty array, not undefined
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -21,7 +21,9 @@ export const EventProvider = ({ children }) => {
         
         // Try to fetch events from server using apiClient
         const response = await apiClient.get('/events');
-        const serverEvents = response.data;
+        
+        // Fix: serverEvents should come from response.data.data, not response.data
+        const serverEvents = response.data.data || [];
         
         setEvents(serverEvents);
         // Also update AsyncStorage as a backup
@@ -30,15 +32,28 @@ export const EventProvider = ({ children }) => {
       } catch (serverError) {
         console.error("Failed to load events from server:", serverError);
         
+        // More detailed error logging
+        if (serverError.response) {
+          console.error("Server response error:", {
+            status: serverError.response.status,
+            data: serverError.response.data
+          });
+        }
+        
         // Fallback to AsyncStorage if server fails
         try {
           const storedEvents = await AsyncStorage.getItem(STORAGE_KEY);
           if (storedEvents) {
             setEvents(JSON.parse(storedEvents));
+          } else {
+            // If no stored events, initialize with empty array
+            setEvents([]);
           }
         } catch (storageError) {
           console.error("Failed to load events from storage:", storageError);
           setError(storageError.message);
+          // Initialize with empty array as last resort
+          setEvents([]);
         }
       } finally {
         setLoading(false);
