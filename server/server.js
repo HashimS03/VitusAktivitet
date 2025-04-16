@@ -99,7 +99,14 @@ const authenticateJWT = (req, res, next) => {
       }
 
       serverLog("log", "JWT verified successfully for user:", user.id);
-      req.session.userId = user.id; 
+      // Log the complete user object to see what's in it
+      serverLog("log", "JWT payload:", user);
+      
+      // Set userId correctly, handling both possible formats
+      req.session.userId = user.id;
+      
+      // Add more detailed logging after setting the userId
+      serverLog("log", "Session userId set to:", req.session.userId);
       next();
     });
   } else {

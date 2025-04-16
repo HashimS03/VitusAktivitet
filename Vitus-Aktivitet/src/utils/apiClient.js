@@ -12,14 +12,13 @@ apiClient.interceptors.request.use(
   async (config) => {
     try {
       const token = await AsyncStorage.getItem('userToken');
-      console.log("Token retrieved for request:", token ? "Token exists" : "No token");
+      console.log("Sending request with token:", token ? "Token exists" : "No token");
       
       if (token) {
         config.headers.Authorization = `Bearer ${token}`;
-        console.log("Authorization header set:", `Bearer ${token.substring(0, 10)}...`);
       }
     } catch (error) {
-      console.log("Error getting auth token:", error);
+      console.log("Error adding auth token:", error);
     }
     return config;
   },
