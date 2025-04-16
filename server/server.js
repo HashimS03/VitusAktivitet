@@ -462,23 +462,23 @@ app.post("/events", authenticateJWT, async (req, res) => {
       .input("description", sql.NVarChar, description || null)
       .input("activity", sql.NVarChar, activity || null)
       .input("goal", sql.Int, goal || null)
-      .input("start_date", sql.DateTime, new Date(start_date))
-      .input("end_date", sql.DateTime, new Date(end_date))
+      .input("start_date", sql.Date, new Date(start_date))
+      .input("end_date", sql.Date, new Date(end_date))
       .input("location", sql.NVarChar, location || null)
       .input("event_type", sql.NVarChar, event_type || null)
       .input("total_participants", sql.Int, total_participants || null)
       .input("team_count", sql.Int, team_count || null)
       .input("members_per_team", sql.Int, members_per_team || null)
-      .input("userId", sql.Int, req.session.userId)
+      .input("created_by", sql.Int, req.session.userId)
       .query(`
-        INSERT INTO [events] 
-        (title, description, activity, goal, start_date, end_date, location, event_type, total_participants, team_count, members_per_team, user_id)
-        OUTPUT INSERTED.id
+        INSERT INTO [EVENTS] 
+        (title, description, activity, goal, start_date, end_date, location, event_type, total_participants, team_count, members_per_team, created_by)
+        OUTPUT INSERTED.Id
         VALUES 
-        (@title, @description, @activity, @goal, @start_date, @end_date, @location, @event_type, @total_participants, @team_count, @members_per_team, @userId)
+        (@title, @description, @activity, @goal, @start_date, @end_date, @location, @event_type, @total_participants, @team_count, @members_per_team, @created_by)
       `);
 
-    const eventId = result.recordset[0].id;
+    const eventId = result.recordset[0].Id;
 
     res.status(201).json({
       success: true,
@@ -504,7 +504,7 @@ app.get("/events", authenticateJWT, async (req, res) => {
     const result = await pool
       .request()
       .input("userId", sql.Int, req.session.userId)
-      .query("SELECT * FROM [events] WHERE user_id = @userId");
+      .query("SELECT * FROM [EVENTS] WHERE created_by = @userId");
 
     res.json({ success: true, data: result.recordset });
   } catch (err) {
@@ -546,7 +546,7 @@ app.put("/events/:id", authenticateJWT, async (req, res) => {
       .request()
       .input("eventId", sql.Int, eventId)
       .input("userId", sql.Int, req.session.userId)
-      .query("SELECT id FROM [events] WHERE id = @eventId AND user_id = @userId");
+      .query("SELECT Id FROM [EVENTS] WHERE Id = @eventId AND created_by = @userId");
 
     if (result.recordset.length === 0) {
       return res.status(404).json({ success: false, message: "Event not found or you lack permission" });
@@ -559,16 +559,15 @@ app.put("/events/:id", authenticateJWT, async (req, res) => {
       .input("description", sql.NVarChar, description || null)
       .input("activity", sql.NVarChar, activity || null)
       .input("goal", sql.Int, goal || null)
-      .input("start_date", sql.DateTime, new Date(start_date))
-      .input("end_date", sql.DateTime, new Date(end_date))
+      .input("start_date", sql.Date, new Date(start_date))
+      .input("end_date", sql.Date, new Date(end_date))
       .input("location", sql.NVarChar, location || null)
       .input("event_type", sql.NVarChar, event_type || null)
       .input("total_participants", sql.Int, total_participants || null)
       .input("team_count", sql.Int, team_count || null)
       .input("members_per_team", sql.Int, members_per_team || null)
-      .input("userId", sql.Int, req.session.userId)
       .query(`
-        UPDATE [events]
+        UPDATE [EVENTS]
         SET title = @title,
             description = @description,
             activity = @activity,
@@ -580,7 +579,7 @@ app.put("/events/:id", authenticateJWT, async (req, res) => {
             total_participants = @total_participants,
             team_count = @team_count,
             members_per_team = @members_per_team
-        WHERE id = @eventId AND user_id = @userId
+        WHERE Id = @eventId
       `);
 
     res.json({ success: true, message: "Event updated successfully" });
@@ -606,7 +605,7 @@ app.delete("/events/:id", authenticateJWT, async (req, res) => {
       .request()
       .input("eventId", sql.Int, eventId)
       .input("userId", sql.Int, req.session.userId)
-      .query("DELETE FROM [events] WHERE id = @eventId AND user_id = @userId");
+      .query("DELETE FROM [EVENTS] WHERE Id = @eventId AND created_by = @userId");
 
     if (result.rowsAffected[0] === 0) {
       return res.status(404).json({ success: false, message: "Event not found or you lack permission" });
