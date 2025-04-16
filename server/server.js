@@ -460,7 +460,7 @@ app.post("/step-activity", authenticateUser, async (req, res) => {
 });
 
 // 🔹 Route to Fetch User Step History
-app.get("/user-history", authenticateUser, async (req, res) => {
+app.get("/userhistory", authenticateUser, async (req, res) => {
   try {
     const { period } = req.query; // Expect period as query param (day, week, month, year)
     const userId = req.session.userId;
