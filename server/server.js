@@ -8,7 +8,7 @@ require("dotenv").config();
 
 const app = express();
 const PORT = process.env.PORT || 4000;
-const JWT_SECRET = process.env.JWT_SECRET;
+const JWT_SECRET = process.env.JWT_SECRET || "vitus-aktivitet-secret-key-2023";
 
 app.use(express.json());
 app.use(
