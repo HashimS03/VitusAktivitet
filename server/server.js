@@ -37,20 +37,43 @@ const authenticateUser = (req, res, next) => {
   next();
 };
 
+// Add this near your other endpoints
+const recentLogs = [];
+const MAX_LOGS = 100;
+
+// Custom logging function
+function serverLog(type, message, details = null) {
+  const logEntry = {
+    timestamp: new Date().toISOString(),
+    type,
+    message,
+    details: details ? (typeof details === 'object' ? JSON.stringify(details) : details) : null
+  };
+  
+  // Store in memory buffer
+  recentLogs.unshift(logEntry);
+  if (recentLogs.length > MAX_LOGS) {
+    recentLogs.pop();
+  }
+  
+  // Also send to console
+  console[type](message, details || '');
+}
+
 // Update the authenticateJWT middleware with better logging
 const authenticateJWT = (req, res, next) => {
   const authHeader = req.headers.authorization;
   
-  console.log("Auth header received:", authHeader ? "Present" : "Missing");
+  serverLog("log", "Auth header received:", authHeader ? "Present" : "Missing");
 
   if (authHeader) {
     const token = authHeader.split(' ')[1];
     
-    console.log("Token extracted:", token ? token.substring(0, 10) + "..." : "Invalid format");
+    serverLog("log", "Token extracted:", token ? token.substring(0, 10) + "..." : "Invalid format");
     
     // Check if JWT_SECRET is available
     if (!JWT_SECRET) {
-      console.error("JWT_SECRET is not defined in environment variables");
+      serverLog("error", "JWT_SECRET is not defined in environment variables");
       return res.status(500).json({ 
         success: false, 
         message: "Server configuration error" 
@@ -59,7 +82,7 @@ const authenticateJWT = (req, res, next) => {
 
     jwt.verify(token, JWT_SECRET, (err, user) => {
       if (err) {
-        console.log("JWT verification failed:", err.message);
+        serverLog("log", "JWT verification failed:", err.message);
         // More specific error messages
         if (err.name === "TokenExpiredError") {
           return res.status(401).json({ 
@@ -75,20 +98,20 @@ const authenticateJWT = (req, res, next) => {
         return res.status(403).json({ success: false, message: "Invalid or expired token" });
       }
 
-      console.log("JWT verified successfully for user:", user.id);
+      serverLog("log", "JWT verified successfully for user:", user.id);
       req.session.userId = user.id; 
       next();
     });
   } else {
     // Fall back to session-based auth
-    console.log("No Authorization header, falling back to session auth");
+    serverLog("log", "No Authorization header, falling back to session auth");
     authenticateUser(req, res, next);
   }
 };
 
 // 🔹 Route to Register a User
 app.post("/register", async (req, res) => {
-  console.log("Register request received:", req.body);
+  serverLog("log", "Register request received:", req.body);
   try {
     const { name, email, password, avatar } = req.body;
 
@@ -127,19 +150,19 @@ app.post("/register", async (req, res) => {
         VALUES (@userId, @steps, @timestamp)
       `);
 
-    console.log("User registered successfully:", { name, email });
+    serverLog("log", "User registered successfully:", { name, email });
     res
       .status(201)
       .json({ success: true, message: "User registered successfully" });
   } catch (err) {
-    console.error("Registration error:", err);
+    serverLog("error", "Registration error:", err);
     const errorDetails = {
       message: err.message,
       stack: process.env.NODE_ENV !== "production" ? err.stack : undefined,
       code: err.code,
       number: err.number,
     };
-    console.error("Error details:", errorDetails);
+    serverLog("error", "Error details:", errorDetails);
 
     if (err.number === 2627) {
       return res
@@ -154,7 +177,7 @@ app.post("/register", async (req, res) => {
 
 // 🔹 Route to Login
 app.post("/login", async (req, res) => {
-  console.log("Login request received:", req.body);
+  serverLog("log", "Login request received:", req.body);
   try {
     const { email, password } = req.body;
 
@@ -207,14 +230,14 @@ app.post("/login", async (req, res) => {
         .json({ success: false, message: "Invalid email or password" });
     }
   } catch (err) {
-    console.error("Login error:", err);
+    serverLog("error", "Login error:", err);
     const errorDetails = {
       message: err.message,
       stack: process.env.NODE_ENV !== "production" ? err.stack : undefined,
       code: err.code,
       errno: err.errno,
     };
-    console.error("Error details:", errorDetails);
+    serverLog("error", "Error details:", errorDetails);
     res
       .status(500)
       .json({ success: false, message: `Login failed: ${err.message}` });
@@ -253,13 +276,13 @@ app.get("/leaderboard", async (req, res) => {
 
     res.json({ success: true, data: leaderboardData });
   } catch (err) {
-    console.error("Leaderboard fetch error:", err.stack);
+    serverLog("error", "Leaderboard fetch error:", err.stack);
     res.status(500).json({ success: false, message: err.message });
   }
 });
 
 app.get("/leaderboard", async (req, res) => {
-  console.log("Leaderboard request received");
+  serverLog("log", "Leaderboard request received");
   try {
     const pool = await poolPromise;
     const result = await pool.request().query(`
@@ -288,10 +311,10 @@ app.get("/leaderboard", async (req, res) => {
       change: 0,
     }));
 
-    console.log(`Returning ${leaderboardData.length} leaderboard entries`);
+    serverLog("log", `Returning ${leaderboardData.length} leaderboard entries`);
     res.json({ success: true, data: leaderboardData });
   } catch (err) {
-    console.error("Leaderboard fetch error:", err.stack);
+    serverLog("error", "Leaderboard fetch error:", err.stack);
     res.status(500).json({
       success: false,
       message: "Kunne ikke hente ledertavle. Prøv igjen senere.",
@@ -329,15 +352,15 @@ app.get("/user", authenticateJWT, async (req, res) => {
 
     res.json({ success: true, user: result.recordset[0] });
   } catch (err) {
-    console.error("User fetch error:", err);
+    serverLog("error", "User fetch error:", err);
     res.status(500).json({ success: false, message: err.message });
   }
 });
 
 // 🔹 Route to Create or Update Step Activity
 app.post("/step-activity", authenticateJWT, async (req, res) => {
-  console.log("Step activity request received:", req.body);
-  console.log("Session userId:", req.session.userId);
+  serverLog("log", "Step activity request received:", req.body);
+  serverLog("log", "Session userId:", req.session.userId);
   try {
     const { stepCount, distance, timestamp } = req.body;
     const userId = req.session.userId;
@@ -359,7 +382,7 @@ app.post("/step-activity", authenticateJWT, async (req, res) => {
         message: `Invalid userId: ${userId} not found in [USER]`,
       });
     }
-    console.log("UserId validated:", userId);
+    serverLog("log", "UserId validated:", userId);
 
     const existingRecord = await pool
       .request()
@@ -367,11 +390,11 @@ app.post("/step-activity", authenticateJWT, async (req, res) => {
       .query(
         "SELECT TOP 1 Id FROM [STEPACTIVITY] WHERE userId = @userId ORDER BY timestamp DESC"
       );
-    console.log("Existing record check result:", existingRecord.recordset);
+    serverLog("log", "Existing record check result:", existingRecord.recordset);
 
     if (existingRecord.recordset.length > 0) {
       const recordId = existingRecord.recordset[0].Id;
-      console.log("Updating existing record with Id:", recordId);
+      serverLog("log", "Updating existing record with Id:", recordId);
       await pool
         .request()
         .input("id", sql.Int, recordId)
@@ -382,9 +405,9 @@ app.post("/step-activity", authenticateJWT, async (req, res) => {
           SET step_count = @stepCount, distance = @distance, timestamp = @timestamp
           WHERE Id = @id
         `);
-      console.log("Update query executed for Id:", recordId);
+      serverLog("log", "Update query executed for Id:", recordId);
     } else {
-      console.log("Inserting new record for userId:", userId);
+      serverLog("log", "Inserting new record for userId:", userId);
       await pool
         .request()
         .input("userId", sql.Int, userId)
@@ -394,7 +417,7 @@ app.post("/step-activity", authenticateJWT, async (req, res) => {
           INSERT INTO [STEPACTIVITY] (userId, step_count, distance, timestamp)
           VALUES (@userId, @stepCount, @distance, @timestamp)
         `);
-      console.log("Insert query executed for userId:", userId);
+      serverLog("log", "Insert query executed for userId:", userId);
     }
 
     // Oppdater [LEADERBOARD]
@@ -428,7 +451,7 @@ app.post("/step-activity", authenticateJWT, async (req, res) => {
       .status(201)
       .json({ success: true, message: "Step activity saved successfully" });
   } catch (err) {
-    console.error("Step activity error:", err);
+    serverLog("error", "Step activity error:", err);
     res.status(500).json({ success: false, message: err.message });
   }
 });
@@ -447,7 +470,7 @@ app.get("/step-activity", authenticateJWT, async (req, res) => {
 
     res.json({ success: true, data: result.recordset });
   } catch (err) {
-    console.error("Step activity fetch error:", err);
+    serverLog("error", "Step activity fetch error:", err);
     res.status(500).json({ success: false, message: err.message });
   }
 });
@@ -657,6 +680,11 @@ app.get("/api/status", (req, res) => {
     environment: process.env.NODE_ENV || "development",
     version: "1.0.0",
   });
+});
+
+// Add an endpoint to view logs
+app.get("/logs", (req, res) => {
+  res.json(recentLogs);
 });
 
 app.get("/", (req, res) => {
