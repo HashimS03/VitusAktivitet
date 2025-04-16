@@ -31,7 +31,8 @@ export default function opprett({ navigation }) {
     }
 
     try {
-      console.log("Sending registration data:", { name, email, password }); // Debug log
+      console.log(`Sending registration request to: ${SERVER_CONFIG.getBaseUrl()}/register`);
+      
       const response = await axios.post(`${SERVER_CONFIG.getBaseUrl()}/register`, {
         name,
         email,
@@ -39,16 +40,25 @@ export default function opprett({ navigation }) {
         avatar: null,
       });
 
+      console.log("Registration response:", response.status, response.data);
+      
       if (response.data.success) {
         Alert.alert("Success", "User registered successfully");
         navigation.replace("GenderSelection");
       }
     } catch (error) {
-      console.log("Registration error:", error);
-      Alert.alert(
-        "Error", 
-        error.response?.data?.message || "Registration failed. Please try again."
-      );
+      console.error("Registration error:", error);
+      
+      if (error.response) {
+        console.error("Server responded with:", error.response.status, error.response.data);
+        Alert.alert("Registration Failed", error.response.data.message || `Server error: ${error.response.status}`);
+      } else if (error.request) {
+        console.error("No response received");
+        Alert.alert("Connection Error", "Cannot connect to the server. Please check your internet connection or try again later.");
+      } else {
+        console.error("Request setup error:", error.message);
+        Alert.alert("Error", "An unexpected error occurred during registration.");
+      }
     }
   };
 

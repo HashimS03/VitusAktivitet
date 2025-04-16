@@ -11,6 +11,7 @@ import {
 import axios from "axios";
 import { UserContext } from "../context/UserContext"; // Create this context
 import { SERVER_CONFIG } from "../../config/serverConfig"; // Import the serverConfig
+import AsyncStorage from '@react-native-async-storage/async-storage'; // Import AsyncStorage
 
 const { width } = Dimensions.get("window");
 const PRIMARY_COLOR = "#48CAB2";
@@ -39,14 +40,29 @@ export default function login({ navigation }) {
     }
 
     try {
-      // Use the serverConfig base URL instead of hardcoded localhost
+      console.log("Sending login request to:", `${SERVER_CONFIG.getBaseUrl()}/login`);
+      
       const response = await axios.post(`${SERVER_CONFIG.getBaseUrl()}/login`, {
         email,
         password,
-      }, { withCredentials: true }); // Ensure cookies are sent
+      });
+
+      console.log("Login response received:", {
+        success: response.data.success,
+        userId: response.data.userId,
+        hasToken: !!response.data.token
+      });
 
       if (response.data.success) {
-        setUserId(response.data.userId); // Store userId in context
+        // Store the JWT token properly
+        if (response.data.token) {
+          await AsyncStorage.setItem('userToken', response.data.token);
+          console.log("Token stored successfully");
+        } else {
+          console.error("No token received from server");
+        }
+        
+        setUserId(response.data.userId);
         Alert.alert("Success", "Login successful");
         navigation.replace("MainApp");
       }

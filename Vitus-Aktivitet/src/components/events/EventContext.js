@@ -1,6 +1,6 @@
 import React, { createContext, useState, useEffect } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import axios from "axios";
+import apiClient from '../../utils/apiClient';
 import { SERVER_CONFIG } from "../../config/serverConfig"; 
 
 const STORAGE_KEY = "events";
@@ -9,7 +9,7 @@ const API_BASE_URL = SERVER_CONFIG.getBaseUrl();
 export const EventContext = createContext();
 
 export const EventProvider = ({ children }) => {
-  const [events, setEvents] = useState([]);
+  const [events, setEvents] = useState([]);  // Initialize with empty array, not undefined
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -19,9 +19,11 @@ export const EventProvider = ({ children }) => {
       try {
         setLoading(true);
         
-        // Try to fetch events from server
-        const response = await axios.get(`${API_BASE_URL}/events`);
-        const serverEvents = response.data;
+        // Try to fetch events from server using apiClient
+        const response = await apiClient.get('/events');
+        
+        // Fix: serverEvents should come from response.data.data, not response.data
+        const serverEvents = response.data.data || [];
         
         setEvents(serverEvents);
         // Also update AsyncStorage as a backup
@@ -30,15 +32,28 @@ export const EventProvider = ({ children }) => {
       } catch (serverError) {
         console.error("Failed to load events from server:", serverError);
         
+        // More detailed error logging
+        if (serverError.response) {
+          console.error("Server response error:", {
+            status: serverError.response.status,
+            data: serverError.response.data
+          });
+        }
+        
         // Fallback to AsyncStorage if server fails
         try {
           const storedEvents = await AsyncStorage.getItem(STORAGE_KEY);
           if (storedEvents) {
             setEvents(JSON.parse(storedEvents));
+          } else {
+            // If no stored events, initialize with empty array
+            setEvents([]);
           }
         } catch (storageError) {
           console.error("Failed to load events from storage:", storageError);
           setError(storageError.message);
+          // Initialize with empty array as last resort
+          setEvents([]);
         }
       } finally {
         setLoading(false);
@@ -66,11 +81,11 @@ export const EventProvider = ({ children }) => {
         members_per_team: Number(newEvent.membersPerTeam) || 0,
       };
       
-      // Send to server
-      const response = await axios.post(`${API_BASE_URL}/events`, serverEventData);
+      // Send to server using apiClient
+      const response = await apiClient.post('/events', serverEventData);
       
       // If successful, update local state
-      // Ideally the server would return the created event with its ID
+      /// Ideally the server would return the created event with its ID
       const eventWithId = { 
         ...newEvent, 
         id: response.data.eventId || Date.now().toString() 
@@ -117,10 +132,9 @@ export const EventProvider = ({ children }) => {
         members_per_team: Number(updatedEvent.membersPerTeam) || 0,
       };
       
-      // Send to server (assuming your server has a PUT endpoint)
-      await axios.put(`${API_BASE_URL}/events/${updatedEvent.id}`, serverEventData);
-      
-      // Update local state
+      // Send to server using apiClient
+      await apiClient.put(`/events/${updatedEvent.id}`, serverEventData);
+    
       const updatedEvents = events.map(event => 
         event.id === updatedEvent.id ? updatedEvent : event
       );
@@ -152,8 +166,8 @@ export const EventProvider = ({ children }) => {
   // Delete event from both server and local state
   const deleteEvent = async (eventId) => {
     try {
-      // Delete from server
-      await axios.delete(`${API_BASE_URL}/events/${eventId}`);
+      // Delete from server using apiClient
+      await apiClient.delete(`/events/${eventId}`);
       
       // Update local state
       const filteredEvents = events.filter(event => event.id !== eventId);
