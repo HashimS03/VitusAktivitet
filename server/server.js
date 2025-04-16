@@ -211,6 +211,56 @@ app.post("/login", async (req, res) => {
   }
 });
 
+// Add to your existing routes
+app.post("/user-history", authenticateJWT, async (req, res) => {
+  try {
+    const { total_steps, total_conversions, streak } = req.body;
+    const userId = req.session.userId;
+
+    const pool = await poolPromise;
+    await pool
+      .request()
+      .input("userId", sql.Int, userId)
+      .input("total_steps", sql.Int, total_steps || 0)
+      .input("total_conversions", sql.Int, total_conversions || 0)
+      .input("streak", sql.Int, streak || 0)
+      .input("timestamp", sql.DateTime, new Date())
+      .query(`
+        INSERT INTO [USER_HISTORY] 
+        (userId, total_steps, total_conversions, streak, timestamp)
+        VALUES (@userId, @total_steps, @total_conversions, @streak, @timestamp)
+      `);
+
+    res.status(201).json({ success: true, message: "User history saved successfully" });
+  } catch (err) {
+    serverLog("error", "User history save error:", err);
+    res.status(500).json({ success: false, message: `Failed to save user history: ${err.message}` });
+  }
+});
+
+app.get("/user-history", authenticateJWT, async (req, res) => {
+  try {
+    const pool = await poolPromise;
+    const result = await pool
+      .request()
+      .input("userId", sql.Int, req.session.userId)
+      .query(`
+        SELECT * 
+        FROM [USER_HISTORY] 
+        WHERE userId = @userId
+        ORDER BY timestamp DESC
+      `);
+
+    res.json({ success: true, data: result.recordset });
+  } catch (err) {
+    serverLog("error", "User history fetch error:", err);
+    res.status(500).json({ success: false, message: `Failed to fetch user history: ${err.message}` });
+  }
+});
+
+
+
+
 // 🔹 Route to Fetch Leaderboard Data
 app.get("/leaderboard", async (req, res) => {
   serverLog("log", "Leaderboard request received");

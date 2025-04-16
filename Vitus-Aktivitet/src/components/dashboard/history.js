@@ -175,145 +175,39 @@ const Tooltip = ({ value, label, position, period, theme }) => (
   </Animated.View>
 );
 
+// In your HistoryScreen component
 const fetchStepHistory = async (period) => {
   try {
+    // First try to get from database
+    const response = await axios.get(
+      `${SERVER_CONFIG.getBaseUrl()}/user-history`,
+      {
+        withCredentials: true,
+      }
+    );
+
+    const dbData = response.data.data;
+
+    // Fallback to local storage if no DB data
+    if (!dbData || dbData.length === 0) {
+      const allKeys = await AsyncStorage.getAllKeys();
+      const stepKeys = allKeys.filter((key) => key.startsWith("stepHistory_"));
+      const stepData = await AsyncStorage.multiGet(stepKeys);
+
+      return processLocalData(stepData, period);
+    }
+
+    return processDBData(dbData, period);
+  } catch (error) {
+    console.error("Error fetching step history:", error);
+    // Fallback to local storage
     const allKeys = await AsyncStorage.getAllKeys();
     const stepKeys = allKeys.filter((key) => key.startsWith("stepHistory_"));
     const stepData = await AsyncStorage.multiGet(stepKeys);
 
-    const stepsByDate = stepData.map(([key, value]) => ({
-      date: key.replace("stepHistory_", ""),
-      steps: JSON.parse(value) || 0,
-    }));
-
-    const today = new Date();
-    const todayString = today.toISOString().split("T")[0];
-
-    switch (period) {
-      case "day": {
-        const todayData = stepsByDate.find(
-          (entry) => entry.date === todayString
-        );
-        const total = todayData ? todayData.steps : 0;
-        const hourlySteps = Array(24).fill(0);
-        if (todayData) {
-          const currentHour = today.getHours();
-          hourlySteps[currentHour] = total;
-        }
-        return {
-          total,
-          labels: Array.from({ length: 24 }, (_, i) => `${i}`.padStart(2, "0")),
-          values: hourlySteps,
-          maxValue: Math.max(total, 2000),
-        };
-      }
-      case "week": {
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-        const startOfWeek = new Date(today);
-        const dayOfWeek = today.getDay();
-        const daysToSubtract = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
-        startOfWeek.setDate(today.getDate() - daysToSubtract);
-        startOfWeek.setHours(0, 0, 0, 0);
-
-        const values = Array(7).fill(0);
-        stepsByDate.forEach((entry) => {
-          const entryDate = new Date(entry.date);
-          entryDate.setHours(0, 0, 0, 0);
-          const diffTime = entryDate - startOfWeek;
-          const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
-          if (diffDays >= 0 && diffDays < 7) {
-            values[diffDays] = entry.steps;
-          }
-        });
-
-        const total = values.reduce((sum, val) => sum + val, 0);
-        return {
-          total,
-          labels: ["Man", "Tir", "Ons", "Tor", "Fre", "Lør", "Søn"],
-          values,
-          maxValue: Math.round(Math.max(...values, 3000)),
-          average: Math.round(total / 7),
-        };
-      }
-      case "month": {
-        const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
-        const monthData = stepsByDate.filter(
-          (entry) => new Date(entry.date) >= startOfMonth
-        );
-        const daysInMonth = new Date(
-          today.getFullYear(),
-          today.getMonth() + 1,
-          0
-        ).getDate();
-        const values = Array(daysInMonth).fill(0);
-        monthData.forEach((entry) => {
-          const dayIndex = new Date(entry.date).getDate() - 1;
-          values[dayIndex] = (values[dayIndex] || 0) + entry.steps;
-        });
-        const total = values.reduce((sum, val) => sum + val, 0);
-        return {
-          total,
-          labels: Array.from({ length: daysInMonth }, (_, i) => `${i + 1}`),
-          values,
-          maxValue: Math.max(...values, 4000),
-          average: total / daysInMonth,
-        };
-      }
-      case "year": {
-        const startOfYear = new Date(today.getFullYear(), 0, 1);
-        const yearData = stepsByDate.filter(
-          (entry) => new Date(entry.date) >= startOfYear
-        );
-        const monthlyTotals = Array(12).fill(0);
-        yearData.forEach((entry) => {
-          const monthIndex = new Date(entry.date).getMonth();
-          monthlyTotals[monthIndex] += entry.steps;
-        });
-        const total = monthlyTotals.reduce((sum, val) => sum + val, 0);
-        const dailyAverage = total / 365;
-        return {
-          total,
-          labels: [
-            "Jan",
-            "Feb",
-            "Mar",
-            "Apr",
-            "Mai",
-            "Jun",
-            "Jul",
-            "Aug",
-            "Sep",
-            "Okt",
-            "Nov",
-            "Des",
-          ],
-          values: monthlyTotals.map((val) => Math.round(val / 30)),
-          maxValue: Math.round(
-            Math.max(...monthlyTotals.map((val) => val / 30), 400)
-          ),
-          average: Math.round(dailyAverage),
-        };
-      }
-      default:
-        return {
-          total: 0,
-          labels: [],
-          values: [],
-          maxValue: 2000,
-        };
-    }
-  } catch (error) {
-    console.error("Feil ved henting av step history:", error);
-    return {
-      total: 0,
-      labels: ["Ingen data"],
-      values: [0],
-      maxValue: 2000,
-    };
+    return processLocalData(stepData, period);
   }
 };
-
 // Forenklet calculateStreaks til kun å hente lagrede verdier
 const fetchStreaks = async () => {
   try {
