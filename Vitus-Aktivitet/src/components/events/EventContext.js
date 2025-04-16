@@ -134,8 +134,7 @@ export const EventProvider = ({ children }) => {
       
       // Send to server using apiClient
       await apiClient.put(`/events/${updatedEvent.id}`, serverEventData);
-      
-      // Update local state
+    
       const updatedEvents = events.map(event => 
         event.id === updatedEvent.id ? updatedEvent : event
       );
