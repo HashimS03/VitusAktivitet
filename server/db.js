@@ -17,6 +17,7 @@ const poolPromise = new sql.ConnectionPool(config)
   .connect()
   .then((pool) => {
     console.log("✅ Connected to Azure SQL Database");
+    console.log("heisann");
     return pool;
   })
   .catch((err) => {
@@ -28,3 +29,6 @@ module.exports = {
   sql,
   poolPromise,
 };
+
+
+
