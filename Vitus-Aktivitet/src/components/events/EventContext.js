@@ -85,7 +85,7 @@ export const EventProvider = ({ children }) => {
       const response = await apiClient.post('/events', serverEventData);
       
       // If successful, update local state
-      // Ideally the server would return the created event with its ID
+      /// Ideally the server would return the created event with its ID
       const eventWithId = { 
         ...newEvent, 
         id: response.data.eventId || Date.now().toString() 
