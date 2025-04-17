@@ -21,10 +21,11 @@ import InviteMembersScreen from "./InviteMembersScreen";
 import { useTheme } from "../context/ThemeContext";
 import * as Progress from "react-native-progress";
 import { EventContext } from "../events/EventContext";
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const ActiveEvent = ({ route }) => {
   const { eventId } = route.params || {};
-  const { activeEvents, pastEvents, updateEvent, deleteEvent } =
+  const { activeEvents, pastEvents, updateEvent, deleteEvent, joinEvent, leaveEvent, fetchEventParticipants, checkParticipation } =
     useContext(EventContext); // Hent både activeEvents og pastEvents
   // Finn hendelsen fra enten activeEvents eller pastEvents
   const eventDetails =
@@ -39,6 +40,10 @@ const ActiveEvent = ({ route }) => {
   const [newProgress, setNewProgress] = useState("");
   const navigation = useNavigation();
   const { theme, isDarkMode } = useTheme();
+  const [participants, setParticipants] = useState([]);
+  const [isParticipating, setIsParticipating] = useState(false);
+  const [participantId, setParticipantId] = useState(null);
+  const [userTeamId, setUserTeamId] = useState(null);
 
   // Sjekk om hendelsen er ferdig
   const isEventFinished =
@@ -223,23 +228,22 @@ const ActiveEvent = ({ route }) => {
     );
   };
 
-  const renderIndividualParticipants = () => {
-    if (!eventDetails.participants || eventDetails.participants.length === 0) {
-      return (
-        <Text style={[styles.memberCount, { color: theme.textSecondary }]}>
-          Ingen deltakere tilgjengelig
-        </Text>
-      );
-    }
-
-    const filledParticipants = 1;
-    const totalParticipants = eventDetails.participantCount || 0;
+  const renderIndividualParticipants = async () => {
+    // Get current user ID from state
+    const userId = parseInt(await AsyncStorage.getItem('userId'));
+    
+    // Calculate participant stats
+    const filledParticipants = participants.length;
+    const totalParticipants = eventDetails.total_participants || 10;
     const emptySlots = Math.max(0, totalParticipants - filledParticipants);
-
+    
+    // Check if user is a participant (should be redundant with isParticipating state)
+    const userIsParticipant = participants.some(p => p.userId === userId);
+    
     return (
       <>
         <Text style={[styles.memberCount, { color: theme.textSecondary }]}>
-          {filledParticipants} av {totalParticipants} deltakere
+          {filledParticipants} of {totalParticipants} participants
         </Text>
         <ScrollView
           horizontal
@@ -248,25 +252,28 @@ const ActiveEvent = ({ route }) => {
         >
           <View style={styles.participantsContainer}>
             <View style={styles.participantsRow}>
-              <View style={styles.memberAvatar}>
-                <Image
-                  source={require("../../../assets/member-avatar.png")}
-                  style={styles.avatarImage}
-                />
-                <Text
-                  style={[styles.memberName, { color: theme.textSecondary }]}
-                >
-                  {eventDetails.participants[0]?.name || "Du"}
-                </Text>
-              </View>
-              {Array.from({ length: emptySlots }, (_, i) => (
+              {/* Render actual participants */}
+              {participants.map((participant) => (
+                <View key={participant.id} style={styles.memberAvatar}>
+                  <Image
+                    source={
+                      participant.avatar 
+                        ? { uri: participant.avatar }
+                        : require("../../../assets/member-avatar.png")
+                    }
+                    style={styles.avatarImage}
+                  />
+                  <Text style={[styles.memberName, { color: theme.textSecondary }]}>
+                    {participant.userId === userId ? "You" : participant.userName}
+                  </Text>
+                </View>
+              ))}
+              
+              {/* Join button or empty slots */}
+              {!isParticipating && emptySlots > 0 ? (
                 <TouchableOpacity
-                  key={`empty_${i}`}
-                  style={[
-                    styles.emptyAvatar,
-                    { backgroundColor: theme.primary },
-                  ]}
-                  onPress={() => !isEventFinished && setShowInviteScreen(true)} // Deaktiver invitasjon
+                  style={[styles.emptyAvatar, { backgroundColor: theme.primary }]}
+                  onPress={() => handleJoinEvent()}
                   disabled={isEventFinished}
                 >
                   <MaterialCommunityIcons
@@ -275,7 +282,21 @@ const ActiveEvent = ({ route }) => {
                     color={isDarkMode ? theme.surface : theme.background}
                   />
                 </TouchableOpacity>
-              ))}
+              ) : (
+                // Show empty slots
+                Array.from({ length: emptySlots }, (_, i) => (
+                  <View
+                    key={`empty_${i}`}
+                    style={[styles.emptyAvatar, { backgroundColor: theme.border }]}
+                  >
+                    <MaterialCommunityIcons
+                      name="account-outline"
+                      size={24}
+                      color={theme.textSecondary}
+                    />
+                  </View>
+                ))
+              )}
             </View>
           </View>
         </ScrollView>
@@ -295,6 +316,82 @@ const ActiveEvent = ({ route }) => {
   useEffect(() => {
     console.log("Event Details:", eventDetails);
   }, [eventDetails]);
+
+  useEffect(() => {
+    const loadEventData = async () => {
+      try {
+        // Fetch participants for this event
+        const eventParticipants = await fetchEventParticipants(eventId);
+        setParticipants(eventParticipants);
+        
+        // Check if current user is participating
+        const participation = await checkParticipation(eventId);
+        setIsParticipating(participation.isParticipating);
+        setParticipantId(participation.participantId);
+        setUserTeamId(participation.teamId);
+      } catch (error) {
+        console.error("Failed to load event data:", error);
+      }
+    };
+    
+    loadEventData();
+  }, [eventId]);
+
+  const handleJoinEvent = async (teamId = null) => {
+    if (isEventFinished) return;
+    
+    if (!isParticipating) {
+      // Join the event
+      const success = await joinEvent(eventId, teamId);
+      
+      if (success) {
+        // Refresh participants and participation status
+        const eventParticipants = await fetchEventParticipants(eventId);
+        setParticipants(eventParticipants);
+        
+        const participation = await checkParticipation(eventId);
+        setIsParticipating(participation.isParticipating);
+        setParticipantId(participation.participantId);
+        setUserTeamId(participation.teamId);
+        
+        Alert.alert("Success", "You have joined the event!");
+      } else {
+        Alert.alert("Error", "Failed to join the event. Please try again.");
+      }
+    } else {
+      // Leave the event
+      Alert.alert(
+        "Leave Event",
+        "Are you sure you want to leave this event?",
+        [
+          {
+            text: "Cancel",
+            style: "cancel"
+          },
+          {
+            text: "Leave",
+            style: "destructive",
+            onPress: async () => {
+              const success = await leaveEvent(eventId);
+              
+              if (success) {
+                // Refresh participants and participation status
+                const eventParticipants = await fetchEventParticipants(eventId);
+                setParticipants(eventParticipants);
+                setIsParticipating(false);
+                setParticipantId(null);
+                setUserTeamId(null);
+                
+                Alert.alert("Success", "You have left the event.");
+              } else {
+                Alert.alert("Error", "Failed to leave the event. Please try again.");
+              }
+            }
+          }
+        ]
+      );
+    }
+  };
 
   if (!eventDetails) {
     return null;

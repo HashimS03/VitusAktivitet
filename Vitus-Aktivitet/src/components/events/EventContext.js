@@ -81,14 +81,17 @@ export const EventProvider = ({ children }) => {
         members_per_team: Number(newEvent.membersPerTeam) || 0,
       };
       
+      console.log("Sending event data to server:", serverEventData);
+      
       // Send to server using apiClient
       const response = await apiClient.post('/events', serverEventData);
       
-      // If successful, update local state
-      /// Ideally the server would return the created event with its ID
+      console.log("Server response:", response.data);
+      
+      // If successful, update local state with correct ID mapping
       const eventWithId = { 
         ...newEvent, 
-        id: response.data.eventId || Date.now().toString() 
+        id: response.data.eventId 
       };
       
       setEvents(prevEvents => [...prevEvents, eventWithId]);
@@ -101,6 +104,7 @@ export const EventProvider = ({ children }) => {
       
     } catch (error) {
       console.error("Failed to add event to server:", error);
+      console.error("Error details:", error.response?.data || error.message);
       
       // Fallback: Add to local state only if server fails
       const eventWithId = { ...newEvent, id: Date.now().toString() };
@@ -218,6 +222,97 @@ export const EventProvider = ({ children }) => {
     // Implementation would depend on your server API
   };
 
+  // Function to join an event
+  const joinEvent = async (eventId, teamId = null) => {
+    try {
+      const response = await apiClient.post(`/events/${eventId}/join`, { teamId });
+      
+      // Update local state to reflect the new participation
+      const userData = await AsyncStorage.getItem('userInfo');
+      const user = userData ? JSON.parse(userData) : {};
+      
+      setEvents(currentEvents => 
+        currentEvents.map(event => {
+          if (event.Id.toString() === eventId.toString()) {
+            // Add current user to participants
+            const participants = event.participants || [];
+            return {
+              ...event,
+              participants: [
+                ...participants,
+                {
+                  id: response.data.participantId,
+                  userId: user.id,
+                  userName: user.name || "Me",
+                  teamId
+                }
+              ]
+            };
+          }
+          return event;
+        })
+      );
+      
+      return true;
+    } catch (error) {
+      console.error("Failed to join event:", error);
+      return false;
+    }
+  };
+
+  // Function to leave an event
+  const leaveEvent = async (eventId) => {
+    try {
+      await apiClient.delete(`/events/${eventId}/leave`);
+      
+      // Update local state to reflect leaving
+      const userId = await AsyncStorage.getItem('userId');
+      
+      setEvents(currentEvents => 
+        currentEvents.map(event => {
+          if (event.Id.toString() === eventId.toString()) {
+            // Remove current user from participants
+            const participants = (event.participants || [])
+              .filter(p => p.userId !== parseInt(userId));
+            
+            return {
+              ...event,
+              participants
+            };
+          }
+          return event;
+        })
+      );
+      
+      return true;
+    } catch (error) {
+      console.error("Failed to leave event:", error);
+      return false;
+    }
+  };
+
+  // Function to fetch participants for an event
+  const fetchEventParticipants = async (eventId) => {
+    try {
+      const response = await apiClient.get(`/events/${eventId}/participants`);
+      return response.data.data;
+    } catch (error) {
+      console.error("Failed to fetch event participants:", error);
+      return [];
+    }
+  };
+
+  // Function to check if current user is participating in an event
+  const checkParticipation = async (eventId) => {
+    try {
+      const response = await apiClient.get(`/events/${eventId}/participation`);
+      return response.data;
+    } catch (error) {
+      console.error("Failed to check participation:", error);
+      return { isParticipating: false };
+    }
+  };
+
   return (
     <EventContext.Provider
       value={{
@@ -231,6 +326,10 @@ export const EventProvider = ({ children }) => {
         updateEvent,
         deleteEvent,
         clearPastEvents,
+        joinEvent,               // Add this
+        leaveEvent,              // Add this
+        fetchEventParticipants,  // Add this
+        checkParticipation       // Add this
       }}
     >
       {children}
