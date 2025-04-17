@@ -9,21 +9,22 @@ import {
 } from "react-native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import QRCode from "react-native-qrcode-svg";
-import { useNavigation } from "@react-navigation/native";
-import { useTheme } from "../context/ThemeContext"; // Import Theme Context
+import { useTheme } from "../context/ThemeContext";
 
 const InviteMembersScreen = ({ visible, onClose, eventId }) => {
-  const navigation = useNavigation();
-  const { theme, isDarkMode } = useTheme(); // Get theme values
+  const { theme, isDarkMode } = useTheme();
+
+  // Use a production-ready base URL; replace with your actual server URL
+  const baseUrl = "https://your-app-server.com"; // Replace with actual server URL
+  const eventLink = `${baseUrl}/event/${eventId}`;
 
   const handleShare = async () => {
     try {
-      const eventLink = `exp://192.168.0.135:8081/event/${eventId}`;
       await Share.share({
         message: `Join my event! Scan the QR code or click this link: ${eventLink}`,
       });
     } catch (error) {
-      console.error(error);
+      console.error("Share error:", error);
     }
   };
 
@@ -38,7 +39,6 @@ const InviteMembersScreen = ({ visible, onClose, eventId }) => {
         style={[styles.container, { backgroundColor: theme.background }]}
       >
         <View style={styles.content}>
-          {/* Close Button */}
           <TouchableOpacity
             style={[styles.closeButton, { backgroundColor: theme.surface }]}
             onPress={onClose}
@@ -46,14 +46,12 @@ const InviteMembersScreen = ({ visible, onClose, eventId }) => {
             <MaterialCommunityIcons name="close" size={24} color={theme.text} />
           </TouchableOpacity>
 
-          {/* Title */}
           <Text style={[styles.title, { color: theme.text }]}>Din gruppe</Text>
           <Text style={[styles.subtitle, { color: theme.textSecondary }]}>
             Dine venner kan scanne{"\n"}denne QR koden for å bli{"\n"}med i
             gruppen
           </Text>
 
-          {/* QR Code - Matches Background */}
           <View
             style={[
               styles.qrContainer,
@@ -61,14 +59,13 @@ const InviteMembersScreen = ({ visible, onClose, eventId }) => {
             ]}
           >
             <QRCode
-              value={`exp://192.168.0.135:8081/event/${eventId}`}
+              value={eventLink}
               size={200}
-              backgroundColor={theme.background} // Matches background color
-              color={isDarkMode ? "white" : "black"} // White in dark mode, black in light mode
+              backgroundColor={theme.background}
+              color={isDarkMode ? "white" : "black"}
             />
           </View>
 
-          {/* Divider */}
           <View style={styles.dividerContainer}>
             <View style={[styles.divider, { backgroundColor: theme.border }]} />
             <Text style={[styles.dividerText, { color: theme.textSecondary }]}>
@@ -77,7 +74,6 @@ const InviteMembersScreen = ({ visible, onClose, eventId }) => {
             <View style={[styles.divider, { backgroundColor: theme.border }]} />
           </View>
 
-          {/* Share Link Button */}
           <TouchableOpacity
             style={[styles.shareButton, { backgroundColor: theme.surface }]}
             onPress={handleShare}
@@ -92,12 +88,11 @@ const InviteMembersScreen = ({ visible, onClose, eventId }) => {
             </Text>
           </TouchableOpacity>
 
-          {/* Done Button */}
           <TouchableOpacity
             style={[styles.doneButton, { backgroundColor: theme.primary }]}
             onPress={onClose}
           >
-            <Text style={styles.doneButtonText}>Done</Text>
+            <Text style={styles.doneButtonText}>Ferdig</Text>
           </TouchableOpacity>
         </View>
       </SafeAreaView>
@@ -137,7 +132,7 @@ const styles = StyleSheet.create({
   qrContainer: {
     padding: 20,
     borderRadius: 12,
-    borderWidth: 2, // Ensures contrast and separation
+    borderWidth: 2,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,

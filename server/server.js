@@ -170,7 +170,7 @@ app.post("/login", async (req, res) => {
     const result = await pool
       .request()
       .input("email", sql.NVarChar, email)
-      .query("SELECT [Id], [password] FROM [USER] WHERE [email] = @email");
+      .query("SELECT [Id], [password], [name] FROM [USER] WHERE [email] = @email");
 
     if (result.recordset.length === 0) {
       return res.status(401).json({ success: false, message: "Invalid email or password" });
@@ -185,7 +185,7 @@ app.post("/login", async (req, res) => {
         .input("id", sql.Int, user.Id)
         .query("UPDATE [USER] SET [last_login] = GETDATE() WHERE [Id] = @id");
 
-      const token = jwt.sign({ id: user.Id, email }, JWT_SECRET, { expiresIn: "7d" });
+      const token = jwt.sign({ id: user.Id, email, name: user.name }, JWT_SECRET, { expiresIn: "7d" });
 
       req.session.userId = user.Id;
 
@@ -456,6 +456,9 @@ app.post("/events", authenticateJWT, async (req, res) => {
       });
     }
 
+    // Initialize participants with the creator
+    const participants = JSON.stringify([req.session.userId]);
+
     const result = await pool
       .request()
       .input("title", sql.NVarChar, title)
@@ -470,12 +473,13 @@ app.post("/events", authenticateJWT, async (req, res) => {
       .input("team_count", sql.Int, team_count || null)
       .input("members_per_team", sql.Int, members_per_team || null)
       .input("created_by", sql.Int, req.session.userId)
+      .input("participants", sql.NVarChar, participants)
       .query(`
         INSERT INTO [EVENTS] 
-        (title, description, activity, goal, start_date, end_date, location, event_type, total_participants, team_count, members_per_team, created_by)
+        (title, description, activity, goal, start_date, end_date, location, event_type, total_participants, team_count, members_per_team, created_by, participants)
         OUTPUT INSERTED.Id
         VALUES 
-        (@title, @description, @activity, @goal, @start_date, @end_date, @location, @event_type, @total_participants, @team_count, @members_per_team, @created_by)
+        (@title, @description, @activity, @goal, @start_date, @end_date, @location, @event_type, @total_participants, @team_count, @members_per_team, @created_by, @participants)
       `);
 
     const eventId = result.recordset[0].Id;
@@ -504,9 +508,18 @@ app.get("/events", authenticateJWT, async (req, res) => {
     const result = await pool
       .request()
       .input("userId", sql.Int, req.session.userId)
-      .query("SELECT * FROM [EVENTS] WHERE created_by = @userId");
+      .query(`
+        SELECT * FROM [EVENTS] 
+        WHERE created_by = @userId OR participants LIKE '%' + CAST(@userId AS NVARCHAR) + '%'
+      `);
 
-    res.json({ success: true, data: result.recordset });
+    // Parse participants JSON
+    const events = result.recordset.map(event => ({
+      ...event,
+      participants: event.participants ? JSON.parse(event.participants) : [],
+    }));
+
+    res.json({ success: true, data: events });
   } catch (err) {
     serverLog("error", "Events fetch error:", err);
     const errorDetails = {
@@ -515,6 +528,96 @@ app.get("/events", authenticateJWT, async (req, res) => {
     };
     serverLog("error", "Error details:", errorDetails);
     res.status(500).json({ success: false, message: `Failed to fetch events: ${err.message}` });
+  }
+});
+
+// 🔹 Route to Fetch a Single Event by ID
+app.get("/events/:id", authenticateJWT, async (req, res) => {
+  serverLog("log", "Event fetch request for eventId:", req.params.id);
+  try {
+    const eventId = req.params.id;
+    const userId = req.session.userId;
+
+    const pool = await poolPromise;
+    const result = await pool
+      .request()
+      .input("eventId", sql.Int, eventId)
+      .input("userId", sql.Int, userId)
+      .query(`
+        SELECT * FROM [EVENTS] 
+        WHERE Id = @eventId
+      `);
+
+    if (result.recordset.length === 0) {
+      return res.status(404).json({ success: false, message: "Event not found" });
+    }
+
+    const event = result.recordset[0];
+    event.participants = event.participants ? JSON.parse(event.participants) : [];
+
+    res.json({ success: true, data: event });
+  } catch (err) {
+    serverLog("error", "Event fetch error:", err);
+    const errorDetails = {
+      message: err.message,
+      stack: process.env.NODE_ENV !== "production" ? err.stack : undefined,
+    };
+    serverLog("error", "Error details:", errorDetails);
+    res.status(500).json({ success: false, message: `Failed to fetch event: ${err.message}` });
+  }
+});
+
+// 🔹 Route to Join an Event
+app.post("/events/:id/join", authenticateJWT, async (req, res) => {
+  serverLog("log", "Event join request received for eventId:", req.params.id);
+  try {
+    const eventId = req.params.id;
+    const userId = req.session.userId;
+
+    const pool = await poolPromise;
+    const eventResult = await pool
+      .request()
+      .input("eventId", sql.Int, eventId)
+      .query("SELECT participants, total_participants FROM [EVENTS] WHERE Id = @eventId");
+
+    if (eventResult.recordset.length === 0) {
+      return res.status(404).json({ success: false, message: "Event not found" });
+    }
+
+    const event = eventResult.recordset[0];
+    let participants = event.participants ? JSON.parse(event.participants) : [];
+
+    if (participants.includes(userId)) {
+      return res.status(400).json({ success: false, message: "User already joined this event" });
+    }
+
+    const totalParticipants = event.total_participants || 0;
+    if (participants.length >= totalParticipants) {
+      return res.status(400).json({ success: false, message: "Event has reached maximum participants" });
+    }
+
+    participants.push(userId);
+    const updatedParticipants = JSON.stringify(participants);
+
+    await pool
+      .request()
+      .input("eventId", sql.Int, eventId)
+      .input("participants", sql.NVarChar, updatedParticipants)
+      .query(`
+        UPDATE [EVENTS]
+        SET participants = @participants
+        WHERE Id = @eventId
+      `);
+
+    res.json({ success: true, message: "Successfully joined the event" });
+  } catch (err) {
+    serverLog("error", "Event join error:", err);
+    const errorDetails = {
+      message: err.message,
+      stack: process.env.NODE_ENV !== "production" ? err.stack : undefined,
+    };
+    serverLog("error", "Error details:", errorDetails);
+    res.status(500).json({ success: false, message: `Failed to join event: ${err.message}` });
   }
 });
 

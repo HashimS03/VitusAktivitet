@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useContext } from "react";
 import {
   View,
   Text,
@@ -11,26 +11,50 @@ import {
 } from "react-native";
 import { CameraView, useCameraPermissions } from "expo-camera";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
+import { EventContext } from "../events/EventContext";
 
 export default function JoinEvent({ navigation }) {
   const [permission, requestPermission] = useCameraPermissions();
   const [scanned, setScanned] = useState(false);
+  const { joinEvent, fetchEvent } = useContext(EventContext);
 
   useEffect(() => {
     if (!permission || permission.status !== "granted") {
       requestPermission();
     }
-  }, [permission, requestPermission]); // Added requestPermission to dependencies
+  }, [permission, requestPermission]);
 
-  const handleBarCodeScanned = ({ data }) => {
+  const handleBarCodeScanned = async ({ data }) => {
     setScanned(true);
-    const eventId = data.split("/event/")[1];
-    Alert.alert("QR Skannet", `Bli med i hendelse: ${data}`, [
-      {
-        text: "OK",
-        onPress: () => navigation.navigate("ActiveEvent", { eventId }),
-      },
-    ]);
+    try {
+      const eventId = data.split("/event/")[1];
+      if (!eventId) {
+        Alert.alert("Feil", "Ugyldig QR-kode");
+        setScanned(false);
+        return;
+      }
+
+      // Fetch event details
+      const eventData = await fetchEvent(eventId);
+
+      // Join the event
+      await joinEvent(eventId);
+
+      Alert.alert(
+        "QR Skannet",
+        `Du har blitt med i hendelsen: ${eventData.title}`,
+        [
+          {
+            text: "OK",
+            onPress: () => navigation.navigate("ActiveEvent", { eventId }),
+          },
+        ]
+      );
+    } catch (error) {
+      console.error("Error joining event:", error);
+      Alert.alert("Feil", "Kunne ikke bli med i hendelsen. Prøv igjen.");
+      setScanned(false);
+    }
   };
 
   if (!permission) {
