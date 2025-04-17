@@ -1,5 +1,3 @@
-"use client";
-
 import React, { useState, useRef, useEffect } from "react";
 import {
   View,
@@ -15,8 +13,10 @@ import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
 import { Svg, Rect, Line, Text as SvgText } from "react-native-svg";
 import { useTheme } from "../context/ThemeContext";
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import { PanResponder } from "react-native";
+import axios from "axios";
+import { SERVER_CONFIG } from "../../config/serverConfig";
+import { UserContext } from "../context/UserContext";
 
 // Constants
 const screenWidth = Dimensions.get("window").width;
@@ -175,59 +175,9 @@ const Tooltip = ({ value, label, position, period, theme }) => (
   </Animated.View>
 );
 
-// In your HistoryScreen component
-const fetchStepHistory = async (period) => {
-  try {
-    // First try to get from database
-    const response = await axios.get(
-      `${SERVER_CONFIG.getBaseUrl()}/user-history`,
-      {
-        withCredentials: true,
-      }
-    );
-
-    const dbData = response.data.data;
-
-    // Fallback to local storage if no DB data
-    if (!dbData || dbData.length === 0) {
-      const allKeys = await AsyncStorage.getAllKeys();
-      const stepKeys = allKeys.filter((key) => key.startsWith("stepHistory_"));
-      const stepData = await AsyncStorage.multiGet(stepKeys);
-
-      return processLocalData(stepData, period);
-    }
-
-    return processDBData(dbData, period);
-  } catch (error) {
-    console.error("Error fetching step history:", error);
-    // Fallback to local storage
-    const allKeys = await AsyncStorage.getAllKeys();
-    const stepKeys = allKeys.filter((key) => key.startsWith("stepHistory_"));
-    const stepData = await AsyncStorage.multiGet(stepKeys);
-
-    return processLocalData(stepData, period);
-  }
-};
-// Forenklet calculateStreaks til kun å hente lagrede verdier
-const fetchStreaks = async () => {
-  try {
-    const storedCurrentStreak = await AsyncStorage.getItem("currentStreak");
-    const storedBestStreak = await AsyncStorage.getItem("bestStreak");
-
-    const currentStreak = storedCurrentStreak
-      ? parseInt(storedCurrentStreak)
-      : 0;
-    const bestStreak = storedBestStreak ? parseInt(storedBestStreak) : 0;
-
-    return { currentStreak, bestStreak };
-  } catch (error) {
-    console.error("Feil ved henting av streaks:", error);
-    return { currentStreak: 0, bestStreak: 0 };
-  }
-};
-
 const HistoryScreen = () => {
   const navigation = useNavigation();
+  const { userId } = React.useContext(UserContext);
   const [selectedPeriod, setSelectedPeriod] = useState("day");
   const [tooltipVisible, setTooltipVisible] = useState(false);
   const [tooltipData, setTooltipData] = useState(null);
@@ -237,14 +187,63 @@ const HistoryScreen = () => {
   const { theme } = useTheme();
 
   useEffect(() => {
-    const loadData = async () => {
-      const data = await fetchStepHistory(selectedPeriod);
-      const streakData = await fetchStreaks();
-      setPeriodData(data);
-      setStreaks(streakData);
+    const fetchData = async () => {
+      if (!userId) return;
+
+      try {
+        // Hent skritthistorikk
+        const historyResponse = await axios.get(
+          `${SERVER_CONFIG.getBaseUrl()}/step-history`,
+          {
+            params: { period: selectedPeriod },
+            withCredentials: true,
+            headers: {
+              Authorization: `Bearer ${await AsyncStorage.getItem("token")}`,
+            },
+          }
+        );
+        if (historyResponse.data.success) {
+          setPeriodData(historyResponse.data.data);
+        } else {
+          setPeriodData({
+            total: 0,
+            labels: ["Ingen data"],
+            values: [0],
+            maxValue: 2000,
+            average: 0,
+          });
+        }
+
+        // Hent streak og total skritt
+        const statsResponse = await axios.get(
+          `${SERVER_CONFIG.getBaseUrl()}/stats`,
+          {
+            withCredentials: true,
+            headers: {
+              Authorization: `Bearer ${await AsyncStorage.getItem("token")}`,
+            },
+          }
+        );
+        if (statsResponse.data.success) {
+          setStreaks({
+            currentStreak: statsResponse.data.streak,
+            bestStreak: statsResponse.data.streak, // Du kan lagre beste streak separat i backend om nødvendig
+          });
+        }
+      } catch (error) {
+        console.error("Feil ved henting av data:", error);
+        setPeriodData({
+          total: 0,
+          labels: ["Ingen data"],
+          values: [0],
+          maxValue: 2000,
+          average: 0,
+        });
+        setStreaks({ currentStreak: 0, bestStreak: 0 });
+      }
     };
-    loadData();
-  }, [selectedPeriod]);
+    fetchData();
+  }, [selectedPeriod, userId]);
 
   const panResponder = useRef(
     PanResponder.create({
@@ -313,7 +312,7 @@ const HistoryScreen = () => {
             <Text style={[styles.totalValue, { color: theme.text }]}>
               {periodData.total}
             </Text>
-            <Text style={[styles.totalTime, { color: theme.text }]}>Today</Text>
+            <Text style={[styles.totalTime, { color: theme.text }]}>I dag</Text>
           </View>
         );
       case "week":
@@ -368,7 +367,7 @@ const HistoryScreen = () => {
       <SafeAreaView
         style={[styles.container, { backgroundColor: theme.background }]}
       >
-        <Text>Loading...</Text>
+        <Text>Laster...</Text>
       </SafeAreaView>
     );
   }
@@ -470,7 +469,7 @@ const styles = StyleSheet.create({
     color: "#FFFFFF",
   },
   statsContainer: {
-    alignItems: "center",
+    alignscriItems: "center",
     marginTop: 30,
   },
   totalLabel: {

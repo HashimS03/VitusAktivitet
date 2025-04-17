@@ -21,6 +21,7 @@ import {
   TextInput,
   Animated,
   Alert,
+  Platform,
 } from "react-native";
 import { Users, Bell, Award, ChevronRight, X } from "lucide-react-native";
 import * as Progress from "react-native-progress";
@@ -45,10 +46,10 @@ import StepCalculator from "../dashboard/StepCalculator";
 import { UserContext } from "../context/UserContext";
 import axios from "axios";
 import { SERVER_CONFIG } from "../../config/serverConfig";
+import * as Pedometer from "expo-sensors"; // Importer Expo Pedometer
 
 const SCREEN_WIDTH = Dimensions.get("window").width;
 const SCREEN_HEIGHT = Dimensions.get("window").height;
-const DAILY_STEP_GOAL = 7500;
 const PROGRESS_RING_SIZE = 300;
 const PROGRESS_RING_THICKNESS = 30;
 
@@ -257,55 +258,6 @@ const EnhancedTutorial = ({
   );
 };
 
-const updateStreaks = async (stepCount, dailyGoal, isNewDayReset = false) => {
-  const today = new Date();
-  const todayString = today.toISOString().split("T")[0];
-
-  const storedLastDate = await AsyncStorage.getItem("lastCompletionDate");
-  const storedStreak = parseInt(
-    (await AsyncStorage.getItem("currentStreak")) || "0",
-    10
-  );
-  const storedBestStreak = parseInt(
-    (await AsyncStorage.getItem("bestStreak")) || "0",
-    10
-  );
-
-  let currentStreak = storedStreak;
-  let lastCompletionDate = storedLastDate || null;
-
-  const hasReachedGoal = stepCount >= dailyGoal;
-
-  if (
-    isNewDayReset &&
-    lastCompletionDate &&
-    lastCompletionDate !== todayString
-  ) {
-    const lastDate = new Date(lastCompletionDate);
-    const diffDays = Math.floor((today - lastDate) / (1000 * 60 * 60 * 24));
-    if (diffDays > 1) currentStreak = 0; // Reset hvis mer enn én dag er hoppet over
-  } else if (hasReachedGoal && lastCompletionDate !== todayString) {
-    const diffDays = lastCompletionDate
-      ? Math.floor(
-          (today - new Date(lastCompletionDate)) / (1000 * 60 * 60 * 24)
-        )
-      : null;
-    if (!lastCompletionDate || diffDays === 1) currentStreak += 1; // Øk streak
-    else if (diffDays > 1) currentStreak = 1; // Start ny streak
-    lastCompletionDate = todayString;
-  }
-
-  const bestStreak = Math.max(currentStreak, storedBestStreak);
-
-  await AsyncStorage.setItem("currentStreak", currentStreak.toString());
-  await AsyncStorage.setItem("bestStreak", bestStreak.toString());
-  if (lastCompletionDate) {
-    await AsyncStorage.setItem("lastCompletionDate", lastCompletionDate);
-  }
-
-  return { currentStreak, bestStreak };
-};
-
 export default function Dashboard() {
   const { userId } = useContext(UserContext);
   const [stepCount, setStepCount] = useState(0);
@@ -316,7 +268,7 @@ export default function Dashboard() {
   const [showTutorial, setShowTutorial] = useState(false);
   const [tutorialStep, setTutorialStep] = useState(0);
   const [showGoalModal, setShowGoalModal] = useState(false);
-  const [dailyGoal, setDailyGoal] = useState(DAILY_STEP_GOAL);
+  const [dailyGoal, setDailyGoal] = useState(7500);
   const [newGoal, setNewGoal] = useState("");
   const [showCalculatorModal, setShowCalculatorModal] = useState(false);
   const { activeEvents } = useContext(EventContext);
@@ -328,47 +280,7 @@ export default function Dashboard() {
   const [randomTrophy, setRandomTrophy] = useState(null);
   const [unlockedLevel, setUnlockedLevel] = useState(0);
   const [progress, setProgress] = useState({ current: 0, nextGoal: 0 });
-
-  // Add to your Dashboard component
-  const saveUserHistory = async () => {
-    try {
-      const today = new Date().toISOString().split("T")[0];
-      const storedSteps = await AsyncStorage.getItem(`stepHistory_${today}`);
-      const currentSteps = storedSteps ? parseInt(storedSteps) : stepCount;
-
-      const { currentStreak } = await updateStreaks(currentSteps, dailyGoal);
-
-      await axios.post(
-        `${SERVER_CONFIG.getBaseUrl()}/user-history`,
-        {
-          total_steps: currentSteps,
-          total_conversions: 0, // Update this if you track conversions
-          streak: currentStreak,
-        },
-        { withCredentials: true }
-      );
-    } catch (error) {
-      console.error("Error saving user history:", error);
-      // Queue the request if server is down
-      if (error.response && error.response.status === 503) {
-        queueRequest("POST", `${SERVER_CONFIG.getBaseUrl()}/user-history`, {
-          total_steps: stepCount,
-          total_conversions: 0,
-          streak: currentStreak,
-          timestamp: new Date(),
-        });
-      }
-    }
-  };
-
-  // Call this when steps change or daily reset happens
-  useEffect(() => {
-    const saveHistory = async () => {
-      await saveUserHistory();
-    };
-
-    saveHistory();
-  }, [stepCount, dailyGoal]);
+  const [isPedometerAvailable, setIsPedometerAvailable] = useState(false);
 
   const vitusHappyImages = {
     "#48CAB2": require("../../../assets/Vitus_Happy.png"),
@@ -381,31 +293,122 @@ export default function Dashboard() {
   const selectedVitusHappyImage =
     vitusHappyImages[accentColor] || require("../../../assets/Vitus_Happy.png");
 
+  // Sjekk om pedometer er tilgjengelig
   useEffect(() => {
-    const selectRandomTrophyAndLoadProgress = async () => {
-      const trophyKeys = Object.keys(trophyData);
-      const randomIndex = Math.floor(Math.random() * trophyKeys.length);
-      const selectedTrophy = trophyData[trophyKeys[randomIndex]];
-      setRandomTrophy(selectedTrophy);
+    const checkPedometer = async () => {
+      const isAvailable = await Pedometer.isAvailableAsync();
+      setIsPedometerAvailable(isAvailable);
+      if (isAvailable) {
+        const permission = await Pedometer.requestPermissionsAsync();
+        if (permission.status === "granted") {
+          startPedometer();
+        } else {
+          Alert.alert(
+            "Tillatelse nektet",
+            "Vennligst gi tilgang til skritteller for å bruke denne funksjonen."
+          );
+        }
+      } else {
+        Alert.alert(
+          "Skritteller utilgjengelig",
+          "Skritteller er ikke tilgjengelig på denne enheten. Bruk skrittkalkulatoren for å legge til skritt."
+        );
+      }
+    };
+    checkPedometer();
+  }, []);
 
+  // Start pedometer for å hente skritt
+  const startPedometer = async () => {
+    const end = new Date();
+    const start = new Date();
+    start.setHours(0, 0, 0, 0);
+
+    Pedometer.watchStepCount((result) => {
+      setStepCount((prev) => {
+        const newStepCount = prev + result.steps;
+        syncStepsToServer(newStepCount);
+        return newStepCount;
+      });
+    });
+
+    const result = await Pedometer.getStepCountAsync(start, end);
+    if (result) {
+      setStepCount(result.steps);
+      syncStepsToServer(result.steps);
+    }
+  };
+
+  // Synkroniser skritt til serveren
+  const syncStepsToServer = async (newStepCount) => {
+    try {
+      await axios.post(
+        `${SERVER_CONFIG.getBaseUrl()}/step-activity`,
+        {
+          stepCount: newStepCount,
+          distance: null,
+          timestamp: new Date(),
+        },
+        {
+          withCredentials: true,
+          headers: {
+            Authorization: `Bearer ${await AsyncStorage.getItem("token")}`,
+          },
+        }
+      );
+    } catch (error) {
+      console.error("Feil ved synkronisering av skritt:", error);
+      queueRequest("POST", `${SERVER_CONFIG.getBaseUrl()}/step-activity`, {
+        stepCount: newStepCount,
+        distance: null,
+        timestamp: new Date(),
+      });
+    }
+  };
+
+  // Hent initial data (inkludert dailyGoal og streak)
+  useEffect(() => {
+    const loadData = async () => {
       if (!userId) return;
+
       try {
-        const response = await axios.get(
-          `${SERVER_CONFIG.getBaseUrl()}/step-activity`,
+        // Hent brukerdata (inkludert daily_goal)
+        const userResponse = await axios.get(
+          `${SERVER_CONFIG.getBaseUrl()}/user`,
           {
             withCredentials: true,
+            headers: {
+              Authorization: `Bearer ${await AsyncStorage.getItem("token")}`,
+            },
           }
         );
-        const latestActivity = response.data.data[0];
-        const stepCount = latestActivity ? latestActivity.step_count : 0;
-        const currentStreak = parseInt(
-          (await AsyncStorage.getItem("currentStreak")) || "0",
-          10
+        if (userResponse.data.success) {
+          setDailyGoal(userResponse.data.user.daily_goal || 7500);
+        }
+
+        // Hent skritt og streak
+        const statsResponse = await axios.get(
+          `${SERVER_CONFIG.getBaseUrl()}/stats`,
+          {
+            withCredentials: true,
+            headers: {
+              Authorization: `Bearer ${await AsyncStorage.getItem("token")}`,
+            },
+          }
         );
-        const totalSteps = parseInt(
-          (await AsyncStorage.getItem("totalSteps")) || "0",
-          10
-        );
+        if (statsResponse.data.success) {
+          setStepCount(statsResponse.data.total_steps || 0);
+          setStreak(statsResponse.data.streak || 0);
+          setBestStreak(statsResponse.data.streak || 0); // Beste streak kan lagres separat i backend om nødvendig
+        }
+
+        // Hent trofédata
+        const trophyKeys = Object.keys(trophyData);
+        const randomIndex = Math.floor(Math.random() * trophyKeys.length);
+        const selectedTrophy = trophyData[trophyKeys[randomIndex]];
+        setRandomTrophy(selectedTrophy);
+
+        // Beregn troféfremgang
         const participatedEvents = JSON.parse(
           (await AsyncStorage.getItem("participatedEvents")) || "[]"
         );
@@ -425,14 +428,14 @@ export default function Dashboard() {
 
         switch (selectedTrophy.name) {
           case "Step Master":
-            currentProgress = stepCount;
-            if (stepCount >= 15000) {
+            currentProgress = statsResponse.data.total_steps;
+            if (currentProgress >= 15000) {
               level = 3;
               nextGoal = 15000;
-            } else if (stepCount >= 10000) {
+            } else if (currentProgress >= 10000) {
               level = 2;
               nextGoal = 15000;
-            } else if (stepCount >= 5000) {
+            } else if (currentProgress >= 5000) {
               level = 1;
               nextGoal = 10000;
             } else {
@@ -455,14 +458,14 @@ export default function Dashboard() {
             }
             break;
           case "Streak Star":
-            currentProgress = currentStreak;
-            if (currentStreak >= 15) {
+            currentProgress = statsResponse.data.streak;
+            if (currentProgress >= 15) {
               level = 3;
               nextGoal = 15;
-            } else if (currentStreak >= 10) {
+            } else if (currentProgress >= 10) {
               level = 2;
               nextGoal = 15;
-            } else if (currentStreak >= 5) {
+            } else if (currentProgress >= 5) {
               level = 1;
               nextGoal = 10;
             } else {
@@ -500,14 +503,14 @@ export default function Dashboard() {
             }
             break;
           case "Step Titan":
-            currentProgress = totalSteps;
-            if (totalSteps >= 250000) {
+            currentProgress = statsResponse.data.total_steps;
+            if (currentProgress >= 250000) {
               level = 3;
               nextGoal = 250000;
-            } else if (totalSteps >= 100000) {
+            } else if (currentProgress >= 100000) {
               level = 2;
               nextGoal = 250000;
-            } else if (totalSteps >= 50000) {
+            } else if (currentProgress >= 50000) {
               level = 1;
               nextGoal = 100000;
             } else {
@@ -528,105 +531,10 @@ export default function Dashboard() {
         }
         setUnlockedLevel(level);
         setProgress({ current: currentProgress, nextGoal });
-      } catch (error) {
-        console.error("Error loading trophy progress:", error);
-        if (error.response && error.response.status === 500) {
-          Alert.alert(
-            "Server Error",
-            "Unable to load trophy progress. Please try again later."
-          );
-        } else if (error.response && error.response.status === 401) {
-          Alert.alert("Authentication Error", "Please log in to sync data.");
-        } else if (error.response && error.response.status === 503) {
-          Alert.alert(
-            "Server Problem",
-            "The server is temporarily unavailable. Data is saved locally, and we'll sync when the server is back.",
-            [{ text: "OK" }]
-          );
-        }
-      }
-    };
-    selectRandomTrophyAndLoadProgress();
-  }, [userId]);
 
-  const checkAndResetDailySteps = async () => {
-    try {
-      const today = new Date();
-      const todayString = today.toISOString().split("T")[0];
-      const lastResetDate = await AsyncStorage.getItem("lastStepResetDate");
-
-      if (lastResetDate !== todayString && userId) {
-        // Get yesterday's steps
-        const yesterdaySteps = stepCount;
-
-        // Save to USER_HISTORY
-        await saveUserHistory();
-
-        // Reset steps
-        await axios.post(
-          `${SERVER_CONFIG.getBaseUrl()}/step-activity`,
-          { stepCount: 0, distance: null, timestamp: new Date() },
-          { withCredentials: true }
-        );
-
-        setStepCount(0);
-        await AsyncStorage.setItem("lastStepResetDate", todayString);
-
-        // Update streaks
-        const { currentStreak, bestStreak } = await updateStreaks(
-          yesterdaySteps,
-          dailyGoal,
-          true
-        );
-        setStreak(currentStreak);
-        setBestStreak(bestStreak);
-      }
-    } catch (error) {
-      console.error("Error in daily reset:", error);
-    }
-  };
-
-  useEffect(() => {
-    checkAndResetDailySteps();
-  }, [dailyGoal, userId]);
-
-  useFocusEffect(
-    useCallback(() => {
-      checkAndResetDailySteps();
-    }, [dailyGoal, userId])
-  );
-
-  useEffect(() => {
-    const loadData = async () => {
-      if (!userId) return;
-      try {
-        const storedGoal = await AsyncStorage.getItem("dailyGoal");
-        const initialGoal = storedGoal
-          ? JSON.parse(storedGoal)
-          : DAILY_STEP_GOAL;
-        setDailyGoal(initialGoal);
-
-        const response = await axios.get(
-          `${SERVER_CONFIG.getBaseUrl()}/step-activity`,
-          {
-            withCredentials: true,
-          }
-        );
-        const latestActivity = response.data.data[0];
-        const initialSteps = latestActivity ? latestActivity.step_count : 0;
-        setStepCount(initialSteps);
-        await AsyncStorage.setItem("stepCount", JSON.stringify(initialSteps));
-
-        const { currentStreak, bestStreak } = await updateStreaks(
-          initialSteps,
-          initialGoal
-        );
-        setStreak(currentStreak);
-        setBestStreak(bestStreak);
-
+        // Sjekk om tutorial skal vises
         const hasSeenTutorial = await AsyncStorage.getItem("hasSeenTutorial");
         const storedTutorialStep = await AsyncStorage.getItem("tutorialStep");
-
         if (hasSeenTutorial === null) {
           setShowTutorial(true);
           const currentStep = storedTutorialStep
@@ -658,95 +566,182 @@ export default function Dashboard() {
     loadData();
   }, [userId]);
 
-  useFocusEffect(
-    useCallback(() => {
-      const updateSteps = async () => {
-        if (!userId) return;
-        const maxRetries = 5; // Increased to 5 attempts
-        let attempt = 0;
+  // Fjern checkAndResetDailySteps og updateStreaks, siden streak håndteres av serveren
+  useEffect(() => {
+    const syncData = async () => {
+      if (!userId) return;
 
-        while (attempt < maxRetries) {
-          try {
-            const response = await axios.get(
-              `${SERVER_CONFIG.getBaseUrl()}/step-activity`,
-              {
-                withCredentials: true,
-              }
-            );
-            const latestActivity = response.data.data[0];
-            let previousSteps = latestActivity ? latestActivity.step_count : 0;
+      try {
+        const statsResponse = await axios.get(
+          `${SERVER_CONFIG.getBaseUrl()}/stats`,
+          {
+            withCredentials: true,
+            headers: {
+              Authorization: `Bearer ${await AsyncStorage.getItem("token")}`,
+            },
+          }
+        );
+        if (statsResponse.data.success) {
+          setStepCount(statsResponse.data.total_steps || 0);
+          setStreak(statsResponse.data.streak || 0);
+          setBestStreak(statsResponse.data.streak || 0);
+        }
+      } catch (error) {
+        console.error("Feil ved synkronisering av data:", error);
+      }
+    };
+    syncData();
+  }, [userId]);
 
-            if (
-              route.params?.addedSteps &&
-              typeof route.params.addedSteps === "number"
-            ) {
-              const newSteps = route.params.addedSteps;
-              const newStepCount = previousSteps + newSteps;
+  // Håndter skritt fra kalkulator
+  const handleCalculatorConfirm = async (steps) => {
+    try {
+      const response = await axios.get(`${SERVER_CONFIG.getBaseUrl()}/stats`, {
+        withCredentials: true,
+        headers: {
+          Authorization: `Bearer ${await AsyncStorage.getItem("token")}`,
+        },
+      });
+      const totalSteps = response.data.total_steps || 0;
+      const newStepCount = totalSteps + steps;
 
-              await axios.post(
-                `${SERVER_CONFIG.getBaseUrl()}/step-activity`,
-                {
-                  stepCount: newStepCount,
-                  distance: null,
-                  timestamp: new Date(),
-                },
-                { withCredentials: true }
-              );
-              setStepCount(newStepCount);
-              await AsyncStorage.setItem(
-                "stepCount",
-                JSON.stringify(newStepCount)
-              );
-              navigation.setParams({ addedSteps: null });
+      await axios.post(
+        `${SERVER_CONFIG.getBaseUrl()}/step-activity`,
+        { stepCount: newStepCount, distance: null, timestamp: new Date() },
+        {
+          withCredentials: true,
+          headers: {
+            Authorization: `Bearer ${await AsyncStorage.getItem("token")}`,
+          },
+        }
+      );
+      setStepCount(newStepCount);
+
+      const statsResponse = await axios.get(
+        `${SERVER_CONFIG.getBaseUrl()}/stats`,
+        {
+          withCredentials: true,
+          headers: {
+            Authorization: `Bearer ${await AsyncStorage.getItem("token")}`,
+          },
+        }
+      );
+      if (statsResponse.data.success) {
+        setStreak(statsResponse.data.streak || 0);
+        setBestStreak(statsResponse.data.streak || 0);
+      }
+
+      if (randomTrophy) {
+        let level = 0;
+        let currentProgress = 0;
+        let nextGoal = randomTrophy.levels[0].goal;
+
+        switch (randomTrophy.name) {
+          case "Step Master":
+            currentProgress = newStepCount;
+            if (newStepCount >= 15000) {
+              level = 3;
+              nextGoal = 15000;
+            } else if (newStepCount >= 10000) {
+              level = 2;
+              nextGoal = 15000;
+            } else if (newStepCount >= 5000) {
+              level = 1;
+              nextGoal = 10000;
+            } else {
+              nextGoal = 5000;
             }
             break;
-          } catch (error) {
-            attempt++;
-            console.error(`Attempt ${attempt} failed:`, error);
-            if (
-              error.response &&
-              error.response.status === 503 &&
-              attempt < maxRetries
-            ) {
-              await new Promise((resolve) =>
-                setTimeout(resolve, 3000 * attempt)
-              ); // Backoff: 3s, 6s, 9s, 12s, 15s
-              continue;
+          case "Step Titan":
+            currentProgress = newStepCount;
+            if (currentProgress >= 250000) {
+              level = 3;
+              nextGoal = 250000;
+            } else if (currentProgress >= 100000) {
+              level = 2;
+              nextGoal = 250000;
+            } else if (currentProgress >= 50000) {
+              level = 1;
+              nextGoal = 100000;
             } else {
-              if (error.response && error.response.status === 500) {
-                Alert.alert(
-                  "Server Error",
-                  "Unable to update step count. Please try again later."
-                );
-              } else if (error.response && error.response.status === 401) {
-                Alert.alert(
-                  "Authentication Error",
-                  "Please log in to sync step data."
-                );
-              } else if (error.response && error.response.status === 503) {
-                queueRequest(
-                  "POST",
-                  `${SERVER_CONFIG.getBaseUrl()}/step-activity`,
-                  {
-                    stepCount: previousSteps + (route.params?.addedSteps || 0),
-                    distance: null,
-                    timestamp: new Date(),
-                  }
-                );
-                Alert.alert(
-                  "Server Problem",
-                  "The server is temporarily unavailable. Steps are saved locally, and we'll sync when the server is back.",
-                  [{ text: "OK" }]
-                );
-              }
-              break;
+              nextGoal = 50000;
             }
-          }
+            break;
+          case "Streak Star":
+            currentProgress = statsResponse.data.streak;
+            if (currentProgress >= 15) {
+              level = 3;
+              nextGoal = 15;
+            } else if (currentProgress >= 10) {
+              level = 2;
+              nextGoal = 15;
+            } else if (currentProgress >= 5) {
+              level = 1;
+              nextGoal = 10;
+            } else {
+              nextGoal = 5;
+            }
+            break;
         }
-      };
-      updateSteps();
-    }, [route.params, dailyGoal, userId])
-  );
+        setUnlockedLevel(level);
+        setProgress({ current: currentProgress, nextGoal });
+      }
+
+      setShowCalculatorModal(false);
+    } catch (error) {
+      console.error("Feil ved oppdatering av skritt fra kalkulator:", error);
+      if (error.response && error.response.status === 500) {
+        Alert.alert(
+          "Server Error",
+          "Unable to update steps from calculator. Please try again later."
+        );
+      } else if (error.response && error.response.status === 401) {
+        Alert.alert("Authentication Error", "Please log in to sync steps.");
+      } else if (error.response && error.response.status === 503) {
+        queueRequest("POST", `${SERVER_CONFIG.getBaseUrl()}/step-activity`, {
+          stepCount: stepCount + steps,
+          distance: null,
+          timestamp: new Date(),
+        });
+        Alert.alert(
+          "Server Problem",
+          "The server is temporarily unavailable. Steps are saved locally, and we'll sync when the server is back.",
+          [{ text: "OK" }]
+        );
+      }
+    }
+  };
+
+  // Oppdater daglig mål
+  const handleSetDailyGoal = async () => {
+    const goal = Number.parseInt(newGoal, 10);
+    if (!isNaN(goal) && goal > 0) {
+      try {
+        await axios.put(
+          `${SERVER_CONFIG.getBaseUrl()}/user/daily-goal`,
+          { daily_goal: goal },
+          {
+            withCredentials: true,
+            headers: {
+              Authorization: `Bearer ${await AsyncStorage.getItem("token")}`,
+            },
+          }
+        );
+        setDailyGoal(goal);
+        setShowGoalModal(false);
+        setNewGoal("");
+        Alert.alert("Suksess", "Daglig mål oppdatert!");
+      } catch (error) {
+        console.error("Feil ved oppdatering av daglig mål:", error);
+        Alert.alert("Feil", "Kunne ikke oppdatere daglig mål.");
+      }
+    } else {
+      Alert.alert(
+        "Ugyldig mål",
+        "Vennligst skriv inn et gyldig tall større enn 0."
+      );
+    }
+  };
 
   const joinEvent = async (eventId) => {
     try {
@@ -857,10 +852,6 @@ export default function Dashboard() {
     checkEventCompletion();
   }, [activeEvents]);
 
-  useEffect(() => {
-    checkFirstTimeUser();
-  }, []);
-
   const checkFirstTimeUser = async () => {
     try {
       const hasSeenTutorial = await AsyncStorage.getItem("hasSeenTutorial");
@@ -870,9 +861,13 @@ export default function Dashboard() {
         setShowTutorial(false);
       }
     } catch (error) {
-      console.error("❌ Feil ved sjekking av første gangs bruker:", error);
+      console.error("Feil ved sjekking av første gangs bruker:", error);
     }
   };
+
+  useEffect(() => {
+    checkFirstTimeUser();
+  }, []);
 
   const handleNextTutorialStep = async () => {
     if (tutorialStep < TOTAL_TUTORIAL_STEPS - 1) {
@@ -883,7 +878,6 @@ export default function Dashboard() {
       setShowTutorial(false);
       await AsyncStorage.setItem("hasSeenTutorial", "true");
       await AsyncStorage.removeItem("tutorialStep");
-      await resetAppData();
     }
   };
 
@@ -899,7 +893,6 @@ export default function Dashboard() {
     setShowTutorial(false);
     await AsyncStorage.setItem("hasSeenTutorial", "true");
     await AsyncStorage.removeItem("tutorialStep");
-    await resetAppData();
   };
 
   const getTutorialMessage = useCallback(() => {
@@ -991,220 +984,6 @@ export default function Dashboard() {
     return positions[tutorialStep] || { left: 0, top: 0, width: 0, height: 0 };
   }, [tutorialStep]);
 
-  const resetAppData = async () => {
-    try {
-      const allKeys = await AsyncStorage.getAllKeys();
-      const keysToRemove = allKeys.filter(
-        (key) =>
-          key.startsWith("stepHistory_") ||
-          key === "stepCount" ||
-          key === "dailyGoal"
-      );
-      if (keysToRemove.length > 0) {
-        await AsyncStorage.multiRemove(keysToRemove);
-      }
-      if (userId) {
-        await axios
-          .post(
-            `${SERVER_CONFIG.getBaseUrl()}/step-activity`,
-            { stepCount: 0, distance: null, timestamp: new Date() },
-            { withCredentials: true }
-          )
-          .catch((error) => {
-            if (error.response && error.response.status === 503) {
-              queueRequest(
-                "POST",
-                `${SERVER_CONFIG.getBaseUrl()}/step-activity`,
-                {
-                  stepCount: 0,
-                  distance: null,
-                  timestamp: new Date(),
-                }
-              );
-            } else if (error.response && error.response.status === 401) {
-              Alert.alert(
-                "Authentication Error",
-                "Please log in to reset steps."
-              );
-            }
-          });
-      }
-      setStepCount(0);
-      setDailyGoal(DAILY_STEP_GOAL);
-      setStreak(0);
-      setBestStreak(0);
-      console.log("App data reset after tutorial completion");
-    } catch (error) {
-      console.error("❌ Feil ved nullstilling av app-data:", error);
-    }
-  };
-
-  const handleSetDailyGoal = async () => {
-    const goal = Number.parseInt(newGoal, 10);
-    if (!isNaN(goal) && goal > 0) {
-      try {
-        const today = new Date();
-        const tomorrow = new Date(today);
-        tomorrow.setDate(today.getDate() + 1);
-        const tomorrowString = tomorrow.toISOString().split("T")[0];
-        const lastGoalUpdateDate = await AsyncStorage.getItem(
-          "lastGoalUpdateDate"
-        );
-
-        if (lastGoalUpdateDate === today.toISOString().split("T")[0]) {
-          await AsyncStorage.setItem("pendingDailyGoal", JSON.stringify(goal));
-          await AsyncStorage.setItem("pendingGoalDate", tomorrowString);
-          Alert.alert(
-            "Mål lagret for i morgen",
-            `Du kan kun endre målet én gang per dag. Ditt nye mål (${goal} skritt) vil tre i kraft i morgen.`,
-            [{ text: "OK" }]
-          );
-        } else {
-          await AsyncStorage.setItem("pendingDailyGoal", JSON.stringify(goal));
-          await AsyncStorage.setItem("pendingGoalDate", tomorrowString);
-          await AsyncStorage.setItem(
-            "lastGoalUpdateDate",
-            today.toISOString().split("T")[0]
-          );
-          Alert.alert(
-            "Mål lagret for i morgen",
-            `Ditt nye mål (${goal} skritt) vil tre i kraft i morgen.`,
-            [{ text: "OK" }]
-          );
-        }
-
-        setShowGoalModal(false);
-        setNewGoal("");
-      } catch (error) {
-        console.error("❌ Feil ved oppdatering av daglig mål:", error);
-      }
-    } else {
-      Alert.alert(
-        "Ugyldig mål",
-        "Vennligst skriv inn et gyldig tall større enn 0."
-      );
-    }
-  };
-
-  const handleCalculatorConfirm = async (steps) => {
-    try {
-      const response = await axios.get(
-        `${SERVER_CONFIG.getBaseUrl()}/step-activity`,
-        {
-          withCredentials: true,
-        }
-      );
-      const latestActivity = response.data.data[0];
-      let previousSteps = latestActivity ? latestActivity.step_count : 0;
-      const newStepCount = previousSteps + steps;
-
-      await axios.post(
-        `${SERVER_CONFIG.getBaseUrl()}/step-activity`,
-        { stepCount: newStepCount, distance: null, timestamp: new Date() },
-        { withCredentials: true }
-      );
-      setStepCount(newStepCount);
-      await AsyncStorage.setItem("stepCount", JSON.stringify(newStepCount));
-
-      const totalSteps = parseInt(
-        (await AsyncStorage.getItem("totalSteps")) || "0",
-        10
-      );
-      const newTotalSteps = totalSteps + steps;
-      await AsyncStorage.setItem("totalSteps", newTotalSteps.toString());
-
-      const today = new Date().toISOString().split("T")[0];
-      const stepHistoryKey = `stepHistory_${today}`;
-      await AsyncStorage.setItem(stepHistoryKey, newStepCount.toString());
-
-      const { currentStreak, bestStreak } = await updateStreaks(
-        newStepCount,
-        dailyGoal
-      );
-      setStreak(currentStreak);
-      setBestStreak(bestStreak);
-
-      if (randomTrophy) {
-        let level = 0;
-        let currentProgress = 0;
-        let nextGoal = randomTrophy.levels[0].goal;
-
-        switch (randomTrophy.name) {
-          case "Step Master":
-            currentProgress = newStepCount;
-            if (newStepCount >= 15000) {
-              level = 3;
-              nextGoal = 15000;
-            } else if (newStepCount >= 10000) {
-              level = 2;
-              nextGoal = 15000;
-            } else if (newStepCount >= 5000) {
-              level = 1;
-              nextGoal = 10000;
-            } else {
-              nextGoal = 5000;
-            }
-            break;
-          case "Step Titan":
-            currentProgress = newTotalSteps;
-            if (newTotalSteps >= 250000) {
-              level = 3;
-              nextGoal = 250000;
-            } else if (newTotalSteps >= 100000) {
-              level = 2;
-              nextGoal = 250000;
-            } else if (newTotalSteps >= 50000) {
-              level = 1;
-              nextGoal = 100000;
-            } else {
-              nextGoal = 50000;
-            }
-            break;
-          case "Streak Star":
-            currentProgress = currentStreak;
-            if (currentProgress >= 15) {
-              level = 3;
-              nextGoal = 15;
-            } else if (currentProgress >= 10) {
-              level = 2;
-              nextGoal = 15;
-            } else if (currentProgress >= 5) {
-              level = 1;
-              nextGoal = 10;
-            } else {
-              nextGoal = 5;
-            }
-            break;
-        }
-        setUnlockedLevel(level);
-        setProgress({ current: currentProgress, nextGoal });
-      }
-
-      setShowCalculatorModal(false);
-    } catch (error) {
-      console.error("❌ Feil ved oppdatering av skritt fra kalkulator:", error);
-      if (error.response && error.response.status === 500) {
-        Alert.alert(
-          "Server Error",
-          "Unable to update steps from calculator. Please try again later."
-        );
-      } else if (error.response && error.response.status === 401) {
-        Alert.alert("Authentication Error", "Please log in to sync steps.");
-      } else if (error.response && error.response.status === 503) {
-        queueRequest("POST", `${SERVER_CONFIG.getBaseUrl()}/step-activity`, {
-          stepCount: previousSteps + steps,
-          distance: null,
-          timestamp: new Date(),
-        });
-        Alert.alert(
-          "Server Problem",
-          "The server is temporarily unavailable. Steps are saved locally, and we'll sync when the server is back.",
-          [{ text: "OK" }]
-        );
-      }
-    }
-  };
-
   const renderEventItem = ({ item }) => (
     <TouchableOpacity
       style={[
@@ -1291,6 +1070,9 @@ export default function Dashboard() {
       try {
         await axios[request.method.toLowerCase()](request.url, request.data, {
           withCredentials: true,
+          headers: {
+            Authorization: `Bearer ${await AsyncStorage.getItem("token")}`,
+          },
         });
         const updatedQueue = queue.filter(
           (r) => r.timestamp !== request.timestamp
