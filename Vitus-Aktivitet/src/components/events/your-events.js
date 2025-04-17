@@ -1,4 +1,4 @@
-import React, { useContext, useState, useEffect } from "react";
+import React, { useContext, useState, useEffect, useRef } from "react";
 import {
   View,
   Text,
@@ -15,13 +15,16 @@ import { useNavigation } from "@react-navigation/native";
 import { useTheme } from "../context/ThemeContext";
 import { EventContext } from "../events/EventContext";
 import * as Progress from "react-native-progress";
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const YourEvents = () => {
   const navigation = useNavigation();
   const { theme, accentColor } = useTheme(); // Added accentColor
-  const { activeEvents, deleteEvent, updateEvent } = useContext(EventContext);
+  const { activeEvents, deleteEvent, updateEvent, upcomingEvents, myEvents } = useContext(EventContext);
   const [selectedEvent, setSelectedEvent] = useState(null);
   const [isMenuVisible, setMenuVisible] = useState(false);
+  const [participatedEvents, setParticipatedEvents] = useState([]);
+  const userId = useRef(null);
 
   // Map accent colors to the correct Vitus_Happy images
   const vitusHappyImages = {
@@ -37,8 +40,40 @@ const YourEvents = () => {
     vitusHappyImages[accentColor] || require("../../../assets/Vitus_Happy.png");
 
   useEffect(() => {
-    // Optional: React to changes in activeEvents
-  }, [activeEvents]);
+    const loadUserId = async () => {
+      userId.current = await AsyncStorage.getItem('userId');
+    };
+    
+    loadUserId();
+    
+    // Filter events where user is participating but didn't create
+    const filterParticipatedEvents = () => {
+      if (!userId.current) return;
+      
+      const participated = myEvents.filter(event => 
+        event.created_by != userId.current && 
+        event.participants && 
+        event.participants.some(p => p.userId == userId.current)
+      );
+      
+      setParticipatedEvents(participated);
+    };
+    
+    filterParticipatedEvents();
+  }, [myEvents]);
+
+  useEffect(() => {
+    const loadUserId = async () => {
+      userId.current = await AsyncStorage.getItem('userId');
+    };
+    
+    loadUserId();
+    
+    // Use the myEvents state directly
+    if (myEvents && Array.isArray(myEvents)) {
+      setParticipatedEvents(myEvents);
+    }
+  }, [myEvents]);
 
   const handleCreateEvent = () => {
     navigation.navigate("NewEvent");
@@ -166,7 +201,7 @@ const YourEvents = () => {
           </Text>
         </View>
 
-        {activeEvents.length === 0 ? (
+        {activeEvents.length === 0 && upcomingEvents.length === 0 && participatedEvents.length === 0 ? (
           <View
             style={[styles.emptyStateContainer, { backgroundColor: theme.surface }]}
           >
@@ -194,7 +229,49 @@ const YourEvents = () => {
             </TouchableOpacity>
           </View>
         ) : (
-          activeEvents.map((event) => renderEvent(event))
+          <>
+            {/* Active Events Section */}
+            <View style={styles.sectionHeader}>
+              <Text style={[styles.sectionTitle, { color: theme.text }]}>
+                Aktive hendelser
+              </Text>
+            </View>
+            {activeEvents.length === 0 ? (
+              <Text style={[styles.emptyMessage, {color: theme.textSecondary}]}>
+                Ingen aktive hendelser
+              </Text>
+            ) : (
+              activeEvents.map(event => renderEvent(event))
+            )}
+            
+            {/* Upcoming Events Section */}
+            <View style={[styles.sectionHeader, {marginTop: 24}]}>
+              <Text style={[styles.sectionTitle, { color: theme.text }]}>
+                Kommende hendelser
+              </Text>
+            </View>
+            {upcomingEvents.length === 0 ? (
+              <Text style={[styles.emptyMessage, {color: theme.textSecondary}]}>
+                Ingen kommende hendelser
+              </Text>
+            ) : (
+              upcomingEvents.map(event => renderEvent(event))
+            )}
+            
+            {/* Participated Events Section */}
+            <View style={[styles.sectionHeader, {marginTop: 24}]}>
+              <Text style={[styles.sectionTitle, { color: theme.text }]}>
+                Mine hendelser
+              </Text>
+            </View>
+            {participatedEvents.length === 0 ? (
+              <Text style={[styles.emptyMessage, {color: theme.textSecondary}]}>
+                Du deltar ikke i noen hendelser enda
+              </Text>
+            ) : (
+              participatedEvents.map(event => renderEvent(event))
+            )}
+          </>
         )}
       </ScrollView>
 
@@ -315,6 +392,12 @@ const styles = StyleSheet.create({
   menuOptionText: { fontSize: 16, marginLeft: 16 },
   menuCloseButton: { alignItems: "center", paddingVertical: 12, marginTop: 8 },
   menuCloseButtonText: { fontSize: 16, fontWeight: "600" },
+  emptyMessage: {
+    fontSize: 14,
+    fontStyle: 'italic',
+    marginBottom: 16,
+    paddingHorizontal: 4,
+  },
 });
 
 export default YourEvents;

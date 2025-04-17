@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useContext, useEffect } from "react";
+import { useState, useContext, useEffect, useCallback } from "react";
 import {
   View,
   Text,
@@ -28,9 +28,7 @@ const ActiveEvent = ({ route }) => {
   const { activeEvents, pastEvents, updateEvent, deleteEvent, joinEvent, leaveEvent, fetchEventParticipants, checkParticipation } =
     useContext(EventContext); // Hent både activeEvents og pastEvents
   // Finn hendelsen fra enten activeEvents eller pastEvents
-  const eventDetails =
-    activeEvents.find((event) => event.id === eventId) ||
-    pastEvents.find((event) => event.id === eventId);
+  const [eventDetails, setEventDetails] = useState(null);
 
   const [isModalVisible, setModalVisible] = useState(false);
   const [showInviteScreen, setShowInviteScreen] = useState(false);
@@ -44,10 +42,8 @@ const ActiveEvent = ({ route }) => {
   const [isParticipating, setIsParticipating] = useState(false);
   const [participantId, setParticipantId] = useState(null);
   const [userTeamId, setUserTeamId] = useState(null);
-
-  // Sjekk om hendelsen er ferdig
-  const isEventFinished =
-    eventDetails && new Date(eventDetails.end_date) < new Date();
+  const [isEventFinished, setIsEventFinished] = useState(false);
+  const [userId, setUserId] = useState(null);
 
   useEffect(() => {
     navigation.setOptions({
@@ -82,18 +78,16 @@ const ActiveEvent = ({ route }) => {
   };
 
   const handleDeleteEvent = () => {
+    setMenuVisible(false);
     Alert.alert(
-      "Slett hendelse",
-      "Er du sikker på at du vil slette denne hendelsen?",
+      "Delete Event",
+      "Are you sure you want to delete this past event?",
       [
-        { text: "Avbryt", style: "cancel" },
+        { text: "Cancel", style: "cancel" },
         {
-          text: "Slett",
+          text: "Delete",
           style: "destructive",
-          onPress: () => {
-            deleteEvent(eventId);
-            navigation.navigate("EventsMain", { screen: "YourEvents" });
-          },
+          onPress: () => deleteEvent(eventId),
         },
       ]
     );
@@ -228,17 +222,11 @@ const ActiveEvent = ({ route }) => {
     );
   };
 
-  const renderIndividualParticipants = async () => {
-    // Get current user ID from state
-    const userId = parseInt(await AsyncStorage.getItem('userId'));
-    
-    // Calculate participant stats
+  const renderIndividualParticipants = () => {
+    // Get total counts for display
     const filledParticipants = participants.length;
     const totalParticipants = eventDetails.total_participants || 10;
     const emptySlots = Math.max(0, totalParticipants - filledParticipants);
-    
-    // Check if user is a participant (should be redundant with isParticipating state)
-    const userIsParticipant = participants.some(p => p.userId === userId);
     
     return (
       <>
@@ -337,19 +325,63 @@ const ActiveEvent = ({ route }) => {
     loadEventData();
   }, [eventId]);
 
+  useEffect(() => {
+    const loadEventDetails = () => {
+      const { eventId } = route.params;
+      // Find the event using either Id or id format
+      const event = activeEvents.find(e => (e.Id === eventId || e.id === eventId)) || 
+                   pastEvents.find(e => (e.Id === eventId || e.id === eventId));
+      
+      if (event) {
+        setEventDetails(event);  // Now this will work
+        // Instead, check if event is finished
+        const isFinished = new Date(event.end_date) < new Date();
+        setIsEventFinished(isFinished);
+      } else {
+        console.error("Event not found with ID:", eventId);
+      }
+    };
+    
+    loadEventDetails();
+  }, [route.params, activeEvents, pastEvents]);
+
+  useEffect(() => {
+    const loadUserId = async () => {
+      try {
+        const storedUserId = await AsyncStorage.getItem('userId');
+        setUserId(storedUserId);
+        console.log("Loaded userId from AsyncStorage:", storedUserId);
+      } catch (error) {
+        console.error("Failed to load userId from AsyncStorage:", error);
+      }
+    };
+    
+    loadUserId();
+  }, []);
+
   const handleJoinEvent = async (teamId = null) => {
     if (isEventFinished) return;
     
+    // Use the route params eventId directly, as it matches what the server expects
+    const eventIdToUse = route.params.eventId;
+    
+    if (!eventIdToUse) {
+      console.error("No event ID available for join/leave action");
+      return;
+    }
+    
+    console.log("Using event ID for join/leave:", eventIdToUse);
+    
     if (!isParticipating) {
       // Join the event
-      const success = await joinEvent(eventId, teamId);
+      const success = await joinEvent(eventIdToUse, teamId);
       
       if (success) {
         // Refresh participants and participation status
-        const eventParticipants = await fetchEventParticipants(eventId);
-        setParticipants(eventParticipants);
+        const eventParticipants = await fetchEventParticipants(eventIdToUse);
+        setParticipants(eventParticipants || []);
         
-        const participation = await checkParticipation(eventId);
+        const participation = await checkParticipation(eventIdToUse);
         setIsParticipating(participation.isParticipating);
         setParticipantId(participation.participantId);
         setUserTeamId(participation.teamId);
@@ -359,7 +391,7 @@ const ActiveEvent = ({ route }) => {
         Alert.alert("Error", "Failed to join the event. Please try again.");
       }
     } else {
-      // Leave the event
+      // Leave the event logic
       Alert.alert(
         "Leave Event",
         "Are you sure you want to leave this event?",
@@ -372,12 +404,12 @@ const ActiveEvent = ({ route }) => {
             text: "Leave",
             style: "destructive",
             onPress: async () => {
-              const success = await leaveEvent(eventId);
+              const success = await leaveEvent(eventIdToUse);
               
               if (success) {
                 // Refresh participants and participation status
-                const eventParticipants = await fetchEventParticipants(eventId);
-                setParticipants(eventParticipants);
+                const eventParticipants = await fetchEventParticipants(eventIdToUse);
+                setParticipants(eventParticipants || []);
                 setIsParticipating(false);
                 setParticipantId(null);
                 setUserTeamId(null);

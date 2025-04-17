@@ -132,9 +132,9 @@ const PastEvents = () => {
   const renderEvent = (event) => {
     return (
       <Swipeable
-        key={event.id}  // Add this key prop
+        key={event.Id || event.id} // Add a key with fallback
         renderRightActions={(progress, dragX) =>
-          renderRightActions(progress, dragX, event.id)
+          renderRightActions(progress, dragX, event.Id || event.id)
         }
         friction={2}
         rightThreshold={40}
@@ -144,7 +144,7 @@ const PastEvents = () => {
         <TouchableOpacity
           style={[styles.eventCard, { backgroundColor: theme.surface }]}
           onPress={() =>
-            navigation.navigate("ActiveEvent", { eventId: event.id })
+            navigation.navigate("ActiveEvent", { eventId: event.Id || event.id })
           }
         >
           <View style={styles.cardContent}>

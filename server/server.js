@@ -475,7 +475,19 @@ app.post("/events", authenticateJWT, async (req, res) => {
 
     const eventId = result.recordset[0].Id;
     
+    // Automatically add the creator as a participant
+    await pool
+      .request()
+      .input("eventId", sql.Int, eventId)
+      .input("userId", sql.Int, req.session.userId)
+      .input("teamId", sql.Int, null)
+      .query(`
+        INSERT INTO [EVENT_PARTICIPANTS] (event_id, user_id, team_id)
+        VALUES (@eventId, @userId, @teamId)
+      `);
+    
     serverLog("log", "Event created successfully with ID:", eventId);
+    serverLog("log", "Creator automatically added as participant");
 
     res.status(201).json({
       success: true,
@@ -498,12 +510,55 @@ app.get("/events", authenticateJWT, async (req, res) => {
   serverLog("log", "Events fetch request for userId:", req.session.userId);
   try {
     const pool = await poolPromise;
+    
+    // Query to get both created events and events the user is participating in
     const result = await pool
       .request()
       .input("userId", sql.Int, req.session.userId)
-      .query("SELECT * FROM [EVENTS] WHERE created_by = @userId");
+      .query(`
+        SELECT DISTINCT e.*
+        FROM [EVENTS] e
+        LEFT JOIN [EVENT_PARTICIPANTS] ep ON e.Id = ep.event_id
+        WHERE e.created_by = @userId OR ep.user_id = @userId
+      `);
 
-    res.json({ success: true, data: result.recordset });
+    // Get participants for each event
+    const events = await Promise.all(
+      result.recordset.map(async (event) => {
+        // Fetch participants for this event
+        const participantsResult = await pool
+          .request()
+          .input("eventId", sql.Int, event.Id)
+          .query(`
+            SELECT 
+              ep.id, 
+              ep.event_id, 
+              ep.user_id, 
+              ep.team_id,
+              u.name as user_name
+            FROM [EVENT_PARTICIPANTS] ep
+            JOIN [USER] u ON ep.user_id = u.Id
+            WHERE ep.event_id = @eventId
+          `);
+
+        // Map participants to a clean format
+        const participants = participantsResult.recordset.map(p => ({
+          id: p.id,
+          eventId: p.event_id,
+          userId: p.user_id,
+          teamId: p.team_id,
+          userName: p.user_name
+        }));
+
+        // Return event with its participants
+        return {
+          ...event,
+          participants: participants
+        };
+      })
+    );
+
+    res.json({ success: true, data: events });
   } catch (err) {
     serverLog("error", "Events fetch error:", err);
     const errorDetails = {
@@ -626,14 +681,19 @@ app.delete("/events/:id", authenticateJWT, async (req, res) => {
 app.post("/events/:id/join", authenticateJWT, async (req, res) => {
   serverLog("log", "Event join request received for eventId:", req.params.id);
   try {
-    const eventId = req.params.id;
+    const eventId = parseInt(req.params.id, 10);
     const userId = req.session.userId;
     const { teamId } = req.body; // Optional team ID if joining a team event
     
     // Validate inputs
-    if (!eventId) {
-      return res.status(400).json({ success: false, message: "Event ID is required" });
+    if (isNaN(eventId)) {
+      return res.status(400).json({ 
+        success: false, 
+        message: "Invalid event ID format. Must be a number." 
+      });
     }
+    
+    serverLog("log", "Join event request details:", { eventId, userId, teamId });
     
     const pool = await poolPromise;
     
@@ -725,7 +785,15 @@ app.delete("/events/:id/leave", authenticateJWT, async (req, res) => {
 app.get("/events/:id/participants", authenticateJWT, async (req, res) => {
   serverLog("log", "Event participants request received for eventId:", req.params.id);
   try {
-    const eventId = req.params.id;
+    const eventId = parseInt(req.params.id, 10);
+    
+    // Validate eventId is a number
+    if (isNaN(eventId)) {
+      return res.status(400).json({ 
+        success: false, 
+        message: "Invalid event ID format. Must be a number." 
+      });
+    }
     
     const pool = await poolPromise;
     const result = await pool
@@ -831,8 +899,22 @@ app.put("/events/:eventId/participants/:participantId", authenticateJWT, async (
 app.get("/events/:id/participation", authenticateJWT, async (req, res) => {
   serverLog("log", "Participation check request received for eventId:", req.params.id);
   try {
-    const eventId = req.params.id;
+    const eventId = parseInt(req.params.id, 10);
     const userId = req.session.userId;
+    
+    // Validate eventId is a number
+    if (isNaN(eventId)) {
+      return res.status(400).json({ 
+        success: false, 
+        message: "Invalid event ID format. Must be a number." 
+      });
+    }
+    
+    // Log session and user info for debugging
+    serverLog("log", "Session info in participation check:", {
+      sessionExists: !!req.session,
+      sessionUserId: req.session.userId
+    });
     
     const pool = await poolPromise;
     const result = await pool
