@@ -483,7 +483,13 @@ app.post("/events", authenticateJWT, async (req, res) => {
       eventId: eventId
     });
   } catch (err) {
-    // Error handling...
+    serverLog("error", "Event creation error:", err);
+    const errorDetails = {
+      message: err.message,
+      stack: process.env.NODE_ENV !== "production" ? err.stack : undefined,
+    };
+    serverLog("error", "Error details:", errorDetails);
+    res.status(500).json({ success: false, message: `Failed to create event: ${err.message}` });
   }
 });
 

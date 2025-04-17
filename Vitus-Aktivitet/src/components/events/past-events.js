@@ -132,6 +132,7 @@ const PastEvents = () => {
   const renderEvent = (event) => {
     return (
       <Swipeable
+        key={event.id}  // Add this key prop
         renderRightActions={(progress, dragX) =>
           renderRightActions(progress, dragX, event.id)
         }
@@ -233,26 +234,10 @@ const PastEvents = () => {
               { backgroundColor: theme.surface },
             ]}
           >
-            <Image
-              source={selectedVitusHappyImage}
-              style={styles.emptyStateImage}
-            />
-            <Text style={[styles.emptyStateTitle, { color: theme.text }]}>
-              Ingen tidligere hendelser
-            </Text>
-            <Text
-              style={[
-                styles.emptyStateSubtitle,
-                { color: theme.textSecondary },
-              ]}
-            >
-              Det er dessverre ingen tidligere hendelser per nå.
-            </Text>
+            {/* Empty state content */}
           </View>
         ) : (
-          pastEvents.map((event) => (
-            <React.Fragment key={event.id}>{renderEvent(event)}</React.Fragment>
-          ))
+          pastEvents.map((event) => renderEvent(event))
         )}
       </ScrollView>
 
