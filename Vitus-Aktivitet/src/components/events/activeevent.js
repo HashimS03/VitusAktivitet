@@ -327,18 +327,31 @@ const ActiveEvent = ({ route }) => {
 
   useEffect(() => {
     const loadEventDetails = () => {
-      const { eventId } = route.params;
-      // Find the event using either Id or id format
-      const event = activeEvents.find(e => (e.Id === eventId || e.id === eventId)) || 
-                   pastEvents.find(e => (e.Id === eventId || e.id === eventId));
+      const eventIdParam = route.params?.eventId;
+      if (!eventIdParam) {
+        console.error("No event ID provided in route params");
+        navigation.goBack();
+        return;
+      }
+      
+      // Standardize ID comparison by converting both to strings
+      const event = [...activeEvents, ...pastEvents].find(e => 
+        (e.Id?.toString() === eventIdParam.toString() || 
+         e.id?.toString() === eventIdParam.toString())
+      );
       
       if (event) {
-        setEventDetails(event);  // Now this will work
-        // Instead, check if event is finished
-        const isFinished = new Date(event.end_date) < new Date();
-        setIsEventFinished(isFinished);
+        // Normalize the event object to have consistent property names
+        const normalizedEvent = {
+          ...event,
+          id: event.Id || event.id
+        };
+        setEventDetails(normalizedEvent);
+        
+        // Rest of your code...
       } else {
-        console.error("Event not found with ID:", eventId);
+        console.error("Event not found with ID:", eventIdParam);
+        navigation.goBack();
       }
     };
     
