@@ -9,19 +9,21 @@ import {
   TouchableOpacity,
   Alert,
   Modal,
+  RefreshControl,
 } from "react-native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useTheme } from "../context/ThemeContext";
 import { EventContext } from "../events/EventContext";
-import { useNavigation } from "@react-navigation/native";
+import { useNavigation, useFocusEffect } from "@react-navigation/native";
 import { Swipeable } from "react-native-gesture-handler";
 
 const PastEvents = () => {
   const { theme, accentColor } = useTheme();
-  const { pastEvents, clearPastEvents, deleteEvent } = useContext(EventContext);
+  const { myPastEvents, clearPastEvents, deleteEvent, loadEvents } = useContext(EventContext);
   const navigation = useNavigation();
   const [selectedEvent, setSelectedEvent] = useState(null);
   const [menuVisible, setMenuVisible] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
 
   const vitusHappyImages = {
     "#48CAB2": require("../../../assets/Vitus_Happy.png"),
@@ -34,7 +36,28 @@ const PastEvents = () => {
   const selectedVitusHappyImage =
     vitusHappyImages[accentColor] || require("../../../assets/Vitus_Happy.png");
 
+  // Refresh data when the screen comes into focus
+  useFocusEffect(
+    React.useCallback(() => {
+      // Refresh events when screen gains focus
+      refreshEvents();
+      return () => {};
+    }, [])
+  );
+  
+  const refreshEvents = async () => {
+    setRefreshing(true);
+    try {
+      await loadEvents();
+    } catch (error) {
+      console.error("Failed to refresh events:", error);
+    } finally {
+      setRefreshing(false);
+    }
+  };
+
   const truncateText = (text, maxLength) => {
+    if (!text) return "";
     return text.length > maxLength
       ? text.substring(0, maxLength) + "..."
       : text;
@@ -130,11 +153,26 @@ const PastEvents = () => {
   };
 
   const renderEvent = (event) => {
+    // Normalize the event ID to ensure consistency
+    const eventId = event.Id || event.id;
+    
+    if (!eventId) {
+      console.error("Event without ID detected:", event);
+      return null;
+    }
+    
+    // Create a normalized event object with both id and Id fields
+    const normalizedEvent = {
+      ...event,
+      id: eventId,
+      Id: eventId
+    };
+    
     return (
       <Swipeable
-        key={event.Id || event.id} // Add a key with fallback
+        key={eventId}
         renderRightActions={(progress, dragX) =>
-          renderRightActions(progress, dragX, event.Id || event.id)
+          renderRightActions(progress, dragX, eventId)
         }
         friction={2}
         rightThreshold={40}
@@ -144,7 +182,10 @@ const PastEvents = () => {
         <TouchableOpacity
           style={[styles.eventCard, { backgroundColor: theme.surface }]}
           onPress={() =>
-            navigation.navigate("ActiveEvent", { eventId: event.Id || event.id })
+            navigation.navigate("ActiveEvent", { 
+              eventId,
+              eventData: normalizedEvent
+            })
           }
         >
           <View style={styles.cardContent}>
@@ -195,12 +236,20 @@ const PastEvents = () => {
         }}
         showsVerticalScrollIndicator={true}
         scrollEventThrottle={16}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={refreshEvents}
+            tintColor={theme.primary}
+            colors={[theme.primary]}
+          />
+        }
       >
         <View style={styles.sectionHeader}>
           <Text style={[styles.sectionTitle, { color: theme.text }]}>
             Tidligere hendelser
           </Text>
-          {pastEvents.length > 0 && (
+          {myPastEvents.length > 0 && (
             <TouchableOpacity
               style={[styles.clearButton, { backgroundColor: theme.primary }]}
               onPress={() => {
@@ -227,17 +276,28 @@ const PastEvents = () => {
           )}
         </View>
 
-        {pastEvents.length === 0 ? (
+        {myPastEvents.length === 0 ? (
           <View
             style={[
               styles.emptyStateContainer,
               { backgroundColor: theme.surface },
             ]}
           >
-            {/* Empty state content */}
+            <Image
+              source={selectedVitusHappyImage}
+              style={styles.emptyStateImage}
+            />
+            <Text style={[styles.emptyStateTitle, { color: theme.text }]}>
+              Ingen tidligere hendelser
+            </Text>
+            <Text
+              style={[styles.emptyStateSubtitle, { color: theme.textSecondary }]}
+            >
+              Du har ingen tidligere hendelser ennå.
+            </Text>
           </View>
         ) : (
-          pastEvents.map((event) => renderEvent(event))
+          myPastEvents.map((event) => renderEvent(event))
         )}
       </ScrollView>
 

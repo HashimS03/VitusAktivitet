@@ -63,8 +63,7 @@ const authenticateJWT = (req, res, next) => {
   const authHeader = req.headers.authorization;
 
   serverLog("log", "Auth header received:", authHeader ? "Present" : "Missing");
-  serverLog("log", "Session state before JWT auth:", req.session);
-
+  
   if (authHeader) {
     const token = authHeader.split(" ")[1];
     
@@ -82,11 +81,11 @@ const authenticateJWT = (req, res, next) => {
       next();
     });
   } else {
-    // For debugging only - remove in production
-    serverLog("log", "No JWT token found, using hardcoded user ID for testing");
-    req.session = req.session || {};
-    req.session.userId = 1; // Use a valid user ID from your database
-    next();
+    serverLog("error", "No authorization token provided");
+    return res.status(401).json({ 
+      success: false, 
+      message: "No authorization token provided. Please log in again." 
+    });
   }
 };
 

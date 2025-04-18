@@ -9,9 +9,10 @@ import {
   ScrollView,
   Modal,
   Alert,
+  RefreshControl,
 } from "react-native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
-import { useNavigation } from "@react-navigation/native";
+import { useNavigation, useFocusEffect } from "@react-navigation/native";
 import { useTheme } from "../context/ThemeContext";
 import { EventContext } from "../events/EventContext";
 import * as Progress from "react-native-progress";
@@ -20,10 +21,15 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 const YourEvents = () => {
   const navigation = useNavigation();
   const { theme, accentColor } = useTheme(); // Added accentColor
-  const { activeEvents, deleteEvent, updateEvent, upcomingEvents, myEvents } = useContext(EventContext);
+  const { 
+    // Use the filtered "my events" (created by user) categories from EventContext
+    myActiveEvents, myUpcomingEvents, myPastEvents,
+    deleteEvent, loadEvents
+  } = useContext(EventContext);
+  
   const [selectedEvent, setSelectedEvent] = useState(null);
   const [isMenuVisible, setMenuVisible] = useState(false);
-  const [participatedEvents, setParticipatedEvents] = useState([]);
+  const [refreshing, setRefreshing] = useState(false);
   const userId = useRef(null);
 
   // Map accent colors to the correct Vitus_Happy images
@@ -38,45 +44,43 @@ const YourEvents = () => {
   // Select the appropriate Vitus_Happy image based on accentColor
   const selectedVitusHappyImage =
     vitusHappyImages[accentColor] || require("../../../assets/Vitus_Happy.png");
-
-  useEffect(() => {
-    const loadUserId = async () => {
-      userId.current = await AsyncStorage.getItem('userId');
-    };
-    
-    loadUserId();
-    
-    // Filter events where user is participating but didn't create
-    const filterParticipatedEvents = () => {
-      if (!userId.current) return;
-      
-      const participated = myEvents.filter(event => 
-        event.created_by != userId.current && 
-        event.participants && 
-        event.participants.some(p => p.userId == userId.current)
-      );
-      
-      setParticipatedEvents(participated);
-    };
-    
-    filterParticipatedEvents();
-  }, [myEvents]);
-
-  useEffect(() => {
-    const loadUserId = async () => {
-      userId.current = await AsyncStorage.getItem('userId');
-    };
-    
-    loadUserId();
-    
-    // Use the myEvents state directly
-    if (myEvents && Array.isArray(myEvents)) {
-      setParticipatedEvents(myEvents);
+  
+  // Refresh data when the screen comes into focus
+  useFocusEffect(
+    React.useCallback(() => {
+      // Refresh events when screen gains focus
+      refreshEvents();
+      return () => {};
+    }, [])
+  );
+  
+  const refreshEvents = async () => {
+    setRefreshing(true);
+    try {
+      await loadEvents();
+    } catch (error) {
+      console.error("Failed to refresh events:", error);
+    } finally {
+      setRefreshing(false);
     }
-  }, [myEvents]);
+  };
+
+  useEffect(() => {
+    const loadUserId = async () => {
+      userId.current = await AsyncStorage.getItem('userId');
+      console.log("Current user ID:", userId.current);
+    };
+    
+    loadUserId();
+  }, []);
 
   const handleCreateEvent = () => {
     navigation.navigate("NewEvent");
+  };
+
+  const handleMenuPress = (event) => {
+    setSelectedEvent(event);
+    setMenuVisible(true);
   };
 
   const handleDeleteEvent = (eventId) => {
@@ -85,9 +89,11 @@ const YourEvents = () => {
       {
         text: "Delete",
         style: "destructive",
-        onPress: () => {
-          deleteEvent(eventId);
+        onPress: async () => {
+          await deleteEvent(eventId);
           setMenuVisible(false);
+          // Refresh events after deletion
+          refreshEvents();
         },
       },
     ]);
@@ -99,19 +105,50 @@ const YourEvents = () => {
   };
 
   const truncateText = (text, maxLength) => {
+    if (!text) return ""; // Handle null or undefined text
     return text.length > maxLength ? text.substring(0, maxLength) + "..." : text;
   };
 
+  // Format date for display
+  const formatDate = (dateString) => {
+    if (!dateString) return "N/A";
+    const date = new Date(dateString);
+    return date.toLocaleDateString('no-NO', { 
+      day: '2-digit', 
+      month: '2-digit', 
+      year: 'numeric' 
+    });
+  };
+
+  // Function to render an event card with consistent ID handling
   const renderEvent = (event) => {
-    const progress = event.currentValue / event.goalValue || 0;
-    const unit = event.selectedActivity?.unit || "sekunder";
+    // Normalize the event ID to ensure consistency
+    const eventId = event.Id || event.id;
+    
+    if (!eventId) {
+      console.error("Event without ID detected:", event);
+      return null;
+    }
+    
+    // Create a normalized event object with both id and Id fields
+    const normalizedEvent = {
+      ...event,
+      id: eventId,
+      Id: eventId
+    };
+
+    // Calculate progress if available
+    const progress = event.progress || (event.currentValue && event.goalValue ? 
+      event.currentValue / event.goalValue : 0);
 
     return (
       <TouchableOpacity
-        key={event.id}
+        key={eventId}
         style={[styles.eventCard, { backgroundColor: theme.surface }]}
-        activeOpacity={0.7}
-        onPress={() => navigation.navigate("ActiveEvent", { eventId: event.id })}
+        onPress={() => navigation.navigate("ActiveEvent", { 
+          eventId,
+          eventData: normalizedEvent // Pass the full normalized event data
+        })}
       >
         <View style={styles.cardContent}>
           <Image
@@ -124,37 +161,69 @@ const YourEvents = () => {
               <Text style={[styles.eventTitle, { color: theme.text }]}>
                 {truncateText(event.title, 20)}
               </Text>
-              <TouchableOpacity
-                onPress={() => {
-                  setSelectedEvent(event);
-                  setMenuVisible(true);
-                }}
-              >
+              <TouchableOpacity onPress={() => handleMenuPress(event)}>
                 <MaterialCommunityIcons
                   name="dots-vertical"
-                  size={24}
+                  size={20}
                   color={theme.text}
                 />
               </TouchableOpacity>
             </View>
-            <Progress.Bar
-              progress={progress}
-              width={null}
-              height={8}
-              color="#A3E4DB"
-              unfilledColor="#A3E4DB30"
-              borderWidth={0}
-              borderRadius={4}
-              style={styles.progressBar}
-            />
-            <Text style={[styles.progressText, { color: theme.text }]}>
-              {event.currentValue || 0} {unit} / {event.goalValue || 0} {unit}
+            <Text
+              style={[styles.eventDescription, { color: theme.textSecondary }]}
+            >
+              {truncateText(event.description, 30)}
             </Text>
+            
+            {/* Add progress bar if this is an active event */}
+            {myActiveEvents.some(e => e.id === eventId || e.Id === eventId) && (
+              <View style={styles.progressContainer}>
+                <Progress.Bar
+                  progress={progress}
+                  width={null}
+                  height={8}
+                  color={theme.primary}
+                  unfilledColor={theme.primary + "30"}
+                  borderWidth={0}
+                  borderRadius={5}
+                  style={styles.progressBar}
+                />
+                <Text style={[styles.progressText, { color: theme.primary }]}>
+                  {Math.round(progress * 100)}%
+                </Text>
+              </View>
+            )}
+            
+            <View style={styles.eventMeta}>
+              <View style={styles.metaItem}>
+                <MaterialCommunityIcons
+                  name="map-marker"
+                  size={14}
+                  color={theme.textSecondary}
+                />
+                <Text style={[styles.metaText, { color: theme.textSecondary }]}>
+                  {event.location}
+                </Text>
+              </View>
+              <View style={styles.metaItem}>
+                <MaterialCommunityIcons
+                  name="calendar"
+                  size={14}
+                  color={theme.textSecondary}
+                />
+                <Text style={[styles.metaText, { color: theme.textSecondary }]}>
+                  {formatDate(event.start_date)}
+                </Text>
+              </View>
+            </View>
           </View>
         </View>
       </TouchableOpacity>
     );
   };
+
+  // Check if there are any active events to display
+  const hasEvents = myActiveEvents.length > 0;
 
   return (
     <SafeAreaView
@@ -169,6 +238,14 @@ const YourEvents = () => {
         }}
         showsVerticalScrollIndicator={true}
         scrollEventThrottle={16}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={refreshEvents}
+            tintColor={theme.primary}
+            colors={[theme.primary]}
+          />
+        }
       >
         <View style={styles.actionButtons}>
           <TouchableOpacity
@@ -195,18 +272,12 @@ const YourEvents = () => {
           </TouchableOpacity>
         </View>
 
-        <View style={styles.sectionHeader}>
-          <Text style={[styles.sectionTitle, { color: theme.text }]}>
-            Aktive hendelser
-          </Text>
-        </View>
-
-        {activeEvents.length === 0 && upcomingEvents.length === 0 && participatedEvents.length === 0 ? (
+        {!hasEvents ? (
           <View
             style={[styles.emptyStateContainer, { backgroundColor: theme.surface }]}
           >
             <Image
-              source={selectedVitusHappyImage} // Updated to use dynamic image
+              source={selectedVitusHappyImage}
               style={styles.emptyStateImage}
             />
             <Text style={[styles.emptyStateTitle, { color: theme.text }]}>
@@ -231,45 +302,15 @@ const YourEvents = () => {
         ) : (
           <>
             {/* Active Events Section */}
-            <View style={styles.sectionHeader}>
-              <Text style={[styles.sectionTitle, { color: theme.text }]}>
-                Aktive hendelser
-              </Text>
-            </View>
-            {activeEvents.length === 0 ? (
-              <Text style={[styles.emptyMessage, {color: theme.textSecondary}]}>
-                Ingen aktive hendelser
-              </Text>
-            ) : (
-              activeEvents.map(event => renderEvent(event))
-            )}
-            
-            {/* Upcoming Events Section */}
-            <View style={[styles.sectionHeader, {marginTop: 24}]}>
-              <Text style={[styles.sectionTitle, { color: theme.text }]}>
-                Kommende hendelser
-              </Text>
-            </View>
-            {upcomingEvents.length === 0 ? (
-              <Text style={[styles.emptyMessage, {color: theme.textSecondary}]}>
-                Ingen kommende hendelser
-              </Text>
-            ) : (
-              upcomingEvents.map(event => renderEvent(event))
-            )}
-            
-            {/* Participated Events Section */}
-            <View style={[styles.sectionHeader, {marginTop: 24}]}>
-              <Text style={[styles.sectionTitle, { color: theme.text }]}>
-                Mine hendelser
-              </Text>
-            </View>
-            {participatedEvents.length === 0 ? (
-              <Text style={[styles.emptyMessage, {color: theme.textSecondary}]}>
-                Du deltar ikke i noen hendelser enda
-              </Text>
-            ) : (
-              participatedEvents.map(event => renderEvent(event))
+            {myActiveEvents.length > 0 && (
+              <>
+                <View style={styles.sectionHeader}>
+                  <Text style={[styles.sectionTitle, { color: theme.text }]}>
+                    Aktive hendelser
+                  </Text>
+                </View>
+                {myActiveEvents.map(event => renderEvent(event))}
+              </>
             )}
           </>
         )}
@@ -291,7 +332,7 @@ const YourEvents = () => {
             </TouchableOpacity>
             <TouchableOpacity
               style={styles.menuOption}
-              onPress={() => handleDeleteEvent(selectedEvent?.id)}
+              onPress={() => handleDeleteEvent(selectedEvent?.id || selectedEvent?.Id)}
             >
               <MaterialCommunityIcons name="delete" size={24} color="#FF0000" />
               <Text style={[styles.menuOptionText, { color: "#FF0000" }]}>Delete Event</Text>
@@ -379,8 +420,18 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   eventTitle: { fontSize: 20, fontWeight: "bold" },
-  progressBar: { marginBottom: 8 },
-  progressText: { fontSize: 14, fontWeight: "500" },
+  progressContainer: {
+    marginBottom: 8,
+    marginTop: 4
+  },
+  progressBar: { 
+    marginBottom: 4,
+  },
+  progressText: { 
+    fontSize: 14, 
+    fontWeight: "500",
+    textAlign: "right"
+  },
   modalContainer: {
     flex: 1,
     justifyContent: "center",
@@ -398,6 +449,10 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     paddingHorizontal: 4,
   },
+  eventDescription: { marginBottom: 8, fontSize: 14 },
+  eventMeta: { flexDirection: "row", gap: 12 },
+  metaItem: { flexDirection: "row", alignItems: "center", gap: 4 },
+  metaText: { fontSize: 12 },
 });
 
 export default YourEvents;

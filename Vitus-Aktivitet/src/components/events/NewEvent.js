@@ -355,38 +355,23 @@ const NewEvent = ({ route }) => {
     }
   };
 
-  const createEvent = async () => {
+  const finishEvent = async () => {
     setShowConfirmModal(false);
-
-    const startDateTime = new Date(eventDetails.startDate);
-    startDateTime.setHours(eventDetails.startTime.getHours());
-    startDateTime.setMinutes(eventDetails.startTime.getMinutes());
-    const startDateTimeUTC = startDateTime.toISOString();
-
-    const endDateTime = new Date(eventDetails.endDate);
-    endDateTime.setHours(eventDetails.endTime.getHours());
-    endDateTime.setMinutes(eventDetails.endTime.getMinutes());
-    let endDateTimeUTC = endDateTime.toISOString();
-
-    if (endDateTime <= startDateTime) {
-      endDateTime.setHours(endDateTime.getHours() + 1);
-      endDateTimeUTC = endDateTime.toISOString();
-    }
-
-    // Format event data to match server expectations
+    
+    // Format event data for server
     const eventData = {
       title: eventDetails.title,
-      description: eventDetails.description || "",
-      activity: eventDetails.selectedActivity?.name || "",
-      goalValue: eventDetails.goalValue || 0,
-      currentValue: eventDetails.currentValue || 0,
-      start_date: startDateTimeUTC,
-      end_date: endDateTimeUTC,
-      location: eventDetails.location || "",
-      eventType: eventDetails.eventType || "individual",
-      total_participants: Number(eventDetails.participantCount) || 0,
-      team_count: Number(eventDetails.teamCount) || 0,
-      members_per_team: Number(eventDetails.membersPerTeam) || 0,
+      description: eventDetails.description,
+      activity: eventDetails.selectedActivity?.name,
+      goal: eventDetails.goalValue,
+      start_date: new Date(eventDetails.startDate).toISOString(),
+      end_date: new Date(eventDetails.endDate).toISOString(),
+      location: eventDetails.location,
+      event_type: eventDetails.eventType,
+      total_participants: Number.parseInt(eventDetails.participantCount) || 0,
+      team_count: Number.parseInt(eventDetails.teamCount) || 0,
+      members_per_team: Number.parseInt(eventDetails.membersPerTeam) || 0,
+      // Server-side properties
       selectedActivity: eventDetails.selectedActivity,
       activityUnit: eventDetails.selectedActivity?.unit || "",
       progress: 0, // Start with 0 progress
@@ -427,23 +412,34 @@ const NewEvent = ({ route }) => {
         );
       }
 
-      let savedEvent;
+      let result;
       
       if (isEditing) {
         // Update existing event
-        await updateEvent(updatedEvent);
-        savedEvent = updatedEvent;
+        const success = await updateEvent(updatedEvent);
+        result = success ? updatedEvent : null;
       } else {
-        // Create new event - the addEvent function will save to server and return the event with ID
-        savedEvent = await addEvent(updatedEvent);
+        // Create new event
+        result = await addEvent(updatedEvent);
       }
       
-      // Navigate to the event detail screen with the saved event's ID
-      navigation.replace("ActiveEvent", { eventId: savedEvent.id });
-      
+      if (result) {
+        console.log("Event saved successfully:", result);
+        // Ensure we navigate with the correct event ID
+        const eventId = result.id || result.Id || result.eventId;
+        if (eventId) {
+          // Navigate to the event detail screen with the event ID
+          navigation.replace("ActiveEvent", { eventId });
+        } else {
+          // Fallback if no ID is available
+          navigation.navigate("EventsMain", { screen: "YourEvents" });
+        }
+      } else {
+        Alert.alert("Feil", "Kunne ikke lagre hendelsen. Prøv igjen senere.");
+      }
     } catch (error) {
-      Alert.alert("Feil", "Kunne ikke lagre hendelsen på serveren.");
-      console.error("Error in createEvent:", error);
+      console.error("Error saving event:", error);
+      Alert.alert("Feil", "Kunne ikke lagre hendelsen: " + error.message);
     }
   };
 
@@ -1022,7 +1018,7 @@ const NewEvent = ({ route }) => {
               </TouchableOpacity>
               <TouchableOpacity
                 style={[styles.modalButton, { backgroundColor: theme.primary }]}
-                onPress={createEvent}
+                onPress={finishEvent}
               >
                 <Text
                   style={[styles.modalButtonText, { color: theme.background }]}

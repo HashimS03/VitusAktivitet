@@ -52,9 +52,67 @@ const EventLeaderboard = ({ navigation, route }) => {
   const [isEventActive, setIsEventActive] = useState(true);
 
   useEffect(() => {
-    setParticipants(MOCK_PARTICIPANTS);
-    setIsEventActive(route.params?.isEventActive ?? true);
-  }, []);
+    const loadEventData = async () => {
+      try {
+        // Normalize eventId from route params to handle both id and Id formats
+        const eventIdParam = route.params?.eventId;
+        if (!eventIdParam) {
+          console.error("No event ID provided to Leaderboard");
+          navigation.goBack();
+          return;
+        }
+        
+        // Find event using normalized ID comparison
+        const event = [...activeEvents, ...pastEvents].find(e => 
+          e.id?.toString() === eventIdParam.toString() || 
+          e.Id?.toString() === eventIdParam.toString()
+        );
+        
+        if (!event) {
+          console.error("Event not found for ID:", eventIdParam);
+          console.log("Available events:", 
+            activeEvents.map(e => ({id: e.id, Id: e.Id, title: e.title})),
+            pastEvents.map(e => ({id: e.id, Id: e.Id, title: e.title}))
+          );
+          navigation.goBack();
+          return;
+        }
+        
+        setEventData({
+          ...event,
+          id: event.id || event.Id // Ensure consistent id property
+        });
+        
+        // Continue with loading participants
+        console.log("Loading participants for event:", event.title);
+        const participants = await fetchEventParticipants(eventIdParam);
+        console.log("Fetched participants:", participants);
+        
+        // Process participants to create leaderboard data
+        if (Array.isArray(participants)) {
+          const leaderboardData = participants.map(participant => ({
+            id: participant.id.toString(),
+            name: participant.userName || "Unknown",
+            score: Math.floor(Math.random() * 1000), // Replace with actual scores when available
+            team: participant.teamId ? `Team ${participant.teamId}` : "No Team",
+            avatar: participant.avatar || null
+          }));
+          
+          // Sort by score descending
+          leaderboardData.sort((a, b) => b.score - a.score);
+          
+          setLeaderboardData(leaderboardData);
+        }
+        
+      } catch (error) {
+        console.error("Error loading event data for leaderboard:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    loadEventData();
+  }, [route.params?.eventId, activeEvents, pastEvents]);
 
   const renderParticipantItem = ({ item, index }) => (
     <View

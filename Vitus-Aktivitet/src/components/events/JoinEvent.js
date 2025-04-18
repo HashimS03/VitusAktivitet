@@ -33,6 +33,161 @@ export default function JoinEvent({ navigation }) {
     ]);
   };
 
+  // Normalize event information for consistent rendering
+  const renderEvent = (event) => {
+    // Ensure consistent event ID handling
+    const eventId = event.id || event.Id;
+    
+    if (!eventId) {
+      console.error("Event missing ID:", event);
+      return null;
+    }
+    
+    // Check if user is already participating
+    const isUserParticipating = !!event.participants?.some(
+      p => p.userId?.toString() === userId?.toString() || 
+           p.user_id?.toString() === userId?.toString()
+    );
+
+    return (
+      <TouchableOpacity
+        key={eventId}
+        style={[
+          styles.eventCard,
+          { backgroundColor: isDarkMode ? "#333" : theme.surface },
+        ]}
+        onPress={() => handleEventPress(event)}
+      >
+        <View style={styles.cardContent}>
+          <Image
+            source={getEventImage(event)}
+            style={styles.eventImage}
+            resizeMode="contain"
+          />
+          <View style={styles.eventDetails}>
+            <Text
+              style={[
+                styles.eventTitle,
+                { color: isDarkMode ? "#fff" : theme.text },
+              ]}
+            >
+              {event.title}
+            </Text>
+            <Text
+              style={[
+                styles.eventDescription,
+                { color: isDarkMode ? "#ccc" : theme.textSecondary },
+              ]}
+            >
+              {event.description && event.description.length > 60
+                ? `${event.description.substring(0, 60)}...`
+                : event.description}
+            </Text>
+            <View style={styles.eventMeta}>
+              <View style={styles.metaItem}>
+                <MaterialCommunityIcons
+                  name="calendar"
+                  size={16}
+                  color={isDarkMode ? "#ccc" : theme.textSecondary}
+                />
+                <Text
+                  style={[
+                    styles.metaText,
+                    { color: isDarkMode ? "#ccc" : theme.textSecondary },
+                  ]}
+                >
+                  {formatDate(event.start_date)} -{" "}
+                  {formatDate(event.end_date)}
+                </Text>
+              </View>
+              <View style={styles.metaItem}>
+                <MaterialCommunityIcons
+                  name="map-marker"
+                  size={16}
+                  color={isDarkMode ? "#ccc" : theme.textSecondary}
+                />
+                <Text
+                  style={[
+                    styles.metaText,
+                    { color: isDarkMode ? "#ccc" : theme.textSecondary },
+                  ]}
+                >
+                  {event.location || "No location"}
+                </Text>
+              </View>
+            </View>
+          </View>
+          <View style={styles.joinStatus}>
+            {isUserParticipating ? (
+              <View
+                style={[
+                  styles.joinedBadge,
+                  { backgroundColor: theme.primaryLight },
+                ]}
+              >
+                <Text
+                  style={[styles.joinedBadgeText, { color: theme.primary }]}
+                >
+                  Joined
+                </Text>
+              </View>
+            ) : (
+              <TouchableOpacity
+                style={[styles.joinButton, { backgroundColor: theme.primary }]}
+                onPress={() => handleJoinPress(event)}
+              >
+                <Text
+                  style={[
+                    styles.joinButtonText,
+                    { color: isDarkMode ? "#000" : "#fff" },
+                  ]}
+                >
+                  Join
+                </Text>
+              </TouchableOpacity>
+            )}
+          </View>
+        </View>
+      </TouchableOpacity>
+    );
+  };
+
+  const handleJoinPress = async (event) => {
+    try {
+      const eventId = event.id || event.Id;
+      
+      if (!eventId) {
+        Alert.alert("Error", "Unable to join event: No event ID");
+        return;
+      }
+      
+      console.log("Joining event with ID:", eventId);
+      const success = await joinEvent(eventId);
+      
+      if (success) {
+        Alert.alert(
+          "Success",
+          "You've joined the event!",
+          [
+            {
+              text: "View Event",
+              onPress: () => navigation.navigate("ActiveEvent", { eventId }),
+            },
+            {
+              text: "OK",
+              onPress: () => refreshEvents(),
+            },
+          ]
+        );
+      } else {
+        Alert.alert("Error", "Failed to join the event. Please try again.");
+      }
+    } catch (error) {
+      console.error("Error joining event:", error);
+      Alert.alert("Error", "Failed to join the event: " + error.message);
+    }
+  };
+
   if (!permission) {
     return (
       <View style={styles.container}>

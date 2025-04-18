@@ -22,12 +22,24 @@ import { useTheme } from "../context/ThemeContext";
 import * as Progress from "react-native-progress";
 import { EventContext } from "../events/EventContext";
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import axios from 'axios';
+import { SERVER_CONFIG } from "../../config/serverConfig";
 
 const ActiveEvent = ({ route }) => {
   const { eventId } = route.params || {};
-  const { activeEvents, pastEvents, updateEvent, deleteEvent, joinEvent, leaveEvent, fetchEventParticipants, checkParticipation } =
-    useContext(EventContext); // Hent både activeEvents og pastEvents
-  // Finn hendelsen fra enten activeEvents eller pastEvents
+  const { 
+    activeEvents, 
+    pastEvents, 
+    upcomingEvents,
+    updateEvent, 
+    deleteEvent, 
+    joinEvent, 
+    leaveEvent, 
+    fetchEventParticipants, 
+    checkParticipation,
+    getEventById
+  } = useContext(EventContext);
+  
   const [eventDetails, setEventDetails] = useState(null);
 
   const [isModalVisible, setModalVisible] = useState(false);
@@ -44,6 +56,8 @@ const ActiveEvent = ({ route }) => {
   const [userTeamId, setUserTeamId] = useState(null);
   const [isEventFinished, setIsEventFinished] = useState(false);
   const [userId, setUserId] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [fetchError, setFetchError] = useState(null);
 
   useEffect(() => {
     navigation.setOptions({
@@ -326,37 +340,156 @@ const ActiveEvent = ({ route }) => {
   }, [eventId]);
 
   useEffect(() => {
-    const loadEventDetails = () => {
-      const eventIdParam = route.params?.eventId;
-      if (!eventIdParam) {
-        console.error("No event ID provided in route params");
-        navigation.goBack();
-        return;
-      }
-      
-      // Standardize ID comparison by converting both to strings
-      const event = [...activeEvents, ...pastEvents].find(e => 
-        (e.Id?.toString() === eventIdParam.toString() || 
-         e.id?.toString() === eventIdParam.toString())
-      );
-      
-      if (event) {
-        // Normalize the event object to have consistent property names
-        const normalizedEvent = {
-          ...event,
-          id: event.Id || event.id
-        };
-        setEventDetails(normalizedEvent);
+    const loadEventDetails = async () => {
+      try {
+        setIsLoading(true);
+        setFetchError(null);
         
-        // Rest of your code...
-      } else {
-        console.error("Event not found with ID:", eventIdParam);
-        navigation.goBack();
+        // Get event ID from route params with more consistent fallbacks
+        const eventIdParam = route.params?.eventId || 
+                            route.params?.eventData?.id || 
+                            route.params?.eventData?.Id;
+        
+        console.log("Navigate to event with ID:", eventIdParam);
+        
+        if (!eventIdParam) {
+          // If we have eventData but no ID, just use the event data directly
+          if (route.params?.eventData) {
+            const normalizedEvent = {
+              ...route.params.eventData,
+              id: route.params.eventData.Id || route.params.eventData.id,
+              Id: route.params.eventData.Id || route.params.eventData.id // Ensure both id formats exist
+            };
+            setEventDetails(normalizedEvent);
+            setCurrentValue(normalizedEvent.currentValue || 0);
+            setProgress(normalizedEvent.progress || 0);
+            
+            // Check if event is finished
+            const isFinished = new Date(normalizedEvent.end_date) < new Date();
+            setIsEventFinished(isFinished);
+            
+            setIsLoading(false);
+            return;
+          }
+          
+          setFetchError("No event ID provided");
+          setIsLoading(false);
+          return;
+        }
+        
+        // First try to get event from EventContext (all events, not just active)
+        const eventId = eventIdParam.toString();
+        const localEvent = getEventById ? getEventById(eventId) : 
+                          [...activeEvents, ...upcomingEvents, ...pastEvents]
+                            .find(e => (e.Id?.toString() === eventId || e.id?.toString() === eventId));
+        
+        // If found locally, use it immediately
+        if (localEvent) {
+          console.log("Found event in local context:", localEvent.title);
+          const normalizedEvent = {
+            ...localEvent,
+            id: localEvent.Id || localEvent.id,
+            Id: localEvent.Id || localEvent.id // Ensure both id formats exist
+          };
+          
+          setEventDetails(normalizedEvent);
+          
+          // Check if event is finished
+          const isFinished = new Date(localEvent.end_date) < new Date();
+          setIsEventFinished(isFinished);
+          
+          // Set progress values
+          setCurrentValue(localEvent.currentValue || 0);
+          setProgress(localEvent.progress || 0);
+          
+          // Get userId
+          const userId = await AsyncStorage.getItem('userId');
+          setUserId(userId);
+          
+          // Fetch participants
+          try {
+            const eventParticipants = await fetchEventParticipants(eventId);
+            setParticipants(eventParticipants);
+            
+            // Check if user is participating
+            const userIsParticipant = eventParticipants.some(p => 
+              p.userId == userId || p.user_id == userId
+            );
+            
+            setIsParticipating(userIsParticipant);
+            setIsLoading(false);
+            return;
+          } catch (participantsError) {
+            console.error("Error loading participants:", participantsError);
+            // Continue to server fetch if participant loading fails
+          }
+        }
+        
+        // If event wasn't found locally, fallback to server fetch
+        try {
+          const token = await AsyncStorage.getItem('userToken');
+          console.log(`Fetching event from ${SERVER_CONFIG.getBaseUrl()}/events/${eventIdParam}`);
+          
+          const eventResponse = await axios.get(`${SERVER_CONFIG.getBaseUrl()}/events/${eventIdParam}`, {
+            withCredentials: true,
+            headers: {
+              'Authorization': token ? `Bearer ${token}` : ''
+            }
+          });
+          
+          if (eventResponse.data && eventResponse.data.success) {
+            const event = eventResponse.data.data;
+            console.log("Event fetched directly from server:", event?.title);
+            
+            // Normalize the event object
+            const normalizedEvent = {
+              ...event,
+              id: event.Id || event.id,
+              Id: event.Id || event.id
+            };
+            
+            setEventDetails(normalizedEvent);
+            
+            // Check if event is finished
+            const isFinished = new Date(event.end_date) < new Date();
+            setIsEventFinished(isFinished);
+            
+            // Set progress values
+            setCurrentValue(event.currentValue || 0);
+            setProgress(event.progress || 0);
+            
+            // Get userId and check participation
+            const userId = await AsyncStorage.getItem('userId');
+            setUserId(userId);
+            
+            // Fetch participants directly
+            const eventParticipants = await fetchEventParticipants(eventId);
+            setParticipants(eventParticipants);
+            
+            // Check participation based on participants list
+            const userIsParticipant = eventParticipants.some(p => 
+              p.userId == userId || p.user_id == userId
+            );
+            
+            setIsParticipating(userIsParticipant);
+            setIsLoading(false);
+          } else {
+            throw new Error("Server couldn't find the event");
+          }
+        } catch (directFetchError) {
+          console.error("Error fetching event directly:", directFetchError.message);
+          setFetchError("Kunne ikke laste hendelse fra serveren");
+          setIsLoading(false);
+        }
+      } catch (error) {
+        console.error("Error in loadEventDetails:", error);
+        setFetchError("Kunne ikke laste hendelse");
+        setIsLoading(false);
       }
     };
     
     loadEventDetails();
-  }, [route.params, activeEvents, pastEvents]);
+  }, [route.params, getEventById]);
 
   useEffect(() => {
     const loadUserId = async () => {
@@ -375,11 +508,14 @@ const ActiveEvent = ({ route }) => {
   const handleJoinEvent = async (teamId = null) => {
     if (isEventFinished) return;
     
-    // Use the route params eventId directly, as it matches what the server expects
-    const eventIdToUse = route.params.eventId;
+    // Get event ID with consistent fallbacks
+    const eventIdToUse = route.params?.eventId || 
+                         eventDetails?.id || 
+                         eventDetails?.Id;
     
     if (!eventIdToUse) {
       console.error("No event ID available for join/leave action");
+      Alert.alert("Error", "Could not determine event ID. Please try again.");
       return;
     }
     
@@ -438,8 +574,62 @@ const ActiveEvent = ({ route }) => {
     }
   };
 
+  if (isLoading) {
+    return (
+      <SafeAreaView style={[styles.safeArea, { backgroundColor: theme.background }]}>
+        <View style={styles.loadingContainer}>
+          <Text style={[styles.loadingText, { color: theme.text }]}>Laster hendelse...</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  if (fetchError) {
+    return (
+      <SafeAreaView style={[styles.safeArea, { backgroundColor: theme.background }]}>
+        <View style={styles.header}>
+          <TouchableOpacity onPress={handleBackPress} style={styles.backButton}>
+            <MaterialCommunityIcons name="arrow-left" size={24} color={theme.text} />
+          </TouchableOpacity>
+          <Text style={[styles.title, { color: theme.text }]}>Feil</Text>
+          <View style={{width: 24}} />
+        </View>
+        <View style={styles.errorContainer}>
+          <MaterialCommunityIcons name="alert-circle-outline" size={64} color={theme.error || "#FF6B6B"} />
+          <Text style={[styles.errorText, { color: theme.text }]}>{fetchError}</Text>
+          <TouchableOpacity 
+            style={[styles.retryButton, { backgroundColor: theme.primary }]}
+            onPress={() => navigation.goBack()}
+          >
+            <Text style={[styles.retryButtonText, { color: theme.background }]}>Gå tilbake</Text>
+          </TouchableOpacity>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
   if (!eventDetails) {
-    return null;
+    return (
+      <SafeAreaView style={[styles.safeArea, { backgroundColor: theme.background }]}>
+        <View style={styles.header}>
+          <TouchableOpacity onPress={handleBackPress} style={styles.backButton}>
+            <MaterialCommunityIcons name="arrow-left" size={24} color={theme.text} />
+          </TouchableOpacity>
+          <Text style={[styles.title, { color: theme.text }]}>Feil</Text>
+          <View style={{width: 24}} />
+        </View>
+        <View style={styles.errorContainer}>
+          <MaterialCommunityIcons name="help-circle-outline" size={64} color={theme.error || "#FF6B6B"} />
+          <Text style={[styles.errorText, { color: theme.text }]}>Hendelsen ble ikke funnet</Text>
+          <TouchableOpacity 
+            style={[styles.retryButton, { backgroundColor: theme.primary }]}
+            onPress={() => navigation.goBack()}
+          >
+            <Text style={[styles.retryButtonText, { color: theme.background }]}>Gå tilbake</Text>
+          </TouchableOpacity>
+        </View>
+      </SafeAreaView>
+    );
   }
 
   // Formater dato og tid
@@ -1004,6 +1194,36 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   submitButtonText: {
+    fontSize: 16,
+    fontWeight: "600",
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  loadingText: {
+    fontSize: 18,
+    fontWeight: "600",
+  },
+  errorContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 16,
+  },
+  errorText: {
+    fontSize: 18,
+    fontWeight: "600",
+    textAlign: "center",
+    marginVertical: 16,
+  },
+  retryButton: {
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    borderRadius: 8,
+  },
+  retryButtonText: {
     fontSize: 16,
     fontWeight: "600",
   },

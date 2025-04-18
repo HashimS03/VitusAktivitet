@@ -72,7 +72,6 @@ const EventsStack = () => (
       component={NewEvent}
       options={{ tabBarStyle: { display: "none" } }}
     />
-    <Stack.Screen name="ActiveEvent" component={ActiveEvent} />
     <Stack.Screen
       name="InviteMembers"
       component={InviteMembersScreen}
@@ -306,6 +305,12 @@ const AppContent = () => {
         {(props) => {
           console.log("LogRecordingScreen rendering"); // Debug log
           return <LogRecordingScreen {...props} />;
+        }}
+      </Stack.Screen>
+      <Stack.Screen name="ActiveEvent">
+        {(props) => {
+          console.log("ActiveEvent rendering"); // Debug log
+          return <ActiveEvent {...props} />;
         }}
       </Stack.Screen>
     </Stack.Navigator>

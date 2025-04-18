@@ -1,4 +1,4 @@
-import React, { useContext } from "react";
+import React, { useContext, useState } from "react";
 import {
   View,
   Text,
@@ -7,14 +7,18 @@ import {
   SafeAreaView,
   ScrollView,
   TouchableOpacity,
+  RefreshControl,
 } from "react-native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useTheme } from "../context/ThemeContext";
 import { EventContext } from "../events/EventContext";
+import { useNavigation, useFocusEffect } from "@react-navigation/native";
 
 const UpcomingEvents = () => {
-  const { theme, accentColor } = useTheme(); // Added accentColor
-  const { upcomingEvents } = useContext(EventContext);
+  const { theme, accentColor } = useTheme();
+  const { myUpcomingEvents, loadEvents } = useContext(EventContext);
+  const [refreshing, setRefreshing] = useState(false);
+  const navigation = useNavigation();
 
   // Map accent colors to the correct Vitus_Happy images
   const vitusHappyImages = {
@@ -29,18 +33,66 @@ const UpcomingEvents = () => {
   const selectedVitusHappyImage =
     vitusHappyImages[accentColor] || require("../../../assets/Vitus_Happy.png");
 
+  // Refresh data when the screen comes into focus
+  useFocusEffect(
+    React.useCallback(() => {
+      // Refresh events when screen gains focus
+      refreshEvents();
+      return () => {};
+    }, [])
+  );
+  
+  const refreshEvents = async () => {
+    setRefreshing(true);
+    try {
+      await loadEvents();
+    } catch (error) {
+      console.error("Failed to refresh events:", error);
+    } finally {
+      setRefreshing(false);
+    }
+  };
+
   const truncateText = (text, maxLength) => {
+    if (!text) return "";
     return text.length > maxLength ? text.substring(0, maxLength) + "..." : text;
   };
 
+  // Format date for display
+  const formatDate = (dateString) => {
+    if (!dateString) return "N/A";
+    const date = new Date(dateString);
+    return date.toLocaleDateString('no-NO', { 
+      day: '2-digit', 
+      month: '2-digit', 
+      year: 'numeric' 
+    });
+  };
+
   const renderEvent = (event) => {
-    const progress = event.currentValue / event.goalValue || 0;
-    const unit = event.selectedActivity?.unit || "sekunder";
+    // Normalize the event ID to ensure consistency
+    const eventId = event.Id || event.id;
+    
+    if (!eventId) {
+      console.error("Event without ID detected:", event);
+      return null;
+    }
+    
+    // Create a normalized event object with both id and Id fields
+    const normalizedEvent = {
+      ...event,
+      id: eventId,
+      Id: eventId
+    };
 
     return (
-      <View
-        key={event.id}
+      <TouchableOpacity
+        key={eventId}
         style={[styles.eventCard, { backgroundColor: theme.surface }]}
+        onPress={() => navigation.navigate("ActiveEvent", { 
+          eventId,
+          eventData: normalizedEvent
+        })}
       >
         <View style={styles.cardContent}>
           <Image
@@ -53,24 +105,37 @@ const UpcomingEvents = () => {
               <Text style={[styles.eventTitle, { color: theme.text }]}>
                 {truncateText(event.title, 20)}
               </Text>
-              <TouchableOpacity disabled>
-                <MaterialCommunityIcons
-                  name="dots-vertical"
-                  size={24}
-                  color={theme.text + "50"}
-                />
-              </TouchableOpacity>
             </View>
-            <Text style={[styles.progressText, { color: theme.textSecondary }]}>
-              Starter: {new Date(event.start_date).toLocaleDateString()} •{" "}
-              {new Date(event.start_date).toLocaleTimeString([], {
-                hour: "2-digit",
-                minute: "2-digit",
-              })}
+            <Text
+              style={[styles.eventDescription, { color: theme.textSecondary }]}
+            >
+              {truncateText(event.description, 30)}
             </Text>
+            <View style={styles.eventMeta}>
+              <View style={styles.metaItem}>
+                <MaterialCommunityIcons
+                  name="map-marker"
+                  size={14}
+                  color={theme.textSecondary}
+                />
+                <Text style={[styles.metaText, { color: theme.textSecondary }]}>
+                  {event.location}
+                </Text>
+              </View>
+              <View style={styles.metaItem}>
+                <MaterialCommunityIcons
+                  name="calendar"
+                  size={14}
+                  color={theme.textSecondary}
+                />
+                <Text style={[styles.metaText, { color: theme.textSecondary }]}>
+                  {formatDate(event.start_date)}
+                </Text>
+              </View>
+            </View>
           </View>
         </View>
-      </View>
+      </TouchableOpacity>
     );
   };
 
@@ -87,6 +152,14 @@ const UpcomingEvents = () => {
         }}
         showsVerticalScrollIndicator={true}
         scrollEventThrottle={16}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={refreshEvents}
+            tintColor={theme.primary}
+            colors={[theme.primary]}
+          />
+        }
       >
         <View style={styles.sectionHeader}>
           <Text style={[styles.sectionTitle, { color: theme.text }]}>
@@ -94,12 +167,12 @@ const UpcomingEvents = () => {
           </Text>
         </View>
 
-        {upcomingEvents.length === 0 ? (
+        {myUpcomingEvents.length === 0 ? (
           <View
             style={[styles.emptyStateContainer, { backgroundColor: theme.surface }]}
           >
             <Image
-              source={selectedVitusHappyImage} // Updated to use dynamic image
+              source={selectedVitusHappyImage}
               style={styles.emptyStateImage}
             />
             <Text style={[styles.emptyStateTitle, { color: theme.text }]}>
@@ -112,7 +185,7 @@ const UpcomingEvents = () => {
             </Text>
           </View>
         ) : (
-          upcomingEvents.map((event) => renderEvent(event))
+          myUpcomingEvents.map((event) => renderEvent(event))
         )}
       </ScrollView>
     </SafeAreaView>
