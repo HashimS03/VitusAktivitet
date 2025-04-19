@@ -601,7 +601,7 @@ export default function Dashboard() {
         } else if (error.response && error.response.status === 503) {
           Alert.alert(
             "Server Problem",
-            "The server is temporarily unavailable! Data is saved locally, and we'll sync when the server is back.",
+            "The server is temporarily unavailable. Data is saved locally, and we'll sync when the server is back.",
             [{ text: "OK" }]
           );
         }
