@@ -137,6 +137,19 @@ app.post("/register", async (req, res) => {
         VALUES (@userId, @steps, @timestamp)
       `);
 
+    // Initialize step activity with totalsteps = 0 for the new user
+    await pool
+      .request()
+      .input("userId", sql.Int, newUserId)
+      .input("stepCount", sql.Int, 0)
+      .input("totalsteps", sql.Int, 0)
+      .input("distance", sql.Float, null)
+      .input("timestamp", sql.DateTime, new Date())
+      .query(`
+        INSERT INTO [STEPACTIVITY] (userId, step_count, totalsteps, distance, timestamp)
+        VALUES (@userId, @stepCount, @totalsteps, @distance, @timestamp)
+      `);
+
     serverLog("log", "User registered successfully:", { name, email });
     res.status(201).json({ success: true, message: "User registered successfully" });
   } catch (err) {
@@ -308,11 +321,14 @@ app.post("/step-activity", authenticateJWT, async (req, res) => {
   serverLog("log", "Step activity request received:", req.body);
   serverLog("log", "Session userId:", req.session.userId);
   try {
-    const { stepCount, distance, timestamp } = req.body;
+    const { stepCount, totalsteps, distance, timestamp } = req.body;
     const userId = req.session.userId;
 
-    if (!stepCount && stepCount !== 0) {
+    if (stepCount === undefined || stepCount === null) {
       return res.status(400).json({ success: false, message: "stepCount is required" });
+    }
+    if (totalsteps === undefined || totalsteps === null) {
+      return res.status(400).json({ success: false, message: "totalsteps is required" });
     }
 
     const pool = await poolPromise;
@@ -339,11 +355,12 @@ app.post("/step-activity", authenticateJWT, async (req, res) => {
         .request()
         .input("id", sql.Int, recordId)
         .input("stepCount", sql.Int, stepCount)
+        .input("totalsteps", sql.Int, totalsteps)
         .input("distance", sql.Float, distance || null)
         .input("timestamp", sql.DateTime, timestamp || new Date())
         .query(`
           UPDATE [STEPACTIVITY]
-          SET step_count = @stepCount, distance = @distance, timestamp = @timestamp
+          SET step_count = @stepCount, totalsteps = @totalsteps, distance = @distance, timestamp = @timestamp
           WHERE Id = @id
         `);
     } else {
@@ -352,11 +369,12 @@ app.post("/step-activity", authenticateJWT, async (req, res) => {
         .request()
         .input("userId", sql.Int, userId)
         .input("stepCount", sql.Int, stepCount)
+        .input("totalsteps", sql.Int, totalsteps)
         .input("distance", sql.Float, distance || null)
         .input("timestamp", sql.DateTime, timestamp || new Date())
         .query(`
-          INSERT INTO [STEPACTIVITY] (userId, step_count, distance, timestamp)
-          VALUES (@userId, @stepCount, @distance, @timestamp)
+          INSERT INTO [STEPACTIVITY] (userId, step_count, totalsteps, distance, timestamp)
+          VALUES (@userId, @stepCount, @totalsteps, @distance, @timestamp)
         `);
     }
 
@@ -404,11 +422,26 @@ app.post("/step-activity", authenticateJWT, async (req, res) => {
 app.get("/step-activity", authenticateJWT, async (req, res) => {
   serverLog("log", "Step activity fetch request for userId:", req.session.userId);
   try {
+    const { startDate, endDate } = req.query; // Optional date range filter
     const pool = await poolPromise;
-    const result = await pool
-      .request()
-      .input("userId", sql.Int, req.session.userId)
-      .query("SELECT * FROM [STEPACTIVITY] WHERE userId = @userId ORDER BY [timestamp] DESC");
+    let query = "SELECT * FROM [STEPACTIVITY] WHERE userId = @userId";
+    const params = { userId: sql.Int, value: req.session.userId };
+
+    // Apply date range filter if provided
+    if (startDate && endDate) {
+      query += " AND timestamp BETWEEN @startDate AND @endDate";
+      params.startDate = { type: sql.Date, value: new Date(startDate) };
+      params.endDate = { type: sql.Date, value: new Date(endDate) };
+    }
+
+    query += " ORDER BY [timestamp] DESC";
+
+    const request = pool.request();
+    Object.keys(params).forEach((key) => {
+      request.input(key, params[key].type, params[key].value);
+    });
+
+    const result = await request.query(query);
 
     res.json({ success: true, data: result.recordset });
   } catch (err) {
