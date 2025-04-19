@@ -9,9 +9,9 @@ import {
   Alert,
 } from "react-native";
 import axios from "axios";
-import { UserContext } from "../context/UserContext"; // Create this context
-import { SERVER_CONFIG } from "../../config/serverConfig"; // Import the serverConfig
-import AsyncStorage from '@react-native-async-storage/async-storage'; // Import AsyncStorage
+import { UserContext } from "../context/UserContext";
+import { SERVER_CONFIG } from "../../config/serverConfig";
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const { width } = Dimensions.get("window");
 const PRIMARY_COLOR = "#48CAB2";
@@ -21,7 +21,7 @@ export default function login({ navigation }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPasswordField, setShowPasswordField] = useState(false);
-  const { setUserId } = useContext(UserContext); // Use context to set userId
+  const { setUserId } = useContext(UserContext);
 
   const handleEmailChange = (text) => {
     setEmail(text);
@@ -54,9 +54,9 @@ export default function login({ navigation }) {
       });
 
       if (response.data.success) {
-        // Store the JWT token properly
+        // Store the JWT token with the correct key
         if (response.data.token) {
-          await AsyncStorage.setItem('userToken', response.data.token);
+          await AsyncStorage.setItem('authToken', response.data.token); // Changed from 'userToken' to 'authToken'
           console.log("Token stored successfully");
         } else {
           console.error("No token received from server");
@@ -132,7 +132,6 @@ export default function login({ navigation }) {
     </View>
   );
 }
-
 
 const styles = StyleSheet.create({
   container: {
