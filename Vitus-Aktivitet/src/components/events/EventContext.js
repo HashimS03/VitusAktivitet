@@ -69,7 +69,13 @@ export const EventProvider = ({ children }) => {
       
       // Get userId for filtering
       const userId = await AsyncStorage.getItem('userId');
-      console.log("Current userId:", userId);
+      const token = await AsyncStorage.getItem('authToken');
+      
+      if (!token) {
+        console.log("No auth token available, can't load events");
+        setLoading(false);
+        return;
+      }
       
       // Try to fetch events from server using apiClient
       const response = await apiClient.get('/events');
@@ -105,37 +111,24 @@ export const EventProvider = ({ children }) => {
         console.error("Server returned error:", response.data);
         throw new Error("Failed to fetch events from server");
       }
-    } catch (serverError) {
-      console.error("Failed to load events from server:", serverError);
+    } catch (error) {
+      // Improved error handling
+      console.error("Failed to load events:", error);
       
-      // Fallback to AsyncStorage if server fails
-      try {
-        const storedEvents = await AsyncStorage.getItem(STORAGE_KEY);
-        if (storedEvents) {
-          const parsedEvents = JSON.parse(storedEvents);
-          const normalizedEvents = normalizeEvents(parsedEvents);
-          setEvents(normalizedEvents);
-          
-          // Filter to include both events the user created and events they're participating in
-          if (userId) {
-            const userEvents = normalizedEvents.filter(event => {
-              const isCreator = String(event.created_by) === String(userId);
-              const isParticipant = event.participants && event.participants.some(
-                p => String(p.userId) === String(userId) || String(p.user_id) === String(userId)
-              );
-              return isCreator || isParticipant;
-            });
-            
-            console.log(`Found ${userEvents.length} events related to the user (created or participating)`);
-            setMyEvents(userEvents);
+      if (error.response?.status === 401) {
+        // Just use local storage and don't show error - we'll already have an auth alert
+        try {
+          const storedEvents = await AsyncStorage.getItem(STORAGE_KEY);
+          if (storedEvents) {
+            const parsedEvents = JSON.parse(storedEvents);
+            const normalizedEvents = normalizeEvents(parsedEvents);
+            setEvents(normalizedEvents);
           }
-        } else {
-          setEvents([]);
+        } catch (storageError) {
+          console.error("Storage error:", storageError);
         }
-      } catch (storageError) {
-        console.error("Failed to load events from storage:", storageError);
-        setError(storageError.message);
-        setEvents([]);
+      } else {
+        setError(error.message);
       }
     } finally {
       setLoading(false);

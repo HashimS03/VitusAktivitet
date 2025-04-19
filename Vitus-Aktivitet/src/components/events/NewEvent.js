@@ -23,6 +23,7 @@ import * as Haptics from "expo-haptics";
 import { BlurView } from "expo-blur";
 import { EventContext } from "../events/EventContext";
 import { useNavigation } from "@react-navigation/native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 const { width } = Dimensions.get("window");
 
@@ -349,9 +350,31 @@ const NewEvent = ({ route }) => {
     return true;
   };
 
-  const handleConfirm = () => {
-    if (validateForm()) {
-      setShowConfirmModal(true);
+  const handleConfirm = async () => {
+    try {
+      // Check if token exists before attempting to create event
+      const token = await AsyncStorage.getItem('authToken');
+      if (!token) {
+        Alert.alert("Login Required", "Please log in to create an event.");
+        navigation.navigate("Login");
+        return;
+      }
+
+      if (validateForm()) {
+        setShowConfirmModal(true);
+      }
+    } catch (error) {
+      console.error("Error saving event:", error);
+      
+      if (error.response?.status === 401) {
+        Alert.alert(
+          "Login Required", 
+          "Your session has expired. Please log in again.",
+          [{ text: "OK", onPress: () => navigation.navigate("Login") }]
+        );
+      } else {
+        Alert.alert("Error", "Could not save the event: " + (error.response?.data?.message || error.message));
+      }
     }
   };
 

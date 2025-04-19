@@ -76,7 +76,6 @@ const authenticateJWT = (req, res, next) => {
       serverLog("log", "JWT verified successfully for user:", user);
       
       // Set the user ID from the token
-      req.userId = user.id;
       req.session.userId = user.id;
       serverLog("log", "Session userId set to:", req.session.userId);
       next();

@@ -1,6 +1,7 @@
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { SERVER_CONFIG } from '../config/serverConfig';
+import { Alert } from 'react-native';
 
 const apiClient = axios.create({
   baseURL: SERVER_CONFIG.getBaseUrl(),
@@ -8,19 +9,18 @@ const apiClient = axios.create({
   withCredentials: true, // Enable cookies for session support
 });
 
-// Replace your current interceptor with this:
-
+// Request interceptor - add token to all requests
 apiClient.interceptors.request.use(
   async (config) => {
     try {
-      // Match the token name used in login.js (authToken)
+      // Get token with consistent key name
       const token = await AsyncStorage.getItem('authToken');
       
       if (token) {
         config.headers.Authorization = `Bearer ${token}`;
-        console.log("Request with token:", config.method, config.url);
+        console.log(`Request with token to ${config.url}`);
       } else {
-        console.warn("No authorization token found in AsyncStorage");
+        console.warn("No auth token found in storage");
       }
       
       return config;
@@ -34,50 +34,41 @@ apiClient.interceptors.request.use(
   }
 );
 
-// Add response interceptor to handle auth errors
-apiClient.interceptors.response.use(
-  (response) => {
-    // Log successful responses for debugging
-    console.log(`Response from ${response.config.url}: Status ${response.status}`);
-    return response;
-  },
-  async (error) => {
-    console.error("API Error:", error.response?.status, error.response?.data?.message || error.message);
-    
-    // Handle authentication errors
-    if (error.response && (error.response.status === 401 || error.response.status === 403)) {
-      console.log("Authentication error detected");
-      
-      // Option: Attempt to refresh token here if you implement token refresh logic
-      
-      // For now, store auth error state
-      await AsyncStorage.setItem('authError', 'true');
-    }
-    
-    return Promise.reject(error);
-  }
-);
-
-// Add a response interceptor to handle auth errors:
-
+// Response interceptor - unified error handling
 apiClient.interceptors.response.use(
   (response) => {
     return response;
   },
   async (error) => {
-    if (error.response && error.response.status === 401) {
-      console.log("Authentication error - token may be invalid or expired");
+    // Centralized error handling
+    if (error.response) {
+      const { status, data } = error.response;
       
-      // Optional: Redirect to login screen
-      // navigation.navigate('Login'); 
+      // Auth errors
+      if (status === 401 || status === 403) {
+        console.log("Authentication error:", data?.message || "Invalid or expired token");
+        
+        // Show alert to user only once
+        const lastAlertTime = await AsyncStorage.getItem('lastAuthErrorAlert');
+        const now = Date.now();
+        if (!lastAlertTime || (now - parseInt(lastAlertTime)) > 5000) {
+          Alert.alert(
+            "Session Expired",
+            "Your login session has expired. Please log in again.",
+            [{ text: "OK" }]
+          );
+          await AsyncStorage.setItem('lastAuthErrorAlert', now.toString());
+        }
+      }
       
-      // Show alert to user
-      Alert.alert(
-        "Session Expired",
-        "Your login session has expired. Please log in again.",
-        [{ text: "OK" }]
-      );
+      // Log all API errors
+      console.error(`API Error (${status}):`, data?.message || "Unknown error");
+    } else if (error.request) {
+      console.error("No response received:", error.request);
+    } else {
+      console.error("Request setup error:", error.message);
     }
+    
     return Promise.reject(error);
   }
 );

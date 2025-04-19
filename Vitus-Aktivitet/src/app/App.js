@@ -2,6 +2,8 @@ import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { NavigationContainer } from "@react-navigation/native";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
+import { useEffect } from "react";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 // Dashboard and Navigation
 import Dashboard from "../components/dashboard/dashboard";
@@ -319,6 +321,28 @@ const AppContent = () => {
 
 const App = () => {
   console.log("App rendering"); // Debug log
+
+  useEffect(() => {
+    const checkLoginStatus = async () => {
+      try {
+        const authToken = await AsyncStorage.getItem('authToken');
+        const userId = await AsyncStorage.getItem('userId');
+        
+        if (authToken && userId) {
+          console.log("Found existing login session");
+          // Set your login state or context here
+        } else {
+          console.log("No valid login session found");
+          // Navigate to login if needed
+        }
+      } catch (error) {
+        console.error("Error checking login status:", error);
+      }
+    };
+    
+    checkLoginStatus();
+  }, []);
+
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <UserProvider>
