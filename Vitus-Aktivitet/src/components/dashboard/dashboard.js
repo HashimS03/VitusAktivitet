@@ -33,6 +33,7 @@ import StepCalculator from "../dashboard/StepCalculator";
 import { UserContext } from "../context/UserContext";
 import axios from "axios";
 import { SERVER_CONFIG } from "../../config/serverConfig";
+import apiClient from "../../utils/apiClient";
 
 const SCREEN_WIDTH = Dimensions.get("window").width;
 const SCREEN_HEIGHT = Dimensions.get("window").height;
@@ -957,38 +958,39 @@ export default function Dashboard() {
     const goal = Number.parseInt(newGoal, 10);
     if (!isNaN(goal) && goal > 0) {
       try {
+        // First, update directly in the UI for responsiveness
+        setDailyGoal(goal);
+        await AsyncStorage.setItem("dailyGoal", JSON.stringify(goal));
+        
+        // Save to server database (note variable name 'dailyGoal' must match server expectation)
+        await apiClient.put('/user/daily-goal', { dailyGoal: goal });
+        
+        // Record last update date
         const today = new Date();
-        const tomorrow = new Date(today);
-        tomorrow.setDate(today.getDate() + 1);
-        const tomorrowString = tomorrow.toISOString().split("T")[0];
-        const lastGoalUpdateDate = await AsyncStorage.getItem("lastGoalUpdateDate");
-
-        if (lastGoalUpdateDate === today.toISOString().split("T")[0]) {
-          await AsyncStorage.setItem("pendingDailyGoal", JSON.stringify(goal));
-          await AsyncStorage.setItem("pendingGoalDate", tomorrowString);
-          Alert.alert(
-            "Mål lagret for i morgen",
-            `Du kan kun endre målet én gang per dag. Ditt nye mål (${goal} skritt) vil tre i kraft i morgen.`,
-            [{ text: "OK" }]
-          );
-        } else {
-          await AsyncStorage.setItem("pendingDailyGoal", JSON.stringify(goal));
-          await AsyncStorage.setItem("pendingGoalDate", tomorrowString);
-          await AsyncStorage.setItem("lastGoalUpdateDate", today.toISOString().split("T")[0]);
-          Alert.alert(
-            "Mål lagret for i morgen",
-            `Ditt nye mål (${goal} skritt) vil tre i kraft i morgen.`,
-            [{ text: "OK" }]
-          );
-        }
-
+        await AsyncStorage.setItem("lastGoalUpdateDate", today.toISOString().split("T")[0]);
+        
         setShowGoalModal(false);
         setNewGoal("");
+        
+        Alert.alert(
+          "Goal Updated",
+          `Your daily goal has been set to ${goal} steps.`,
+          [{ text: "OK" }]
+        );
       } catch (error) {
-        console.error("❌ Feil ved oppdatering av daglig mål:", error);
+        console.error("❌ Error updating daily goal:", error);
+        
+        if (error.response && error.response.status === 401) {
+          Alert.alert("Authentication Error", "Please log in to update your daily goal.");
+        } else {
+          Alert.alert(
+            "Error",
+            "Failed to update your daily goal. Please try again later."
+          );
+        }
       }
     } else {
-      Alert.alert("Ugyldig mål", "Vennligst skriv inn et gyldig tall større enn 0.");
+      Alert.alert("Invalid Goal", "Please enter a valid number greater than 0.");
     }
   };
 

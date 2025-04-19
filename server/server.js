@@ -299,6 +299,57 @@ app.get("/user", authenticateJWT, async (req, res) => {
   }
 });
 
+// 🔹 Route to Get User's Daily Goal
+app.get("/user/daily-goal", authenticateJWT, async (req, res) => {
+  serverLog("log", "Daily goal fetch request received for userId:", req.session.userId);
+  try {
+    const pool = await poolPromise;
+    const result = await pool
+      .request()
+      .input("id", sql.Int, req.session.userId)
+      .query("SELECT [daily_goal] FROM [USER] WHERE [Id] = @id");
+
+    if (result.recordset.length === 0) {
+      return res.status(404).json({ success: false, message: "User not found" });
+    }
+
+    const dailyGoal = result.recordset[0].daily_goal || 7500; // Default to 7500 if not set
+    serverLog("log", "Daily goal fetched:", dailyGoal);
+    
+    res.json({ 
+      success: true, 
+      daily_goal: dailyGoal 
+    });
+  } catch (err) {
+    serverLog("error", "Daily goal fetch error:", err);
+    res.status(500).json({ success: false, message: `Failed to fetch daily goal: ${err.message}` });
+  }
+});
+
+// 🔹 Route to Update User's Daily Goal
+app.put("/user/daily-goal", authenticateJWT, async (req, res) => {
+  serverLog("log", "Daily goal update request received:", req.body);
+  try {
+    const { dailyGoal } = req.body;
+    
+    if (!dailyGoal || isNaN(parseInt(dailyGoal)) || parseInt(dailyGoal) <= 0) {
+      return res.status(400).json({ success: false, message: "Valid daily goal is required" });
+    }
+    
+    const pool = await poolPromise;
+    await pool
+      .request()
+      .input("id", sql.Int, req.session.userId)
+      .input("dailyGoal", sql.Int, parseInt(dailyGoal))
+      .query("UPDATE [USER] SET [daily_goal] = @dailyGoal WHERE [Id] = @id");
+      
+    res.json({ success: true, message: "Daily goal updated successfully" });
+  } catch (err) {
+    serverLog("error", "Daily goal update error:", err);
+    res.status(500).json({ success: false, message: `Failed to update daily goal: ${err.message}` });
+  }
+});
+
 // 🔹 Route to Create or Update Step Activity
 app.post("/step-activity", authenticateJWT, async (req, res) => {
   serverLog("log", "Step activity request received:", req.body);
