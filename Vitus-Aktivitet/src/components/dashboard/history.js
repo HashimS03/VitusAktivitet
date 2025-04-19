@@ -234,9 +234,6 @@ const fetchStepHistory = async (period) => {
     });
 
     const stepData = response.data.data || [];
-    // Get the latest totalsteps from the most recent entry
-    const latestEntry = stepData[0];
-    const totalSteps = latestEntry ? latestEntry.totalsteps : 0;
 
     switch (period) {
       case "day": {
@@ -250,8 +247,7 @@ const fetchStepHistory = async (period) => {
           hourlySteps[currentHour] = total;
         }
         return {
-          total: totalSteps, // Cumulative total from totalsteps
-          dailyTotal: total, // Period-specific total
+          total,
           labels: Array.from({ length: 24 }, (_, i) => `${i}`.padStart(2, "0")),
           values: hourlySteps,
           maxValue: Math.max(total, 2000),
@@ -277,8 +273,7 @@ const fetchStepHistory = async (period) => {
 
         const total = values.reduce((sum, val) => sum + val, 0);
         return {
-          total: totalSteps, // Cumulative total from totalsteps
-          dailyTotal: total, // Period-specific total
+          total,
           labels: ["Man", "Tir", "Ons", "Tor", "Fre", "Lør", "Søn"],
           values,
           maxValue: Math.round(Math.max(...values, 3000)),
@@ -302,37 +297,27 @@ const fetchStepHistory = async (period) => {
         });
         const total = values.reduce((sum, val) => sum + val, 0);
         return {
-          total: totalSteps, // Cumulative total from totalsteps
-          dailyTotal: total, // Period-specific total
+          total,
           labels: Array.from({ length: daysInMonth }, (_, i) => `${i + 1}`),
           values,
           maxValue: Math.max(...values, 4000),
-          average: Math.round(total / daysInMonth),
+          average: total / daysInMonth,
         };
       }
       case "year": {
         const startOfYear = new Date(today.getFullYear(), 0, 1);
-        const monthlySteps = Array(12).fill(0);
-        const daysInMonth = Array(12).fill(0);
-
+        const monthlyTotals = Array(12).fill(0);
         stepData.forEach((entry) => {
           const entryDate = new Date(entry.timestamp);
           if (entryDate >= startOfYear) {
             const monthIndex = entryDate.getMonth();
-            monthlySteps[monthIndex] += entry.step_count;
-            daysInMonth[monthIndex] += 1;
+            monthlyTotals[monthIndex] += entry.step_count;
           }
         });
-
-        const values = monthlySteps.map((steps, index) =>
-          daysInMonth[index] ? Math.round(steps / daysInMonth[index]) : 0
-        );
-        const total = monthlySteps.reduce((sum, val) => sum + val, 0);
+        const total = monthlyTotals.reduce((sum, val) => sum + val, 0);
         const dailyAverage = total / 365;
-
         return {
-          total: totalSteps, // Cumulative total from totalsteps
-          dailyTotal: total, // Period-specific total
+          total,
           labels: [
             "Jan",
             "Feb",
@@ -347,13 +332,20 @@ const fetchStepHistory = async (period) => {
             "Nov",
             "Des",
           ],
-          values,
-          maxValue: Math.round(Math.max(...values, 400)),
+          values: monthlyTotals.map((val) => Math.round(val / 30)),
+          maxValue: Math.round(
+            Math.max(...monthlyTotals.map((val) => val / 30), 400)
+          ),
           average: Math.round(dailyAverage),
         };
       }
       default:
-        throw new Error("Invalid period specified");
+        return {
+          total: 0,
+          labels: [],
+          values: [],
+          maxValue: 2000,
+        };
     }
   } catch (error) {
     console.error("Feil ved henting av step history fra serveren:", error);
@@ -365,11 +357,9 @@ const fetchStepHistory = async (period) => {
     }
     return {
       total: 0,
-      dailyTotal: 0,
       labels: ["Ingen data"],
       values: [0],
       maxValue: 2000,
-      average: 0,
     };
   }
 };
@@ -473,10 +463,10 @@ const HistoryScreen = () => {
         return (
           <View style={styles.statsContainer}>
             <Text style={[styles.totalLabel, { color: theme.text }]}>
-              I DAG
+              TOTAL
             </Text>
             <Text style={[styles.totalValue, { color: theme.text }]}>
-              {periodData.dailyTotal}
+              {periodData.total}
             </Text>
             <Text style={[styles.totalTime, { color: theme.text }]}>Today</Text>
           </View>
