@@ -221,7 +221,40 @@ const fetchStepHistory = async (period) => {
         throw new Error("Invalid period specified");
     }
 
+    // Fetch all step activity records to ensure we have the full history for totalsteps
     const response = await axios.get(`${SERVER_CONFIG.getBaseUrl()}/step-activity`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+      params: {
+        startDate: "2000-01-01", // Fetch all records to calculate total
+        endDate: todayString,
+      },
+      withCredentials: true,
+    });
+
+    const stepData = response.data.data || [];
+    console.log("Step Activity Data (Full History):", stepData);
+
+    // Get the latest totalsteps from the most recent entry
+    const latestEntry = stepData[0];
+    let totalSteps = latestEntry && typeof latestEntry.totalsteps === 'number' ? latestEntry.totalsteps : 0;
+    console.log("Latest Entry:", latestEntry);
+    console.log("Total Steps (totalsteps):", totalSteps);
+
+    // Fallback: If totalsteps is 0, calculate it as the sum of all step_count values
+    if (totalSteps === 0) {
+      totalSteps = stepData.reduce((sum, entry) => {
+        const stepCount = entry.step_count || 0;
+        console.log(`Adding step_count: ${stepCount} for entry:`, entry);
+        return sum + stepCount;
+      }, 0);
+      console.log("Fallback Total Steps (sum of step_count):", totalSteps);
+    }
+
+    // Now fetch only the records for the selected period for the chart and period-specific totals
+    const periodResponse = await axios.get(`${SERVER_CONFIG.getBaseUrl()}/step-activity`, {
       headers: {
         Authorization: `Bearer ${token}`,
         "Content-Type": "application/json",
@@ -233,21 +266,25 @@ const fetchStepHistory = async (period) => {
       withCredentials: true,
     });
 
-    const stepData = response.data.data || [];
+    const periodStepData = periodResponse.data.data || [];
+    console.log(`Step Activity Data (${period} Period):`, periodStepData);
 
     switch (period) {
       case "day": {
-        const todayData = stepData.find(
+        const todayData = periodStepData.find(
           (entry) => entry.timestamp.split("T")[0] === todayString
         );
         const total = todayData ? todayData.step_count : 0;
+        console.log("Today's Data:", todayData);
+        console.log("Daily Total (step_count):", total);
         const hourlySteps = Array(24).fill(0);
         if (todayData) {
           const currentHour = today.getHours();
           hourlySteps[currentHour] = total;
         }
         return {
-          total,
+          total: totalSteps,
+          dailyTotal: total,
           labels: Array.from({ length: 24 }, (_, i) => `${i}`.padStart(2, "0")),
           values: hourlySteps,
           maxValue: Math.max(total, 2000),
@@ -261,7 +298,7 @@ const fetchStepHistory = async (period) => {
         startOfWeek.setHours(0, 0, 0, 0);
 
         const values = Array(7).fill(0);
-        stepData.forEach((entry) => {
+        periodStepData.forEach((entry) => {
           const entryDate = new Date(entry.timestamp);
           entryDate.setHours(0, 0, 0, 0);
           const diffTime = entryDate - startOfWeek;
@@ -272,8 +309,11 @@ const fetchStepHistory = async (period) => {
         });
 
         const total = values.reduce((sum, val) => sum + val, 0);
+        console.log("Weekly Values:", values);
+        console.log("Weekly Total (step_count):", total);
         return {
-          total,
+          total: totalSteps,
+          dailyTotal: total,
           labels: ["Man", "Tir", "Ons", "Tor", "Fre", "Lør", "Søn"],
           values,
           maxValue: Math.round(Math.max(...values, 3000)),
@@ -288,7 +328,7 @@ const fetchStepHistory = async (period) => {
           0
         ).getDate();
         const values = Array(daysInMonth).fill(0);
-        stepData.forEach((entry) => {
+        periodStepData.forEach((entry) => {
           const entryDate = new Date(entry.timestamp);
           if (entryDate >= startOfMonth) {
             const dayIndex = entryDate.getDate() - 1;
@@ -296,28 +336,41 @@ const fetchStepHistory = async (period) => {
           }
         });
         const total = values.reduce((sum, val) => sum + val, 0);
+        console.log("Monthly Values:", values);
+        console.log("Monthly Total (step_count):", total);
         return {
-          total,
+          total: totalSteps,
+          dailyTotal: total,
           labels: Array.from({ length: daysInMonth }, (_, i) => `${i + 1}`),
           values,
           maxValue: Math.max(...values, 4000),
-          average: total / daysInMonth,
+          average: Math.round(total / daysInMonth),
         };
       }
       case "year": {
         const startOfYear = new Date(today.getFullYear(), 0, 1);
-        const monthlyTotals = Array(12).fill(0);
-        stepData.forEach((entry) => {
+        const monthlySteps = Array(12).fill(0);
+        const daysInMonth = Array(12).fill(0);
+
+        periodStepData.forEach((entry) => {
           const entryDate = new Date(entry.timestamp);
           if (entryDate >= startOfYear) {
             const monthIndex = entryDate.getMonth();
-            monthlyTotals[monthIndex] += entry.step_count;
+            monthlySteps[monthIndex] += entry.step_count;
+            daysInMonth[monthIndex] += 1;
           }
         });
-        const total = monthlyTotals.reduce((sum, val) => sum + val, 0);
+
+        const values = monthlySteps.map((steps, index) =>
+          daysInMonth[index] ? Math.round(steps / daysInMonth[index]) : 0
+        );
+        const total = monthlySteps.reduce((sum, val) => sum + val, 0);
         const dailyAverage = total / 365;
+        console.log("Yearly Values (avg per month):", values);
+        console.log("Yearly Total (step_count):", total);
         return {
-          total,
+          total: totalSteps,
+          dailyTotal: total,
           labels: [
             "Jan",
             "Feb",
@@ -332,20 +385,13 @@ const fetchStepHistory = async (period) => {
             "Nov",
             "Des",
           ],
-          values: monthlyTotals.map((val) => Math.round(val / 30)),
-          maxValue: Math.round(
-            Math.max(...monthlyTotals.map((val) => val / 30), 400)
-          ),
+          values,
+          maxValue: Math.round(Math.max(...values, 400)),
           average: Math.round(dailyAverage),
         };
       }
       default:
-        return {
-          total: 0,
-          labels: [],
-          values: [],
-          maxValue: 2000,
-        };
+        throw new Error("Invalid period specified");
     }
   } catch (error) {
     console.error("Feil ved henting av step history fra serveren:", error);
@@ -357,9 +403,11 @@ const fetchStepHistory = async (period) => {
     }
     return {
       total: 0,
+      dailyTotal: 0,
       labels: ["Ingen data"],
       values: [0],
       maxValue: 2000,
+      average: 0,
     };
   }
 };
@@ -463,10 +511,10 @@ const HistoryScreen = () => {
         return (
           <View style={styles.statsContainer}>
             <Text style={[styles.totalLabel, { color: theme.text }]}>
-              TOTAL
+              I DAG
             </Text>
             <Text style={[styles.totalValue, { color: theme.text }]}>
-              {periodData.total}
+              {periodData.dailyTotal}
             </Text>
             <Text style={[styles.totalTime, { color: theme.text }]}>Today</Text>
           </View>

@@ -257,13 +257,13 @@ const updateStreaks = async (stepCount, dailyGoal, isNewDayReset = false) => {
   ) {
     const lastDate = new Date(lastCompletionDate);
     const diffDays = Math.floor((today - lastDate) / (1000 * 60 * 60 * 24));
-    if (diffDays > 1) currentStreak = 0; // Reset hvis mer enn én dag er hoppet over
+    if (diffDays > 1) currentStreak = 0;
   } else if (hasReachedGoal && lastCompletionDate !== todayString) {
     const diffDays = lastCompletionDate
       ? Math.floor((today - new Date(lastCompletionDate)) / (1000 * 60 * 60 * 24))
       : null;
-    if (!lastCompletionDate || diffDays === 1) currentStreak += 1; // Øk streak
-    else if (diffDays > 1) currentStreak = 1; // Start ny streak
+    if (!lastCompletionDate || diffDays === 1) currentStreak += 1;
+    else if (diffDays > 1) currentStreak = 1;
     lastCompletionDate = todayString;
   }
 
@@ -326,12 +326,9 @@ export default function Dashboard() {
         });
         const latestActivity = response.data.data[0];
         const stepCount = latestActivity ? latestActivity.step_count : 0;
+        const totalSteps = latestActivity ? latestActivity.totalsteps : 0; // Use totalsteps from server
         const currentStreak = parseInt(
           (await AsyncStorage.getItem("currentStreak")) || "0",
-          10
-        );
-        const totalSteps = parseInt(
-          (await AsyncStorage.getItem("totalSteps")) || "0",
           10
         );
         const participatedEvents = JSON.parse(
@@ -428,7 +425,7 @@ export default function Dashboard() {
             }
             break;
           case "Step Titan":
-            currentProgress = totalSteps;
+            currentProgress = totalSteps; // Use server totalsteps
             if (totalSteps >= 250000) {
               level = 3;
               nextGoal = 250000;
@@ -486,7 +483,9 @@ export default function Dashboard() {
         });
         const latestActivity = response.data.data[0];
         const previousSteps = latestActivity ? latestActivity.step_count : 0;
+        const totalSteps = latestActivity ? latestActivity.totalsteps : 0;
 
+        // Store the previous day's steps in history
         if (lastResetDate && previousSteps > 0) {
           await AsyncStorage.setItem(
             `stepHistory_${lastResetDate}`,
@@ -494,14 +493,16 @@ export default function Dashboard() {
           );
         }
 
+        // Reset daily step count on the server, but preserve totalsteps
         await axios.post(
           `${SERVER_CONFIG.getBaseUrl()}/step-activity`,
-          { stepCount: 0, distance: null, timestamp: new Date() },
+          { stepCount: 0, totalsteps: totalSteps, distance: null, timestamp: new Date() },
           { withCredentials: true }
         ).catch((error) => {
           if (error.response && error.response.status === 503) {
             queueRequest("POST", `${SERVER_CONFIG.getBaseUrl()}/step-activity`, {
               stepCount: 0,
+              totalsteps: totalSteps,
               distance: null,
               timestamp: new Date(),
             });
@@ -509,6 +510,8 @@ export default function Dashboard() {
             Alert.alert("Authentication Error", "Please log in to reset steps.");
           }
         });
+
+        // Reset daily step count locally
         setStepCount(0);
         await AsyncStorage.setItem("stepCount", "0");
         await AsyncStorage.setItem("lastStepResetDate", todayString);
@@ -614,7 +617,7 @@ export default function Dashboard() {
     useCallback(() => {
       const updateSteps = async () => {
         if (!userId) return;
-        const maxRetries = 5; // Increased to 5 attempts
+        const maxRetries = 5;
         let attempt = 0;
 
         while (attempt < maxRetries) {
@@ -624,14 +627,16 @@ export default function Dashboard() {
             });
             const latestActivity = response.data.data[0];
             let previousSteps = latestActivity ? latestActivity.step_count : 0;
+            let totalSteps = latestActivity ? latestActivity.totalsteps : 0;
 
             if (route.params?.addedSteps && typeof route.params.addedSteps === "number") {
               const newSteps = route.params.addedSteps;
               const newStepCount = previousSteps + newSteps;
+              totalSteps += newSteps; // Increment totalsteps
 
               await axios.post(
                 `${SERVER_CONFIG.getBaseUrl()}/step-activity`,
-                { stepCount: newStepCount, distance: null, timestamp: new Date() },
+                { stepCount: newStepCount, totalsteps: totalSteps, distance: null, timestamp: new Date() },
                 { withCredentials: true }
               );
               setStepCount(newStepCount);
@@ -643,7 +648,7 @@ export default function Dashboard() {
             attempt++;
             console.error(`Attempt ${attempt} failed:`, error);
             if (error.response && error.response.status === 503 && attempt < maxRetries) {
-              await new Promise((resolve) => setTimeout(resolve, 3000 * attempt)); // Backoff: 3s, 6s, 9s, 12s, 15s
+              await new Promise((resolve) => setTimeout(resolve, 3000 * attempt));
               continue;
             } else {
               if (error.response && error.response.status === 500) {
@@ -653,6 +658,7 @@ export default function Dashboard() {
               } else if (error.response && error.response.status === 503) {
                 queueRequest("POST", `${SERVER_CONFIG.getBaseUrl()}/step-activity`, {
                   stepCount: previousSteps + (route.params?.addedSteps || 0),
+                  totalsteps: totalSteps + (route.params?.addedSteps || 0),
                   distance: null,
                   timestamp: new Date(),
                 });
@@ -929,12 +935,13 @@ export default function Dashboard() {
       if (userId) {
         await axios.post(
           `${SERVER_CONFIG.getBaseUrl()}/step-activity`,
-          { stepCount: 0, distance: null, timestamp: new Date() },
+          { stepCount: 0, totalsteps: 0, distance: null, timestamp: new Date() },
           { withCredentials: true }
         ).catch((error) => {
           if (error.response && error.response.status === 503) {
             queueRequest("POST", `${SERVER_CONFIG.getBaseUrl()}/step-activity`, {
               stepCount: 0,
+              totalsteps: 0,
               distance: null,
               timestamp: new Date(),
             });
@@ -999,19 +1006,17 @@ export default function Dashboard() {
       });
       const latestActivity = response.data.data[0];
       let previousSteps = latestActivity ? latestActivity.step_count : 0;
+      let totalSteps = latestActivity ? latestActivity.totalsteps : 0;
       const newStepCount = previousSteps + steps;
+      totalSteps += steps; // Increment totalsteps
 
       await axios.post(
         `${SERVER_CONFIG.getBaseUrl()}/step-activity`,
-        { stepCount: newStepCount, distance: null, timestamp: new Date() },
+        { stepCount: newStepCount, totalsteps: totalSteps, distance: null, timestamp: new Date() },
         { withCredentials: true }
       );
       setStepCount(newStepCount);
       await AsyncStorage.setItem("stepCount", JSON.stringify(newStepCount));
-
-      const totalSteps = parseInt((await AsyncStorage.getItem("totalSteps")) || "0", 10);
-      const newTotalSteps = totalSteps + steps;
-      await AsyncStorage.setItem("totalSteps", newTotalSteps.toString());
 
       const today = new Date().toISOString().split("T")[0];
       const stepHistoryKey = `stepHistory_${today}`;
@@ -1043,14 +1048,14 @@ export default function Dashboard() {
             }
             break;
           case "Step Titan":
-            currentProgress = newTotalSteps;
-            if (newTotalSteps >= 250000) {
+            currentProgress = totalSteps;
+            if (totalSteps >= 250000) {
               level = 3;
               nextGoal = 250000;
-            } else if (newTotalSteps >= 100000) {
+            } else if (totalSteps >= 100000) {
               level = 2;
               nextGoal = 250000;
-            } else if (newTotalSteps >= 50000) {
+            } else if (totalSteps >= 50000) {
               level = 1;
               nextGoal = 100000;
             } else {
@@ -1087,6 +1092,7 @@ export default function Dashboard() {
       } else if (error.response && error.response.status === 503) {
         queueRequest("POST", `${SERVER_CONFIG.getBaseUrl()}/step-activity`, {
           stepCount: previousSteps + steps,
+          totalsteps: totalSteps + steps,
           distance: null,
           timestamp: new Date(),
         });
