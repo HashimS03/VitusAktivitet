@@ -8,20 +8,19 @@ const apiClient = axios.create({
   withCredentials: true, // Enable cookies for session support
 });
 
-// Add detailed logging to help debug token issues
+// Replace your current interceptor with this:
+
 apiClient.interceptors.request.use(
   async (config) => {
     try {
-      const token = await AsyncStorage.getItem('userToken');
-      
-      // Log request details for debugging
-      console.log(`Request: ${config.method.toUpperCase()} ${config.url}`);
-      console.log("Token status:", token ? "Present" : "Missing");
+      // Match the token name used in login.js (authToken)
+      const token = await AsyncStorage.getItem('authToken');
       
       if (token) {
         config.headers.Authorization = `Bearer ${token}`;
+        console.log("Request with token:", config.method, config.url);
       } else {
-        console.warn("No authentication token found in AsyncStorage");
+        console.warn("No authorization token found in AsyncStorage");
       }
       
       return config;
@@ -31,7 +30,6 @@ apiClient.interceptors.request.use(
     }
   },
   (error) => {
-    console.error("Request interceptor error:", error);
     return Promise.reject(error);
   }
 );
@@ -56,6 +54,30 @@ apiClient.interceptors.response.use(
       await AsyncStorage.setItem('authError', 'true');
     }
     
+    return Promise.reject(error);
+  }
+);
+
+// Add a response interceptor to handle auth errors:
+
+apiClient.interceptors.response.use(
+  (response) => {
+    return response;
+  },
+  async (error) => {
+    if (error.response && error.response.status === 401) {
+      console.log("Authentication error - token may be invalid or expired");
+      
+      // Optional: Redirect to login screen
+      // navigation.navigate('Login'); 
+      
+      // Show alert to user
+      Alert.alert(
+        "Session Expired",
+        "Your login session has expired. Please log in again.",
+        [{ text: "OK" }]
+      );
+    }
     return Promise.reject(error);
   }
 );

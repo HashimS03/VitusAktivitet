@@ -17,11 +17,14 @@ import { Svg, Rect, Line, Text as SvgText } from "react-native-svg";
 import { useTheme } from "../context/ThemeContext";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { PanResponder } from "react-native";
+import axios from "axios";
+import { SERVER_CONFIG } from "../../config/serverConfig";
 
 // Constants
 const screenWidth = Dimensions.get("window").width;
 const chartWidth = screenWidth - 40;
 const chartHeight = 300;
+const JWT_SECRET = process.env.JWT_SECRET || "vitus-aktivitet-secret-key-2023";
 
 const PeriodSelector = ({ selectedPeriod, onSelect, theme }) => {
   const periods = [
@@ -177,24 +180,67 @@ const Tooltip = ({ value, label, position, period, theme }) => (
 
 const fetchStepHistory = async (period) => {
   try {
-    const allKeys = await AsyncStorage.getAllKeys();
-    const stepKeys = allKeys.filter((key) => key.startsWith("stepHistory_"));
-    const stepData = await AsyncStorage.multiGet(stepKeys);
-
-    const stepsByDate = stepData.map(([key, value]) => ({
-      date: key.replace("stepHistory_", ""),
-      steps: JSON.parse(value) || 0,
-    }));
+    const token = await AsyncStorage.getItem("authToken");
+    if (!token) {
+      throw new Error("No authentication token found");
+    }
 
     const today = new Date();
     const todayString = today.toISOString().split("T")[0];
+    let startDate, endDate;
 
     switch (period) {
       case "day": {
-        const todayData = stepsByDate.find(
-          (entry) => entry.date === todayString
+        startDate = todayString;
+        endDate = todayString;
+        break;
+      }
+      case "week": {
+        const startOfWeek = new Date(today);
+        const dayOfWeek = today.getDay();
+        const daysToSubtract = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
+        startOfWeek.setDate(today.getDate() - daysToSubtract);
+        startOfWeek.setHours(0, 0, 0, 0);
+        startDate = startOfWeek.toISOString().split("T")[0];
+        endDate = todayString;
+        break;
+      }
+      case "month": {
+        const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+        startDate = startOfMonth.toISOString().split("T")[0];
+        endDate = todayString;
+        break;
+      }
+      case "year": {
+        const startOfYear = new Date(today.getFullYear(), 0, 1);
+        startDate = startOfYear.toISOString().split("T")[0];
+        endDate = todayString;
+        break;
+      }
+      default:
+        throw new Error("Invalid period specified");
+    }
+
+    const response = await axios.get(`${SERVER_CONFIG.getBaseUrl()}/step-activity`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+      params: {
+        startDate,
+        endDate,
+      },
+      withCredentials: true,
+    });
+
+    const stepData = response.data.data || [];
+
+    switch (period) {
+      case "day": {
+        const todayData = stepData.find(
+          (entry) => entry.timestamp.split("T")[0] === todayString
         );
-        const total = todayData ? todayData.steps : 0;
+        const total = todayData ? todayData.step_count : 0;
         const hourlySteps = Array(24).fill(0);
         if (todayData) {
           const currentHour = today.getHours();
@@ -208,8 +254,6 @@ const fetchStepHistory = async (period) => {
         };
       }
       case "week": {
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
         const startOfWeek = new Date(today);
         const dayOfWeek = today.getDay();
         const daysToSubtract = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
@@ -217,13 +261,13 @@ const fetchStepHistory = async (period) => {
         startOfWeek.setHours(0, 0, 0, 0);
 
         const values = Array(7).fill(0);
-        stepsByDate.forEach((entry) => {
-          const entryDate = new Date(entry.date);
+        stepData.forEach((entry) => {
+          const entryDate = new Date(entry.timestamp);
           entryDate.setHours(0, 0, 0, 0);
           const diffTime = entryDate - startOfWeek;
           const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
           if (diffDays >= 0 && diffDays < 7) {
-            values[diffDays] = entry.steps;
+            values[diffDays] = entry.step_count;
           }
         });
 
@@ -238,18 +282,18 @@ const fetchStepHistory = async (period) => {
       }
       case "month": {
         const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
-        const monthData = stepsByDate.filter(
-          (entry) => new Date(entry.date) >= startOfMonth
-        );
         const daysInMonth = new Date(
           today.getFullYear(),
           today.getMonth() + 1,
           0
         ).getDate();
         const values = Array(daysInMonth).fill(0);
-        monthData.forEach((entry) => {
-          const dayIndex = new Date(entry.date).getDate() - 1;
-          values[dayIndex] = (values[dayIndex] || 0) + entry.steps;
+        stepData.forEach((entry) => {
+          const entryDate = new Date(entry.timestamp);
+          if (entryDate >= startOfMonth) {
+            const dayIndex = entryDate.getDate() - 1;
+            values[dayIndex] = (values[dayIndex] || 0) + entry.step_count;
+          }
         });
         const total = values.reduce((sum, val) => sum + val, 0);
         return {
@@ -262,13 +306,13 @@ const fetchStepHistory = async (period) => {
       }
       case "year": {
         const startOfYear = new Date(today.getFullYear(), 0, 1);
-        const yearData = stepsByDate.filter(
-          (entry) => new Date(entry.date) >= startOfYear
-        );
         const monthlyTotals = Array(12).fill(0);
-        yearData.forEach((entry) => {
-          const monthIndex = new Date(entry.date).getMonth();
-          monthlyTotals[monthIndex] += entry.steps;
+        stepData.forEach((entry) => {
+          const entryDate = new Date(entry.timestamp);
+          if (entryDate >= startOfYear) {
+            const monthIndex = entryDate.getMonth();
+            monthlyTotals[monthIndex] += entry.step_count;
+          }
         });
         const total = monthlyTotals.reduce((sum, val) => sum + val, 0);
         const dailyAverage = total / 365;
@@ -304,7 +348,13 @@ const fetchStepHistory = async (period) => {
         };
     }
   } catch (error) {
-    console.error("Feil ved henting av step history:", error);
+    console.error("Feil ved henting av step history fra serveren:", error);
+    if (error.message === "No authentication token found") {
+      console.error("Authentication token is missing. User may need to log in.");
+    } else if (error.response) {
+      console.error("Server response:", error.response.data);
+      console.error("Status code:", error.response.status);
+    }
     return {
       total: 0,
       labels: ["Ingen data"],
@@ -314,7 +364,6 @@ const fetchStepHistory = async (period) => {
   }
 };
 
-// Forenklet calculateStreaks til kun å hente lagrede verdier
 const fetchStreaks = async () => {
   try {
     const storedCurrentStreak = await AsyncStorage.getItem("currentStreak");

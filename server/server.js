@@ -76,6 +76,7 @@ const authenticateJWT = (req, res, next) => {
       serverLog("log", "JWT verified successfully for user:", user);
       
       // Set the user ID from the token
+      req.userId = user.id;
       req.session.userId = user.id;
       serverLog("log", "Session userId set to:", req.session.userId);
       next();
@@ -178,7 +179,7 @@ app.post("/login", async (req, res) => {
 
       // Create JWT token with consistent lowercase 'id'
       const token = jwt.sign(
-        { id: user.Id, email: email },  // Use lowercase 'id' consistently
+        { id: user.Id, email: email },  // Use lowercase 'id' to match what authenticateJWT expects
         JWT_SECRET,
         { expiresIn: '7d' }
       );
@@ -353,10 +354,20 @@ app.put("/user/daily-goal", authenticateJWT, async (req, res) => {
 // 🔹 Route to Create or Update Step Activity
 app.post("/step-activity", authenticateJWT, async (req, res) => {
   serverLog("log", "Step activity request received:", req.body);
-  serverLog("log", "Session userId:", req.session.userId);
+  
   try {
     const { stepCount, distance, timestamp } = req.body;
+    // Use consistent userId from JWT token (set by authenticateJWT middleware)
     const userId = req.session.userId;
+    
+    serverLog("log", "Step activity - using userId:", userId);
+
+    if (!userId) {
+      return res.status(401).json({
+        success: false,
+        message: "User not authenticated. Please log in again."
+      });
+    }
 
     if (!stepCount && stepCount !== 0) {
       return res.status(400).json({ success: false, message: "stepCount is required" });

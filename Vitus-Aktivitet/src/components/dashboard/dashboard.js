@@ -322,9 +322,7 @@ export default function Dashboard() {
 
       if (!userId) return;
       try {
-        const response = await axios.get(`${SERVER_CONFIG.getBaseUrl()}/step-activity`, {
-          withCredentials: true,
-        });
+        const response = await apiClient.get('/step-activity');
         const latestActivity = response.data.data[0];
         const stepCount = latestActivity ? latestActivity.step_count : 0;
         const currentStreak = parseInt(
@@ -482,9 +480,7 @@ export default function Dashboard() {
       const lastResetDate = await AsyncStorage.getItem("lastStepResetDate");
 
       if (lastResetDate !== todayString && userId) {
-        const response = await axios.get(`${SERVER_CONFIG.getBaseUrl()}/step-activity`, {
-          withCredentials: true,
-        });
+        const response = await apiClient.get('/step-activity');
         const latestActivity = response.data.data[0];
         const previousSteps = latestActivity ? latestActivity.step_count : 0;
 
@@ -495,11 +491,11 @@ export default function Dashboard() {
           );
         }
 
-        await axios.post(
-          `${SERVER_CONFIG.getBaseUrl()}/step-activity`,
-          { stepCount: 0, distance: null, timestamp: new Date() },
-          { withCredentials: true }
-        ).catch((error) => {
+        await apiClient.post('/step-activity', {
+          stepCount: 0, 
+          distance: null, 
+          timestamp: new Date()
+        }).catch((error) => {
           if (error.response && error.response.status === 503) {
             queueRequest("POST", `${SERVER_CONFIG.getBaseUrl()}/step-activity`, {
               stepCount: 0,
@@ -570,9 +566,7 @@ export default function Dashboard() {
         const initialGoal = storedGoal ? JSON.parse(storedGoal) : DAILY_STEP_GOAL;
         setDailyGoal(initialGoal);
 
-        const response = await axios.get(`${SERVER_CONFIG.getBaseUrl()}/step-activity`, {
-          withCredentials: true,
-        });
+        const response = await apiClient.get('/step-activity');
         const latestActivity = response.data.data[0];
         const initialSteps = latestActivity ? latestActivity.step_count : 0;
         setStepCount(initialSteps);
@@ -620,9 +614,7 @@ export default function Dashboard() {
 
         while (attempt < maxRetries) {
           try {
-            const response = await axios.get(`${SERVER_CONFIG.getBaseUrl()}/step-activity`, {
-              withCredentials: true,
-            });
+            const response = await apiClient.get('/step-activity');
             const latestActivity = response.data.data[0];
             let previousSteps = latestActivity ? latestActivity.step_count : 0;
 
@@ -630,11 +622,11 @@ export default function Dashboard() {
               const newSteps = route.params.addedSteps;
               const newStepCount = previousSteps + newSteps;
 
-              await axios.post(
-                `${SERVER_CONFIG.getBaseUrl()}/step-activity`,
-                { stepCount: newStepCount, distance: null, timestamp: new Date() },
-                { withCredentials: true }
-              );
+              await apiClient.post('/step-activity', {
+                stepCount: newStepCount, 
+                distance: null, 
+                timestamp: new Date()
+              });
               setStepCount(newStepCount);
               await AsyncStorage.setItem("stepCount", JSON.stringify(newStepCount));
               navigation.setParams({ addedSteps: null });
@@ -928,11 +920,11 @@ export default function Dashboard() {
         await AsyncStorage.multiRemove(keysToRemove);
       }
       if (userId) {
-        await axios.post(
-          `${SERVER_CONFIG.getBaseUrl()}/step-activity`,
-          { stepCount: 0, distance: null, timestamp: new Date() },
-          { withCredentials: true }
-        ).catch((error) => {
+        await apiClient.post('/step-activity', {
+          stepCount: 0, 
+          distance: null, 
+          timestamp: new Date()
+        }).catch((error) => {
           if (error.response && error.response.status === 503) {
             queueRequest("POST", `${SERVER_CONFIG.getBaseUrl()}/step-activity`, {
               stepCount: 0,
@@ -996,18 +988,16 @@ export default function Dashboard() {
 
   const handleCalculatorConfirm = async (steps) => {
     try {
-      const response = await axios.get(`${SERVER_CONFIG.getBaseUrl()}/step-activity`, {
-        withCredentials: true,
-      });
+      const response = await apiClient.get('/step-activity');
       const latestActivity = response.data.data[0];
       let previousSteps = latestActivity ? latestActivity.step_count : 0;
       const newStepCount = previousSteps + steps;
 
-      await axios.post(
-        `${SERVER_CONFIG.getBaseUrl()}/step-activity`,
-        { stepCount: newStepCount, distance: null, timestamp: new Date() },
-        { withCredentials: true }
-      );
+      await apiClient.post('/step-activity', {
+        stepCount: newStepCount, 
+        distance: null, 
+        timestamp: new Date()
+      });
       setStepCount(newStepCount);
       await AsyncStorage.setItem("stepCount", JSON.stringify(newStepCount));
 
@@ -1195,6 +1185,51 @@ export default function Dashboard() {
     };
     const subscription = AppState.addEventListener("change", handleAppStateChange);
     return () => subscription.remove();
+  }, []);
+
+  // Add this function and call it in a useEffect
+
+const checkAuthStatus = async () => {
+  const token = await AsyncStorage.getItem('authToken');
+  console.log("Auth token exists:", !!token);
+  
+  if (token) {
+    try {
+      // Test the token with a simple authenticated request
+      const response = await apiClient.get('/user');
+      console.log("Auth test successful:", response.data);
+    } catch (error) {
+      console.error("Auth test failed:", error.response?.status, error.response?.data);
+    }
+  }
+};
+
+useEffect(() => {
+  checkAuthStatus();
+}, []);
+
+  // Add this function to your dashboard component
+  const checkAuthToken = async () => {
+    try {
+      // Check both possible token keys
+      const authToken = await AsyncStorage.getItem('authToken');
+      const userToken = await AsyncStorage.getItem('userToken');
+      
+      console.log("Auth token exists:", !!authToken);
+      console.log("User token exists:", !!userToken); 
+      
+      // If one exists but not the other, something is wrong
+      if ((authToken && !userToken) || (!authToken && userToken)) {
+        console.warn("Token key inconsistency detected!");
+      }
+    } catch (err) {
+      console.error("Error checking auth token:", err);
+    }
+  };
+
+  // Call this when the component mounts
+  useEffect(() => {
+    checkAuthToken();
   }, []);
 
   return (

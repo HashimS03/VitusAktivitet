@@ -56,7 +56,7 @@ export default function login({ navigation }) {
       if (response.data.success) {
         // Store the JWT token properly
         if (response.data.token) {
-          await AsyncStorage.setItem('userToken', response.data.token);
+          await AsyncStorage.setItem('authToken', response.data.token);
           console.log("Token stored successfully");
         } else {
           console.error("No token received from server");
