@@ -6,7 +6,7 @@ name: Build and deploy Node.js app to Azure Web App - apphractivity01
 on:
   push:
     branches:
-      [ "main", "Daniel's-new-branch", "Hashim's-Workspace-4"]
+      [ "main", "Daniel's-new-branch", "Hashim's-Workspace-5"]
     paths:
       - 'server/**'
   workflow_dispatch:
