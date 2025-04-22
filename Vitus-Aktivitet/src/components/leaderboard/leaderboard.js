@@ -144,7 +144,7 @@ const Leaderboard = ({ route }) => {
       setHasJoinedLeaderboard(true);
       setShowJoinAlert(false);
     } catch (error) {
-      console.error("Error saving leaderboard status:", error);
+      console.error("Error saving leaderboard status :", error);
     }
   };
 
