@@ -116,17 +116,17 @@ const authenticateJWT = (req, res, next) => {
 };
 
 // 🔹 Route to Load Registration Page (GET)
-app.get("/registrering", (req, res) => {
-  serverLog("log", "GET request to /registrering received");
+app.get("/register", (req, res) => {
+  serverLog("log", "GET request to /register received");
   res.json({
     success: true,
-    message: "Registration page loaded. Use POST /registrering to submit data.",
+    message: "Registration page loaded. Use POST /register to submit data.",
   });
 });
 
 // 🔹 Route to Register a User (POST)
-app.post("/registrering", async (req, res) => {
-  serverLog("log", "Registrering request received:", req.body);
+app.post("/register", async (req, res) => {
+  serverLog("log", "register request received:", req.body);
   try {
     const { name, email, password, avatar } = req.body;
 
