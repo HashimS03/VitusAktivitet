@@ -16,8 +16,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 
 const TEAL_COLOR = "#00B6AA";
 
-// Eksporter avatars-listen slik at den kan brukes i andre filer
-export const avatars = [
+const avatars = [
   { id: 1, source: require("../../../assets/avatars/Avatar_Asian.png") },
   { id: 2, source: require("../../../assets/avatars/Avatar_Athlete.png") },
   { id: 3, source: require("../../../assets/avatars/Avatar_Dizzy.png") },
@@ -32,7 +31,7 @@ export const avatars = [
 
 export default function AvatarSelection({ navigation }) {
   const [selectedMode, setSelectedMode] = useState("avatar");
-  const [selectedAvatarId, setSelectedAvatarId] = useState(null); // Endret til selectedAvatarId
+  const [selectedAvatar, setSelectedAvatar] = useState(null);
   const [photo, setPhoto] = useState(null);
   const [progress] = useState(new Animated.Value(0));
   const [isModalVisible, setIsModalVisible] = useState(false);
@@ -45,7 +44,6 @@ export default function AvatarSelection({ navigation }) {
     }).start();
   }, [progress]);
 
-  // Last inn gjeldende valg når komponenten mounts
   useEffect(() => {
     const loadSelection = async () => {
       try {
@@ -54,12 +52,12 @@ export default function AvatarSelection({ navigation }) {
           const parsedSelection = JSON.parse(selection);
           if (parsedSelection.type === "avatar") {
             setSelectedMode("avatar");
-            setSelectedAvatarId(parsedSelection.value); // Sett kun ID-en
+            setSelectedAvatar(parsedSelection.value);
             setPhoto(null);
           } else if (parsedSelection.type === "photo") {
             setSelectedMode("picture");
             setPhoto(parsedSelection.value);
-            setSelectedAvatarId(null);
+            setSelectedAvatar(null);
           }
         }
       } catch (error) {
@@ -81,7 +79,7 @@ export default function AvatarSelection({ navigation }) {
 
       if (!result.canceled) {
         setPhoto(result.assets[0].uri);
-        setSelectedAvatarId(null);
+        setSelectedAvatar(null);
       }
     } else {
       alert("Camera permission is required to take a photo.");
@@ -102,7 +100,7 @@ export default function AvatarSelection({ navigation }) {
 
       if (!result.canceled) {
         setPhoto(result.assets[0].uri);
-        setSelectedAvatarId(null);
+        setSelectedAvatar(null);
       }
     } else {
       alert("Gallery permission is required to choose a photo.");
@@ -111,12 +109,13 @@ export default function AvatarSelection({ navigation }) {
   };
 
   const handleContinue = async () => {
-    if (selectedAvatarId || photo) {
+    if (selectedAvatar || photo) {
       try {
         const selection = {
-          type: selectedAvatarId ? "avatar" : "photo",
-          value: selectedAvatarId ? selectedAvatarId : photo,
+          type: selectedAvatar ? "avatar" : "photo",
+          value: selectedAvatar ? selectedAvatar : photo,
         };
+        console.log("Saving avatar selection to AsyncStorage:", selection);
         await AsyncStorage.setItem(
           "userAvatarSelection",
           JSON.stringify(selection)
@@ -125,12 +124,15 @@ export default function AvatarSelection({ navigation }) {
       } catch (error) {
         console.error("Error saving avatar selection:", error);
       }
+    } else {
+      console.log("No avatar selected, skipping save");
+      navigation.replace("MainApp");
     }
   };
 
-  const selectedAvatarObj = selectedAvatarId
-    ? avatars.find((avatar) => avatar.id === selectedAvatarId)
-    : null;
+  const selectedAvatarObj = avatars.find(
+    (avatar) => avatar.id === selectedAvatar
+  );
 
   return (
     <View style={styles.container}>
@@ -224,10 +226,10 @@ export default function AvatarSelection({ navigation }) {
                 key={avatar.id}
                 style={[
                   styles.avatarContainer,
-                  selectedAvatarId === avatar.id && styles.selectedAvatar,
+                  selectedAvatar === avatar.id && styles.selectedAvatar,
                 ]}
                 onPress={() => {
-                  setSelectedAvatarId(avatar.id);
+                  setSelectedAvatar(avatar.id);
                   setPhoto(null);
                 }}
               >
@@ -270,14 +272,14 @@ export default function AvatarSelection({ navigation }) {
         <TouchableOpacity
           style={[
             styles.continueButton,
-            (selectedAvatarId || photo) && styles.continueButtonActive,
+            (selectedAvatar || photo) && styles.continueButtonActive,
           ]}
           onPress={handleContinue}
         >
           <Text
             style={[
               styles.continueButtonText,
-              (selectedAvatarId || photo) && styles.continueButtonTextActive,
+              (selectedAvatar || photo) && styles.continueButtonTextActive,
             ]}
           >
             Fortsett

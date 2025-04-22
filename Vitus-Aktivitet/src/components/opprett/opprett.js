@@ -9,8 +9,9 @@ import {
   Alert,
 } from "react-native";
 import axios from "axios";
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import { SERVER_CONFIG } from "../../config/serverConfig";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import * as FileSystem from "expo-file-system"; // For converting image URI to Base64
 
 const { width } = Dimensions.get("window");
 
@@ -19,31 +20,37 @@ export default function opprett({ navigation }) {
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [name, setName] = useState("");
-  const [avatarId, setAvatarId] = useState(null);
+  const [avatar, setAvatar] = useState(null); // Store the avatar data
 
-  // Last inn avatar-valg fra AsyncStorage
+  // Load the avatar selection when the component mounts
   useEffect(() => {
-    const loadAvatarSelection = async () => {
+    const loadAvatar = async () => {
       try {
         const selection = await AsyncStorage.getItem("userAvatarSelection");
         if (selection) {
           const parsedSelection = JSON.parse(selection);
           if (parsedSelection.type === "avatar") {
-            setAvatarId(parsedSelection.value); // Sett avatarId til ID-en
+            setAvatar(parsedSelection.value.toString());
           } else if (parsedSelection.type === "photo") {
-            setAvatarId(null); // Hvis det er et bilde, sett avatarId til null
+            const base64 = await FileSystem.readAsStringAsync(
+              parsedSelection.value,
+              {
+                encoding: FileSystem.EncodingType.Base64,
+              }
+            );
+            const base64WithPrefix = `data:image/jpeg;base64,${base64}`;
+            setAvatar(base64WithPrefix);
+            console.log("Base64 image:", base64WithPrefix.substring(0, 50)); // Log the first 50 characters
           }
         }
       } catch (error) {
-        console.error("Error loading avatar selection:", error);
-        Alert.alert("Error", "Failed to load avatar selection.");
+        console.error("Error loading avatar for registration:", error);
       }
     };
-    loadAvatarSelection();
+    loadAvatar();
   }, []);
 
   const handleRegister = async () => {
-    // Valider inputs
     if (password !== confirmPassword) {
       Alert.alert("Error", "Passwords do not match");
       return;
@@ -54,37 +61,16 @@ export default function opprett({ navigation }) {
       return;
     }
 
-    // Valider e-postformat
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email)) {
-      Alert.alert("Error", "Please enter a valid email address");
-      return;
-    }
-
-    // Valider passordlengde
-    if (password.length < 8) {
-      Alert.alert("Error", "Password must be at least 8 characters long");
-      return;
-    }
+    console.log("Registering with data:", { name, email, password, avatar }); // Add this log
 
     try {
-      console.log(
-        `Sending registration request to: ${SERVER_CONFIG.getBaseUrl()}/register`
-      );
-      console.log("Data sent to register:", {
-        name,
-        email,
-        password,
-        avatar_id: avatarId,
-      });
-
       const response = await axios.post(
         `${SERVER_CONFIG.getBaseUrl()}/register`,
         {
           name,
           email,
           password,
-          avatar_id: avatarId, // Sender avatar_id i stedet for avatar
+          avatar,
         }
       );
 
@@ -96,30 +82,10 @@ export default function opprett({ navigation }) {
       }
     } catch (error) {
       console.error("Registration error:", error);
-      if (error.response) {
-        console.error(
-          "Server responded with:",
-          error.response.status,
-          error.response.data
-        );
-        Alert.alert(
-          "Registration Failed",
-          error.response.data.message ||
-            `Server error: ${error.response.status}`
-        );
-      } else if (error.request) {
-        console.error("No response received");
-        Alert.alert(
-          "Connection Error",
-          "Cannot connect to the server. Please check your internet connection or try again later."
-        );
-      } else {
-        console.error("Request setup error:", error.message);
-        Alert.alert(
-          "Error",
-          "An unexpected error occurred during registration."
-        );
-      }
+      Alert.alert(
+        "Registration Failed",
+        error.response?.data?.message || "An error occurred"
+      );
     }
   };
 

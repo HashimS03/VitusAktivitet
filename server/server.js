@@ -119,7 +119,7 @@ const authenticateJWT = (req, res, next) => {
 app.post("/register", async (req, res) => {
   serverLog("log", "Register request received:", req.body);
   try {
-    const { name, email, password, avatar_id } = req.body;
+    const { name, email, password, avatar } = req.body;
 
     if (!name || !email || !password) {
       return res.status(400).json({
@@ -132,16 +132,34 @@ app.post("/register", async (req, res) => {
     const salt = await bcrypt.genSalt(saltRounds);
     const hashedPassword = await bcrypt.hash(password, salt);
 
+    let avatarBuffer = null;
+    let avatarType = null;
+
+    if (avatar && avatar.startsWith("data:image")) {
+      const base64Data = avatar.split(",")[1] || avatar;
+      avatarBuffer = Buffer.from(base64Data, "base64");
+      avatarType = "photo";
+    } else if (avatar && !isNaN(avatar)) {
+      avatarBuffer = null;
+      avatarType = "predefined";
+    }
+
     const pool = await poolPromise;
     const userResult = await pool
       .request()
       .input("name", sql.NVarChar, name)
       .input("email", sql.NVarChar, email)
       .input("password", sql.VarChar, hashedPassword)
-      .input("avatar_id", sql.Int, avatar_id || null).query(`
-        INSERT INTO [USER] ([name], [email], [password], [avatar_id], [created_at], [last_login])
+      .input("avatar", sql.VarBinary(sql.MAX), avatarBuffer)
+      .input("avatar_type", sql.VarChar, avatarType)
+      .input(
+        "predefined_avatar_id",
+        sql.VarChar,
+        avatarType === "predefined" ? avatar.toString() : null
+      ).query(`
+        INSERT INTO [USER] ([name], [email], [password], [avatar], [avatar_type], [predefined_avatar_id], [created_at], [last_login])
         OUTPUT INSERTED.Id
-        VALUES (@name, @email, @password, @avatar_id, GETDATE(), NULL)
+        VALUES (@name, @email, @password, @avatar, @avatar_type, @predefined_avatar_id, GETDATE(), NULL)
       `);
 
     const newUserId = userResult.recordset[0].Id;
@@ -156,9 +174,11 @@ app.post("/register", async (req, res) => {
       `);
 
     serverLog("log", "User registered successfully:", { name, email });
-    res
-      .status(201)
-      .json({ success: true, message: "User registered successfully" });
+    res.status(201).json({
+      success: true,
+      message: "User registered successfully",
+      userId: newUserId,
+    });
   } catch (err) {
     serverLog("error", "Registration error:", err);
     if (err.number === 2627) {
@@ -246,7 +266,7 @@ app.get("/leaderboard", async (req, res) => {
       SELECT 
         u.Id AS userId,
         u.name,
-        u.avatar_id,
+        u.avatar,
         l.steps,
         l.timestamp
       FROM [USER] u
@@ -259,7 +279,10 @@ app.get("/leaderboard", async (req, res) => {
       name: row.name || "Ukjent bruker",
       points: row.steps || 0,
       department: "Ukjent avdeling",
-      avatar_id: row.avatar_id, // Returner avatar_id i stedet for avatar
+      avatar:
+        row.avatar && Buffer.isBuffer(row.avatar)
+          ? `data:image/jpeg;base64,${row.avatar.toString("base64")}`
+          : null,
       change: 0,
     }));
 
@@ -294,25 +317,51 @@ app.post("/logout", (req, res) => {
 
 // 🔹 Route to Fetch User Data
 app.get("/user", authenticateJWT, async (req, res) => {
-  serverLog("log", "Fetching user data for userId:", req.session.userId);
+  serverLog(
+    "log",
+    "User data request received for userId:",
+    req.session.userId
+  );
   try {
     const pool = await poolPromise;
     const result = await pool.request().input("id", sql.Int, req.session.userId)
       .query(`
-        SELECT [Id], [name], [email], [avatar_id], [created_at], [last_login]
+        SELECT [Id], [name], [email], [avatar], [avatar_type], [predefined_avatar_id], [created_at], [last_login]
         FROM [USER]
         WHERE [Id] = @id
       `);
 
     if (result.recordset.length === 0) {
-      serverLog("error", "User not found for userId:", req.session.userId);
       return res
         .status(404)
         .json({ success: false, message: "User not found" });
     }
 
     const user = result.recordset[0];
-    res.json({ success: true, user });
+    let avatarData = null;
+
+    if (
+      user.avatar_type === "photo" &&
+      user.avatar &&
+      Buffer.isBuffer(user.avatar)
+    ) {
+      avatarData = `data:image/jpeg;base64,${user.avatar.toString("base64")}`;
+    } else if (user.avatar_type === "predefined" && user.predefined_avatar_id) {
+      avatarData = user.predefined_avatar_id;
+    }
+
+    res.json({
+      success: true,
+      user: {
+        id: user.Id,
+        name: user.name,
+        email: user.email,
+        created_at: user.created_at,
+        last_login: user.last_login,
+        avatar: avatarData,
+        avatar_type: user.avatar_type || "predefined",
+      },
+    });
   } catch (err) {
     serverLog("error", "User fetch error:", err);
     res.status(500).json({
