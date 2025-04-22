@@ -47,7 +47,11 @@ function serverLog(type, message, details = null) {
     timestamp: new Date().toISOString(),
     type,
     message,
-    details: details ? (typeof details === "object" ? JSON.stringify(details) : details) : null,
+    details: details
+      ? typeof details === "object"
+        ? JSON.stringify(details)
+        : details
+      : null,
   };
 
   recentLogs.unshift(logEntry);
@@ -67,22 +71,35 @@ const authenticateJWT = (req, res, next) => {
   if (authHeader) {
     const token = authHeader.split(" ")[1];
 
-    serverLog("log", "Token extracted:", token ? token.substring(0, 10) + "..." : "Invalid format");
+    serverLog(
+      "log",
+      "Token extracted:",
+      token ? token.substring(0, 10) + "..." : "Invalid format"
+    );
 
     if (!JWT_SECRET) {
       serverLog("error", "JWT_SECRET is not defined in environment variables");
-      return res.status(500).json({ success: false, message: "Server configuration error" });
+      return res
+        .status(500)
+        .json({ success: false, message: "Server configuration error" });
     }
 
     jwt.verify(token, JWT_SECRET, (err, user) => {
       if (err) {
         serverLog("log", "JWT verification failed:", err.message);
         if (err.name === "TokenExpiredError") {
-          return res.status(401).json({ success: false, message: "Token expired, please log in again" });
+          return res.status(401).json({
+            success: false,
+            message: "Token expired, please log in again",
+          });
         } else if (err.name === "JsonWebTokenError") {
-          return res.status(403).json({ success: false, message: "Invalid token" });
+          return res
+            .status(403)
+            .json({ success: false, message: "Invalid token" });
         }
-        return res.status(403).json({ success: false, message: "Invalid or expired token" });
+        return res
+          .status(403)
+          .json({ success: false, message: "Invalid or expired token" });
       }
 
       serverLog("log", "JWT verified successfully for user:", user.id);
@@ -102,10 +119,13 @@ const authenticateJWT = (req, res, next) => {
 app.post("/register", async (req, res) => {
   serverLog("log", "Register request received:", req.body);
   try {
-    const { name, email, password, avatar } = req.body;
+    const { name, email, password, avatar_id } = req.body;
 
     if (!name || !email || !password) {
-      return res.status(400).json({ success: false, message: "Name, email, and password are required" });
+      return res.status(400).json({
+        success: false,
+        message: "Name, email, and password are required",
+      });
     }
 
     const saltRounds = 10;
@@ -118,11 +138,10 @@ app.post("/register", async (req, res) => {
       .input("name", sql.NVarChar, name)
       .input("email", sql.NVarChar, email)
       .input("password", sql.VarChar, hashedPassword)
-      .input("avatar", sql.VarBinary(sql.MAX), avatar ? Buffer.from(avatar, "base64") : null)
-      .query(`
-        INSERT INTO [USER] ([name], [email], [password], [avatar], [created_at], [last_login])
+      .input("avatar_id", sql.Int, avatar_id || null).query(`
+        INSERT INTO [USER] ([name], [email], [password], [avatar_id], [created_at], [last_login])
         OUTPUT INSERTED.Id
-        VALUES (@name, @email, @password, @avatar, GETDATE(), NULL)
+        VALUES (@name, @email, @password, @avatar_id, GETDATE(), NULL)
       `);
 
     const newUserId = userResult.recordset[0].Id;
@@ -131,28 +150,25 @@ app.post("/register", async (req, res) => {
       .request()
       .input("userId", sql.Int, newUserId)
       .input("steps", sql.Int, 0)
-      .input("timestamp", sql.DateTime, new Date())
-      .query(`
+      .input("timestamp", sql.DateTime, new Date()).query(`
         INSERT INTO [LEADERBOARD] (user_id, steps, timestamp)
         VALUES (@userId, @steps, @timestamp)
       `);
 
     serverLog("log", "User registered successfully:", { name, email });
-    res.status(201).json({ success: true, message: "User registered successfully" });
+    res
+      .status(201)
+      .json({ success: true, message: "User registered successfully" });
   } catch (err) {
     serverLog("error", "Registration error:", err);
-    const errorDetails = {
-      message: err.message,
-      stack: process.env.NODE_ENV !== "production" ? err.stack : undefined,
-      code: err.code,
-      number: err.number,
-    };
-    serverLog("error", "Error details:", errorDetails);
-
     if (err.number === 2627) {
-      return res.status(400).json({ success: false, message: "Email already exists" });
+      return res
+        .status(400)
+        .json({ success: false, message: "Email already exists" });
     }
-    res.status(500).json({ success: false, message: `Registration failed: ${err.message}` });
+    res
+      .status(500)
+      .json({ success: false, message: `Registration failed: ${err.message}` });
   }
 });
 
@@ -163,7 +179,9 @@ app.post("/login", async (req, res) => {
     const { email, password } = req.body;
 
     if (!email || !password) {
-      return res.status(400).json({ success: false, message: "Email and password are required" });
+      return res
+        .status(400)
+        .json({ success: false, message: "Email and password are required" });
     }
 
     const pool = await poolPromise;
@@ -173,7 +191,9 @@ app.post("/login", async (req, res) => {
       .query("SELECT [Id], [password] FROM [USER] WHERE [email] = @email");
 
     if (result.recordset.length === 0) {
-      return res.status(401).json({ success: false, message: "Invalid email or password" });
+      return res
+        .status(401)
+        .json({ success: false, message: "Invalid email or password" });
     }
 
     const user = result.recordset[0];
@@ -185,7 +205,9 @@ app.post("/login", async (req, res) => {
         .input("id", sql.Int, user.Id)
         .query("UPDATE [USER] SET [last_login] = GETDATE() WHERE [Id] = @id");
 
-      const token = jwt.sign({ id: user.Id, email }, JWT_SECRET, { expiresIn: "7d" });
+      const token = jwt.sign({ id: user.Id, email }, JWT_SECRET, {
+        expiresIn: "7d",
+      });
 
       req.session.userId = user.Id;
 
@@ -196,7 +218,9 @@ app.post("/login", async (req, res) => {
         token,
       });
     } else {
-      res.status(401).json({ success: false, message: "Invalid email or password" });
+      res
+        .status(401)
+        .json({ success: false, message: "Invalid email or password" });
     }
   } catch (err) {
     serverLog("error", "Login error:", err);
@@ -207,7 +231,9 @@ app.post("/login", async (req, res) => {
       errno: err.errno,
     };
     serverLog("error", "Error details:", errorDetails);
-    res.status(500).json({ success: false, message: `Login failed: ${err.message}` });
+    res
+      .status(500)
+      .json({ success: false, message: `Login failed: ${err.message}` });
   }
 });
 
@@ -220,7 +246,7 @@ app.get("/leaderboard", async (req, res) => {
       SELECT 
         u.Id AS userId,
         u.name,
-        u.avatar,
+        u.avatar_id,
         l.steps,
         l.timestamp
       FROM [USER] u
@@ -233,9 +259,7 @@ app.get("/leaderboard", async (req, res) => {
       name: row.name || "Ukjent bruker",
       points: row.steps || 0,
       department: "Ukjent avdeling",
-      avatar: row.avatar && Buffer.isBuffer(row.avatar)
-        ? `data:image/jpeg;base64,${row.avatar.toString("base64")}`
-        : null,
+      avatar_id: row.avatar_id, // Returner avatar_id i stedet for avatar
       change: 0,
     }));
 
@@ -270,36 +294,31 @@ app.post("/logout", (req, res) => {
 
 // 🔹 Route to Fetch User Data
 app.get("/user", authenticateJWT, async (req, res) => {
-  serverLog("log", "User data request received for userId:", req.session.userId);
+  serverLog("log", "Fetching user data for userId:", req.session.userId);
   try {
     const pool = await poolPromise;
-    const result = await pool
-      .request()
-      .input("id", sql.Int, req.session.userId)
+    const result = await pool.request().input("id", sql.Int, req.session.userId)
       .query(`
-        SELECT [Id], [name], [email], [avatar], [created_at], [last_login]
+        SELECT [Id], [name], [email], [avatar_id], [created_at], [last_login]
         FROM [USER]
         WHERE [Id] = @id
       `);
 
     if (result.recordset.length === 0) {
-      return res.status(404).json({ success: false, message: "User not found" });
+      serverLog("error", "User not found for userId:", req.session.userId);
+      return res
+        .status(404)
+        .json({ success: false, message: "User not found" });
     }
 
     const user = result.recordset[0];
-    user.avatar = user.avatar && Buffer.isBuffer(user.avatar)
-      ? `data:image/jpeg;base64,${user.avatar.toString("base64")}`
-      : null;
-
     res.json({ success: true, user });
   } catch (err) {
     serverLog("error", "User fetch error:", err);
-    const errorDetails = {
-      message: err.message,
-      stack: process.env.NODE_ENV !== "production" ? err.stack : undefined,
-    };
-    serverLog("error", "Error details:", errorDetails);
-    res.status(500).json({ success: false, message: `Failed to fetch user: ${err.message}` });
+    res.status(500).json({
+      success: false,
+      message: `Failed to fetch user: ${err.message}`,
+    });
   }
 });
 
@@ -312,7 +331,9 @@ app.post("/step-activity", authenticateJWT, async (req, res) => {
     const userId = req.session.userId;
 
     if (!stepCount && stepCount !== 0) {
-      return res.status(400).json({ success: false, message: "stepCount is required" });
+      return res
+        .status(400)
+        .json({ success: false, message: "stepCount is required" });
     }
 
     const pool = await poolPromise;
@@ -330,7 +351,9 @@ app.post("/step-activity", authenticateJWT, async (req, res) => {
     const existingRecord = await pool
       .request()
       .input("userId", sql.Int, userId)
-      .query("SELECT TOP 1 Id FROM [STEPACTIVITY] WHERE userId = @userId ORDER BY timestamp DESC");
+      .query(
+        "SELECT TOP 1 Id FROM [STEPACTIVITY] WHERE userId = @userId ORDER BY timestamp DESC"
+      );
 
     if (existingRecord.recordset.length > 0) {
       const recordId = existingRecord.recordset[0].Id;
@@ -340,8 +363,7 @@ app.post("/step-activity", authenticateJWT, async (req, res) => {
         .input("id", sql.Int, recordId)
         .input("stepCount", sql.Int, stepCount)
         .input("distance", sql.Float, distance || null)
-        .input("timestamp", sql.DateTime, timestamp || new Date())
-        .query(`
+        .input("timestamp", sql.DateTime, timestamp || new Date()).query(`
           UPDATE [STEPACTIVITY]
           SET step_count = @stepCount, distance = @distance, timestamp = @timestamp
           WHERE Id = @id
@@ -353,8 +375,7 @@ app.post("/step-activity", authenticateJWT, async (req, res) => {
         .input("userId", sql.Int, userId)
         .input("stepCount", sql.Int, stepCount)
         .input("distance", sql.Float, distance || null)
-        .input("timestamp", sql.DateTime, timestamp || new Date())
-        .query(`
+        .input("timestamp", sql.DateTime, timestamp || new Date()).query(`
           INSERT INTO [STEPACTIVITY] (userId, step_count, distance, timestamp)
           VALUES (@userId, @stepCount, @distance, @timestamp)
         `);
@@ -370,8 +391,7 @@ app.post("/step-activity", authenticateJWT, async (req, res) => {
         .request()
         .input("userId", sql.Int, userId)
         .input("steps", sql.Int, stepCount)
-        .input("timestamp", sql.DateTime, timestamp || new Date())
-        .query(`
+        .input("timestamp", sql.DateTime, timestamp || new Date()).query(`
           UPDATE [LEADERBOARD]
           SET steps = @steps, timestamp = @timestamp
           WHERE user_id = @userId
@@ -381,14 +401,15 @@ app.post("/step-activity", authenticateJWT, async (req, res) => {
         .request()
         .input("userId", sql.Int, userId)
         .input("steps", sql.Int, stepCount)
-        .input("timestamp", sql.DateTime, timestamp || new Date())
-        .query(`
+        .input("timestamp", sql.DateTime, timestamp || new Date()).query(`
           INSERT INTO [LEADERBOARD] (user_id, steps, timestamp)
           VALUES (@userId, @steps, @timestamp)
         `);
     }
 
-    res.status(201).json({ success: true, message: "Step activity saved successfully" });
+    res
+      .status(201)
+      .json({ success: true, message: "Step activity saved successfully" });
   } catch (err) {
     serverLog("error", "Step activity error:", err);
     const errorDetails = {
@@ -396,19 +417,28 @@ app.post("/step-activity", authenticateJWT, async (req, res) => {
       stack: process.env.NODE_ENV !== "production" ? err.stack : undefined,
     };
     serverLog("error", "Error details:", errorDetails);
-    res.status(500).json({ success: false, message: `Failed to save step activity: ${err.message}` });
+    res.status(500).json({
+      success: false,
+      message: `Failed to save step activity: ${err.message}`,
+    });
   }
 });
 
 // 🔹 Route to Fetch Step Activity for User
 app.get("/step-activity", authenticateJWT, async (req, res) => {
-  serverLog("log", "Step activity fetch request for userId:", req.session.userId);
+  serverLog(
+    "log",
+    "Step activity fetch request for userId:",
+    req.session.userId
+  );
   try {
     const pool = await poolPromise;
     const result = await pool
       .request()
       .input("userId", sql.Int, req.session.userId)
-      .query("SELECT * FROM [STEPACTIVITY] WHERE userId = @userId ORDER BY [timestamp] DESC");
+      .query(
+        "SELECT * FROM [STEPACTIVITY] WHERE userId = @userId ORDER BY [timestamp] DESC"
+      );
 
     res.json({ success: true, data: result.recordset });
   } catch (err) {
@@ -418,7 +448,10 @@ app.get("/step-activity", authenticateJWT, async (req, res) => {
       stack: process.env.NODE_ENV !== "production" ? err.stack : undefined,
     };
     serverLog("error", "Error details:", errorDetails);
-    res.status(500).json({ success: false, message: `Failed to fetch step activity: ${err.message}` });
+    res.status(500).json({
+      success: false,
+      message: `Failed to fetch step activity: ${err.message}`,
+    });
   }
 });
 
@@ -441,7 +474,10 @@ app.post("/events", authenticateJWT, async (req, res) => {
     } = req.body;
 
     if (!title || !start_date || !end_date) {
-      return res.status(400).json({ success: false, message: "Title, start_date, and end_date are required" });
+      return res.status(400).json({
+        success: false,
+        message: "Title, start_date, and end_date are required",
+      });
     }
 
     const pool = await poolPromise;
@@ -469,8 +505,7 @@ app.post("/events", authenticateJWT, async (req, res) => {
       .input("total_participants", sql.Int, total_participants || null)
       .input("team_count", sql.Int, team_count || null)
       .input("members_per_team", sql.Int, members_per_team || null)
-      .input("created_by", sql.Int, req.session.userId)
-      .query(`
+      .input("created_by", sql.Int, req.session.userId).query(`
         INSERT INTO [EVENTS] 
         (title, description, activity, goal, start_date, end_date, location, event_type, total_participants, team_count, members_per_team, created_by)
         OUTPUT INSERTED.Id
@@ -492,7 +527,10 @@ app.post("/events", authenticateJWT, async (req, res) => {
       stack: process.env.NODE_ENV !== "production" ? err.stack : undefined,
     };
     serverLog("error", "Error details:", errorDetails);
-    res.status(500).json({ success: false, message: `Failed to create event: ${err.message}` });
+    res.status(500).json({
+      success: false,
+      message: `Failed to create event: ${err.message}`,
+    });
   }
 });
 
@@ -514,7 +552,10 @@ app.get("/events", authenticateJWT, async (req, res) => {
       stack: process.env.NODE_ENV !== "production" ? err.stack : undefined,
     };
     serverLog("error", "Error details:", errorDetails);
-    res.status(500).json({ success: false, message: `Failed to fetch events: ${err.message}` });
+    res.status(500).json({
+      success: false,
+      message: `Failed to fetch events: ${err.message}`,
+    });
   }
 });
 
@@ -538,7 +579,10 @@ app.put("/events/:id", authenticateJWT, async (req, res) => {
     } = req.body;
 
     if (!title || !start_date || !end_date) {
-      return res.status(400).json({ success: false, message: "Title, start_date, and end_date are required" });
+      return res.status(400).json({
+        success: false,
+        message: "Title, start_date, and end_date are required",
+      });
     }
 
     const pool = await poolPromise;
@@ -546,10 +590,15 @@ app.put("/events/:id", authenticateJWT, async (req, res) => {
       .request()
       .input("eventId", sql.Int, eventId)
       .input("userId", sql.Int, req.session.userId)
-      .query("SELECT Id FROM [EVENTS] WHERE Id = @eventId AND created_by = @userId");
+      .query(
+        "SELECT Id FROM [EVENTS] WHERE Id = @eventId AND created_by = @userId"
+      );
 
     if (result.recordset.length === 0) {
-      return res.status(404).json({ success: false, message: "Event not found or you lack permission" });
+      return res.status(404).json({
+        success: false,
+        message: "Event not found or you lack permission",
+      });
     }
 
     await pool
@@ -565,8 +614,7 @@ app.put("/events/:id", authenticateJWT, async (req, res) => {
       .input("event_type", sql.NVarChar, event_type || null)
       .input("total_participants", sql.Int, total_participants || null)
       .input("team_count", sql.Int, team_count || null)
-      .input("members_per_team", sql.Int, members_per_team || null)
-      .query(`
+      .input("members_per_team", sql.Int, members_per_team || null).query(`
         UPDATE [EVENTS]
         SET title = @title,
             description = @description,
@@ -590,13 +638,20 @@ app.put("/events/:id", authenticateJWT, async (req, res) => {
       stack: process.env.NODE_ENV !== "production" ? err.stack : undefined,
     };
     serverLog("error", "Error details:", errorDetails);
-    res.status(500).json({ success: false, message: `Failed to update event: ${err.message}` });
+    res.status(500).json({
+      success: false,
+      message: `Failed to update event: ${err.message}`,
+    });
   }
 });
 
 // 🔹 Route to Delete an Event
 app.delete("/events/:id", authenticateJWT, async (req, res) => {
-  serverLog("log", "Event deletion request received for eventId:", req.params.id);
+  serverLog(
+    "log",
+    "Event deletion request received for eventId:",
+    req.params.id
+  );
   try {
     const eventId = req.params.id;
 
@@ -605,10 +660,15 @@ app.delete("/events/:id", authenticateJWT, async (req, res) => {
       .request()
       .input("eventId", sql.Int, eventId)
       .input("userId", sql.Int, req.session.userId)
-      .query("DELETE FROM [EVENTS] WHERE Id = @eventId AND created_by = @userId");
+      .query(
+        "DELETE FROM [EVENTS] WHERE Id = @eventId AND created_by = @userId"
+      );
 
     if (result.rowsAffected[0] === 0) {
-      return res.status(404).json({ success: false, message: "Event not found or you lack permission" });
+      return res.status(404).json({
+        success: false,
+        message: "Event not found or you lack permission",
+      });
     }
 
     res.json({ success: true, message: "Event deleted successfully" });
@@ -619,7 +679,10 @@ app.delete("/events/:id", authenticateJWT, async (req, res) => {
       stack: process.env.NODE_ENV !== "production" ? err.stack : undefined,
     };
     serverLog("error", "Error details:", errorDetails);
-    res.status(500).json({ success: false, message: `Failed to delete event: ${err.message}` });
+    res.status(500).json({
+      success: false,
+      message: `Failed to delete event: ${err.message}`,
+    });
   }
 });
 

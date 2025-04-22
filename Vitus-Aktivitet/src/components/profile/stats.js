@@ -1,16 +1,17 @@
 "use client";
 
-import { useState, useEffect, useContext } from "react";
+import React, { useState, useEffect, useContext } from "react";
 import {
+  SafeAreaView,
   View,
   Text,
-  StyleSheet,
-  SafeAreaView,
   TouchableOpacity,
   Image,
-  Dimensions,
   ScrollView,
+  Dimensions,
+  Alert,
 } from "react-native";
+import { StyleSheet } from "react-native";
 import {
   ChevronLeft,
   Settings,
@@ -22,21 +23,14 @@ import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useNavigation, useRoute } from "@react-navigation/native";
 import { useTheme } from "../context/ThemeContext";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import axios from "axios";
+import { SERVER_CONFIG } from "../../config/serverConfig";
 import { EventContext } from "../events/EventContext";
 import Achievements from "./achievements";
 import Activity from "./activity";
 
-// Define the avatars list (same as in AvatarSelection)
-const avatars = [
-  { id: 1, source: require("../../../assets/avatars/Avatar_Asian.png") },
-  { id: 2, source: require("../../../assets/avatars/Avatar_Athlete.png") },
-  { id: 3, source: require("../../../assets/avatars/Avatar_Dizzy.png") },
-  { id: 4, source: require("../../../assets/avatars/Avatar_Gangster.png") },
-  { id: 5, source: require("../../../assets/avatars/Avatar_Happy.png") },
-  { id: 6, source: require("../../../assets/avatars/Avatar_Love.png") },
-  { id: 7, source: require("../../../assets/avatars/Avatar_Sikh.png") },
-  { id: 8, source: require("../../../assets/avatars/Avatar_Smirk.png") },
-];
+// Importer avatars fra AvatarSelection
+import { avatars } from "./AvatarSelection"; // Juster sti etter din struktur
 
 const TABS = ["STATS", "MILEPÆLER"];
 
@@ -47,7 +41,7 @@ const Stats = () => {
   const [eventsParticipated, setEventsParticipated] = useState(0);
   const [dailyGoalProgress, setDailyGoalProgress] = useState(0);
   const [dailyGoal, setDailyGoal] = useState(7500);
-  const [avatarSelection, setAvatarSelection] = useState(null); // State for avatar/photo
+  const [userData, setUserData] = useState({ name: "Navn", avatar_id: null });
   const navigation = useNavigation();
   const route = useRoute();
   const { theme, accentColor } = useTheme();
@@ -58,8 +52,16 @@ const Stats = () => {
       setActiveTab(route.params.initialTab);
     }
     loadStatsData();
-    loadAvatarSelection(); // Load avatar selection
+    loadUserData();
   }, [route.params?.initialTab]);
+
+  useEffect(() => {
+    const subscription = navigation.addListener("focus", () => {
+      loadStatsData();
+      loadUserData();
+    });
+    return subscription;
+  }, [navigation]);
 
   const loadStatsData = async () => {
     try {
@@ -93,27 +95,49 @@ const Stats = () => {
       setDailyGoalProgress(Math.min((currentSteps / goal) * 100, 100));
     } catch (error) {
       console.error("Error loading stats data:", error);
+      Alert.alert("Error", "Failed to load stats data.");
     }
   };
 
-  const loadAvatarSelection = async () => {
+  const loadUserData = async () => {
     try {
-      const selection = await AsyncStorage.getItem("userAvatarSelection");
-      if (selection) {
-        setAvatarSelection(JSON.parse(selection));
+      const token = await AsyncStorage.getItem("authToken");
+      if (!token) {
+        console.error("No auth token found");
+        Alert.alert("Error", "Please log in again.");
+        navigation.replace("Login");
+        return;
+      }
+
+      const response = await axios.get(`${SERVER_CONFIG.getBaseUrl()}/user`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (response.data.success) {
+        setUserData({
+          name: response.data.user.name,
+          avatar_id: response.data.user.avatar_id,
+        });
+      } else {
+        console.error("Failed to fetch user data:", response.data.message);
+        Alert.alert(
+          "Error",
+          response.data.message || "Failed to load user data."
+        );
       }
     } catch (error) {
-      console.error("Error loading avatar selection:", error);
+      console.error("Error loading user data:", error);
+      if (error.response && error.response.status === 401) {
+        Alert.alert("Session Expired", "Please log in again.");
+        await AsyncStorage.removeItem("authToken");
+        navigation.replace("Login");
+      } else {
+        Alert.alert("Error", "Failed to load user data. Please try again.");
+      }
     }
   };
-
-  useEffect(() => {
-    const subscription = navigation.addListener("focus", () => {
-      loadStatsData();
-      loadAvatarSelection(); // Reload avatar selection when screen is focused
-    });
-    return subscription;
-  }, [navigation]);
 
   const renderHeader = () => (
     <View style={styles.header}>
@@ -133,30 +157,23 @@ const Stats = () => {
   );
 
   const renderProfileSection = () => {
-    // Find the selected avatar object if type is "avatar"
-    const selectedAvatarObj = avatarSelection?.type === "avatar"
-      ? avatars.find((avatar) => avatar.id === avatarSelection.value)
+    const selectedAvatarObj = userData.avatar_id
+      ? avatars.find((avatar) => avatar.id === userData.avatar_id)
       : null;
 
     return (
       <View style={styles.profileSection}>
-        {avatarSelection?.type === "photo" ? (
-          <Image
-            source={{ uri: avatarSelection.value }}
-            style={styles.avatar}
-          />
-        ) : selectedAvatarObj ? (
-          <Image
-            source={selectedAvatarObj.source}
-            style={styles.avatar}
-          />
+        {selectedAvatarObj ? (
+          <Image source={selectedAvatarObj.source} style={styles.avatar} />
         ) : (
           <Image
-            source={require("../../../assets/avatars/memo_35.png")} // Default avatar
+            source={require("../../../assets/avatars/memo_35.png")} // Standardavatar
             style={styles.avatar}
           />
         )}
-        <Text style={[styles.name, { color: theme.text }]}>Navn</Text>
+        <Text style={[styles.name, { color: theme.text }]}>
+          {userData.name}
+        </Text>
       </View>
     );
   };
