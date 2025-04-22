@@ -115,9 +115,18 @@ const authenticateJWT = (req, res, next) => {
   }
 };
 
-// 🔹 Route to Register a User
-app.post("/registering", async (req, res) => {
-  serverLog("log", "Register request received:", req.body);
+// 🔹 Route to Load Registration Page (GET)
+app.get("/registrering", (req, res) => {
+  serverLog("log", "GET request to /registrering received");
+  res.json({
+    success: true,
+    message: "Registration page loaded. Use POST /registrering to submit data.",
+  });
+});
+
+// 🔹 Route to Register a User (POST)
+app.post("/registrering", async (req, res) => {
+  serverLog("log", "Registrering request received:", req.body);
   try {
     const { name, email, password, avatar } = req.body;
 
@@ -328,7 +337,7 @@ app.get("/user", authenticateJWT, async (req, res) => {
       .query(`
         SELECT [Id], [name], [email], [avatar], [avatar_type], [predefined_avatar_id], [created_at], [last_login]
         FROM [USER]
-        WHERE [Id] = @id
+        WHERE [Id] ACHTUNG: Skal det stå Id eller id her?
       `);
 
     if (result.recordset.length === 0) {
