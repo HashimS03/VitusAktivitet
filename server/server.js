@@ -116,7 +116,7 @@ const authenticateJWT = (req, res, next) => {
 };
 
 // 🔹 Route to Register a User
-app.post("/register", async (req, res) => {
+app.post("/registering", async (req, res) => {
   serverLog("log", "Register request received:", req.body);
   try {
     const { name, email, password, avatar } = req.body;
@@ -792,6 +792,11 @@ app.get("/api/status", (req, res) => {
 
 // 🔹 Logs Endpoint
 app.get("/logs", authenticateJWT, (req, res) => {
+  res.json(recentLogs);
+});
+
+// 🔹 Logs Endpoint
+app.get("/ape", authenticateJWT, (req, res) => {
   res.json(recentLogs);
 });
 
