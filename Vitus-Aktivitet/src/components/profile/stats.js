@@ -23,20 +23,11 @@ import { useNavigation, useRoute } from "@react-navigation/native";
 import { useTheme } from "../context/ThemeContext";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { EventContext } from "../events/EventContext";
+import { UserContext } from "../context/UserContext";
+import axios from "axios";
+import { SERVER_CONFIG } from "../../config/serverConfig";
 import Achievements from "./achievements";
 import Activity from "./activity";
-
-// Define the avatars list (same as in AvatarSelection)
-const avatars = [
-  { id: 1, source: require("../../../assets/avatars/Avatar_Asian.png") },
-  { id: 2, source: require("../../../assets/avatars/Avatar_Athlete.png") },
-  { id: 3, source: require("../../../assets/avatars/Avatar_Dizzy.png") },
-  { id: 4, source: require("../../../assets/avatars/Avatar_Gangster.png") },
-  { id: 5, source: require("../../../assets/avatars/Avatar_Happy.png") },
-  { id: 6, source: require("../../../assets/avatars/Avatar_Love.png") },
-  { id: 7, source: require("../../../assets/avatars/Avatar_Sikh.png") },
-  { id: 8, source: require("../../../assets/avatars/Avatar_Smirk.png") },
-];
 
 const TABS = ["STATS", "MILEPÆLER"];
 
@@ -47,73 +38,85 @@ const Stats = () => {
   const [eventsParticipated, setEventsParticipated] = useState(0);
   const [dailyGoalProgress, setDailyGoalProgress] = useState(0);
   const [dailyGoal, setDailyGoal] = useState(7500);
-  const [avatarSelection, setAvatarSelection] = useState(null); // State for avatar/photo
+  const [userName, setUserName] = useState("Navn");
+  const [avatar, setAvatar] = useState(null);
   const navigation = useNavigation();
   const route = useRoute();
   const { theme, accentColor } = useTheme();
   const { activeEvents } = useContext(EventContext);
+  const { userId } = useContext(UserContext);
 
   useEffect(() => {
     if (route.params?.initialTab && TABS.includes(route.params.initialTab)) {
       setActiveTab(route.params.initialTab);
     }
-    loadStatsData();
-    loadAvatarSelection(); // Load avatar selection
-  }, [route.params?.initialTab]);
+    if (userId) {
+      loadUserData();
+      loadStatsData();
+    }
+  }, [route.params?.initialTab, userId]);
+
+  const loadUserData = async () => {
+    try {
+      const token = await AsyncStorage.getItem("authToken");
+      const response = await axios.get(`${SERVER_CONFIG.getBaseUrl()}/user`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (response.data.success) {
+        setUserName(response.data.user.name);
+        setAvatar(response.data.user.avatar);
+      }
+    } catch (error) {
+      console.error("Error loading user data:", error);
+    }
+  };
 
   const loadStatsData = async () => {
     try {
-      const allKeys = await AsyncStorage.getAllKeys();
-      const stepHistoryKeys = allKeys.filter((key) =>
-        key.startsWith("stepHistory_")
-      );
-      let totalHistoricalSteps = 0;
-      for (const key of stepHistoryKeys) {
-        const steps = await AsyncStorage.getItem(key);
-        totalHistoricalSteps += steps ? parseInt(steps) : 0;
+      const token = await AsyncStorage.getItem("authToken");
+      const response = await axios.get(`${SERVER_CONFIG.getBaseUrl()}/step-activity`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (response.data.success) {
+        const stepActivities = response.data.data;
+        const totalHistoricalSteps = stepActivities.reduce(
+          (sum, activity) => sum + (activity.step_count || 0),
+          0
+        );
+        setTotalSteps(totalHistoricalSteps);
+
+        // Calculate best streak (assuming streak logic is stored or calculated elsewhere)
+        const storedBestStreak = await AsyncStorage.getItem("bestStreak") || "0";
+        setBestStreak(parseInt(storedBestStreak) || 0);
+
+        // Fetch participated events from AsyncStorage or extend with API if stored in DB
+        const participatedEvents = JSON.parse(
+          (await AsyncStorage.getItem("participatedEvents")) || "[]"
+        );
+        setEventsParticipated(participatedEvents.length);
+
+        const storedGoal = await AsyncStorage.getItem("dailyGoal");
+        const goal = storedGoal ? JSON.parse(storedGoal) : 7500;
+        setDailyGoal(goal);
+
+        const latestActivity = stepActivities[0] || { step_count: 0 };
+        const currentSteps = latestActivity.step_count || 0;
+        setDailyGoalProgress(Math.min((currentSteps / goal) * 100, 100));
       }
-      setTotalSteps(totalHistoricalSteps);
-
-      const currentStreak = await AsyncStorage.getItem("currentStreak");
-      const storedBestStreak =
-        (await AsyncStorage.getItem("bestStreak")) || currentStreak || "0";
-      setBestStreak(parseInt(storedBestStreak) || 0);
-
-      const participatedEvents = JSON.parse(
-        (await AsyncStorage.getItem("participatedEvents")) || "[]"
-      );
-      setEventsParticipated(participatedEvents.length);
-
-      const storedGoal = await AsyncStorage.getItem("dailyGoal");
-      const goal = storedGoal ? JSON.parse(storedGoal) : 7500;
-      setDailyGoal(goal);
-
-      const stepCount = await AsyncStorage.getItem("stepCount");
-      const currentSteps = stepCount ? parseInt(stepCount) : 0;
-      setDailyGoalProgress(Math.min((currentSteps / goal) * 100, 100));
     } catch (error) {
       console.error("Error loading stats data:", error);
     }
   };
 
-  const loadAvatarSelection = async () => {
-    try {
-      const selection = await AsyncStorage.getItem("userAvatarSelection");
-      if (selection) {
-        setAvatarSelection(JSON.parse(selection));
-      }
-    } catch (error) {
-      console.error("Error loading avatar selection:", error);
-    }
-  };
-
   useEffect(() => {
     const subscription = navigation.addListener("focus", () => {
-      loadStatsData();
-      loadAvatarSelection(); // Reload avatar selection when screen is focused
+      if (userId) {
+        loadUserData();
+        loadStatsData();
+      }
     });
     return subscription;
-  }, [navigation]);
+  }, [navigation, userId]);
 
   const renderHeader = () => (
     <View style={styles.header}>
@@ -132,34 +135,19 @@ const Stats = () => {
     </View>
   );
 
-  const renderProfileSection = () => {
-    // Find the selected avatar object if type is "avatar"
-    const selectedAvatarObj = avatarSelection?.type === "avatar"
-      ? avatars.find((avatar) => avatar.id === avatarSelection.value)
-      : null;
-
-    return (
-      <View style={styles.profileSection}>
-        {avatarSelection?.type === "photo" ? (
-          <Image
-            source={{ uri: avatarSelection.value }}
-            style={styles.avatar}
-          />
-        ) : selectedAvatarObj ? (
-          <Image
-            source={selectedAvatarObj.source}
-            style={styles.avatar}
-          />
-        ) : (
-          <Image
-            source={require("../../../assets/avatars/memo_35.png")} // Default avatar
-            style={styles.avatar}
-          />
-        )}
-        <Text style={[styles.name, { color: theme.text }]}>Navn</Text>
-      </View>
-    );
-  };
+  const renderProfileSection = () => (
+    <View style={styles.profileSection}>
+      {avatar ? (
+        <Image source={{ uri: avatar }} style={styles.avatar} />
+      ) : (
+        <Image
+          source={require("../../../assets/avatars/memo_35.png")}
+          style={styles.avatar}
+        />
+      )}
+      <Text style={[styles.name, { color: theme.text }]}>{userName}</Text>
+    </View>
+  );
 
   const renderTabs = () => (
     <View style={[styles.tabsContainer, { borderBottomColor: theme.border }]}>

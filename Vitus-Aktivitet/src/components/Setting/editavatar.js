@@ -1,116 +1,199 @@
-"use client"
+"use client";
 
-import { useState, useEffect } from "react"
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Image, SafeAreaView, Modal } from "react-native"
-import { Ionicons } from "@expo/vector-icons"
-import { Camera } from "lucide-react-native"
-import * as ImagePicker from "expo-image-picker"
-import AsyncStorage from "@react-native-async-storage/async-storage"
-import { useNavigation } from "@react-navigation/native"
-import { useTheme } from "../context/ThemeContext"
+import { useState, useEffect, useContext } from "react";
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  StyleSheet,
+  ScrollView,
+  Image,
+  SafeAreaView,
+  Modal,
+} from "react-native";
+import { Ionicons } from "@expo/vector-icons";
+import { Camera } from "lucide-react-native";
+import * as ImagePicker from "expo-image-picker";
+import * as FileSystem from "expo-file-system";
+import { useNavigation } from "@react-navigation/native";
+import { useTheme } from "../context/ThemeContext";
+import { UserContext } from "../context/UserContext";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import axios from "axios";
+import { SERVER_CONFIG } from "../../config/serverConfig";
 
 export default function EditAvatar() {
-  const navigation = useNavigation()
-  const { theme, isDarkMode } = useTheme()
-  const [selectedMode, setSelectedMode] = useState("avatar")
-  const [selectedAvatar, setSelectedAvatar] = useState(null)
-  const [photo, setPhoto] = useState(null)
-  const [isModalVisible, setIsModalVisible] = useState(false)
+  const navigation = useNavigation();
+  const { theme, isDarkMode } = useTheme();
+  const { userId } = useContext(UserContext);
+  const [selectedMode, setSelectedMode] = useState("avatar");
+  const [selectedAvatar, setSelectedAvatar] = useState(null);
+  const [photo, setPhoto] = useState(null);
+  const [photoBase64, setPhotoBase64] = useState(null);
+  const [isModalVisible, setIsModalVisible] = useState(false);
 
-  // Load the current selection when the component mounts
   useEffect(() => {
-    const loadSelection = async () => {
-      try {
-        const selection = await AsyncStorage.getItem("userAvatarSelection")
-        if (selection) {
-          const parsedSelection = JSON.parse(selection)
-          if (parsedSelection.type === "avatar") {
-            setSelectedMode("avatar")
-            setSelectedAvatar(parsedSelection.value)
-            setPhoto(null)
-          } else if (parsedSelection.type === "photo") {
-            setSelectedMode("picture")
-            setPhoto(parsedSelection.value)
-            setSelectedAvatar(null)
-          }
-        }
-      } catch (error) {
-        console.error("Error loading avatar selection:", error)
-      }
+    if (userId) {
+      loadUserAvatar();
     }
-    loadSelection()
-  }, [])
+  }, [userId]);
+
+  const loadUserAvatar = async () => {
+    try {
+      const token = await AsyncStorage.getItem("authToken");
+      if (!token) {
+        throw new Error("No auth token found");
+      }
+      console.log("Fetching user avatar for userId:", userId);
+      console.log("Request URL:", `${SERVER_CONFIG.getBaseUrl()}/user`);
+      const response = await axios.get(`${SERVER_CONFIG.getBaseUrl()}/user`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      console.log("User avatar response:", response.data);
+      if (response.data.success && response.data.user.avatar) {
+        setSelectedMode("picture");
+        setPhoto(response.data.user.avatar);
+        setPhotoBase64(response.data.user.avatar);
+        setSelectedAvatar(null);
+      }
+    } catch (error) {
+      console.error("Error loading user avatar:", error);
+    }
+  };
 
   const handleTakePhoto = async () => {
-    const { status } = await ImagePicker.requestCameraPermissionsAsync()
-
+    const { status } = await ImagePicker.requestCameraPermissionsAsync();
     if (status === "granted") {
       const result = await ImagePicker.launchCameraAsync({
         allowsEditing: true,
         aspect: [1, 1],
         quality: 1,
-      })
-
+      });
       if (!result.canceled) {
-        setPhoto(result.assets[0].uri)
-        setSelectedAvatar(null)
+        const uri = result.assets[0].uri;
+        setPhoto(uri);
+        const base64 = await FileSystem.readAsStringAsync(uri, {
+          encoding: FileSystem.EncodingType.Base64,
+        });
+        setPhotoBase64(`data:image/jpeg;base64,${base64}`);
+        setSelectedAvatar(null);
       }
     } else {
-      alert("Camera permission is required to take a photo.")
+      alert("Camera permission is required to take a photo.");
     }
-    setIsModalVisible(false)
-  }
+    setIsModalVisible(false);
+  };
 
   const handleChooseFromGallery = async () => {
-    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync()
-
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status === "granted") {
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
         allowsEditing: true,
         aspect: [1, 1],
         quality: 1,
-      })
-
+      });
       if (!result.canceled) {
-        setPhoto(result.assets[0].uri)
-        setSelectedAvatar(null)
+        const uri = result.assets[0].uri;
+        setPhoto(uri);
+        const base64 = await FileSystem.readAsStringAsync(uri, {
+          encoding: FileSystem.EncodingType.Base64,
+        });
+        setPhotoBase64(`data:image/jpeg;base64,${base64}`);
+        setSelectedAvatar(null);
       }
     } else {
-      alert("Gallery permission is required to choose a photo.")
+      alert("Gallery permission is required to choose a photo.");
     }
-    setIsModalVisible(false)
-  }
+    setIsModalVisible(false);
+  };
 
   const handleContinue = async () => {
-    if (selectedAvatar || photo) {
+    if (selectedAvatar || photoBase64) {
       try {
-        const selection = {
-          type: selectedAvatar ? "avatar" : "photo",
-          value: selectedAvatar ? selectedAvatar : photo,
+        const token = await AsyncStorage.getItem("authToken");
+        if (!token) {
+          throw new Error("No auth token found");
         }
-        await AsyncStorage.setItem("userAvatarSelection", JSON.stringify(selection))
-        navigation.goBack()
+        const avatarData = selectedAvatar
+          ? avatars.find((avatar) => avatar.id === selectedAvatar).base64
+          : photoBase64;
+        console.log("Updating avatar with data:", { avatar: avatarData.substring(0, 50) + "..." });
+        console.log("Request URL:", `${SERVER_CONFIG.getBaseUrl()}/user`);
+        console.log("Request Headers:", { Authorization: `Bearer ${token}` });
+        const response = await axios.put(
+          `${SERVER_CONFIG.getBaseUrl()}/user`,
+          { avatar: avatarData },
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+        console.log("Avatar update response:", response.data);
+        if (response.data.success) {
+          alert("Avatar updated successfully!");
+          navigation.goBack();
+        } else {
+          alert("Failed to update avatar.");
+        }
       } catch (error) {
-        console.error("Error saving avatar selection:", error)
+        console.error("Error saving avatar:", error);
+        alert("Error saving avatar.");
       }
     }
-  }
+  };
 
   const avatars = [
-    { id: 1, source: require("../../../assets/avatars/Avatar_Asian.png") },
-    { id: 2, source: require("../../../assets/avatars/Avatar_Athlete.png") },
-    { id: 3, source: require("../../../assets/avatars/Avatar_Dizzy.png") },
-    { id: 4, source: require("../../../assets/avatars/Avatar_Gangster.png") },
-    { id: 5, source: require("../../../assets/avatars/Avatar_Happy.png") },
-    { id: 6, source: require("../../../assets/avatars/Avatar_Love.png") },
-    { id: 7, source: require("../../../assets/avatars/Avatar_Sikh.png") },
-    { id: 8, source: require("../../../assets/avatars/Avatar_Smirk.png") },
-    { id: 9, source: require("../../../assets/avatars/Avatar_Hijabi.png") },
-    { id: 10, source: require("../../../assets/avatars/Avatar_Silly.png") },
-  ]
+    {
+      id: 1,
+      source: require("../../../assets/avatars/Avatar_Asian.png"),
+      base64: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAECgJ/2h5nAAAAAElFTkSuQmCC",
+    },
+    {
+      id: 2,
+      source: require("../../../assets/avatars/Avatar_Athlete.png"),
+      base64: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAECgJ/2h5nAAAAAElFTkSuQmCC",
+    },
+    {
+      id: 3,
+      source: require("../../../assets/avatars/Avatar_Dizzy.png"),
+      base64: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAECgJ/2h5nAAAAAElFTkSuQmCC",
+    },
+    {
+      id: 4,
+      source: require("../../../assets/avatars/Avatar_Gangster.png"),
+      base64: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAECgJ/2h5nAAAAAElFTkSuQmCC",
+    },
+    {
+      id: 5,
+      source: require("../../../assets/avatars/Avatar_Happy.png"),
+      base64: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAECgJ/2h5nAAAAAElFTkSuQmCC",
+    },
+    {
+      id: 6,
+      source: require("../../../assets/avatars/Avatar_Love.png"),
+      base64: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAECgJ/2h5nAAAAAElFTkSuQmCC",
+    },
+    {
+      id: 7,
+      source: require("../../../assets/avatars/Avatar_Sikh.png"),
+      base64: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAECgJ/2h5nAAAAAElFTkSuQmCC",
+    },
+    {
+      id: 8,
+      source: require("../../../assets/avatars/Avatar_Smirk.png"),
+      base64: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAECgJ/2h5nAAAAAElFTkSuQmCC",
+    },
+    {
+      id: 9,
+      source: require("../../../assets/avatars/Avatar_Hijabi.png"),
+      base64: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAECgJ/2h5nAAAAAElFTkSuQmCC",
+    },
+    {
+      id: 10,
+      source: require("../../../assets/avatars/Avatar_Silly.png"),
+      base64: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAECgJ/2h5nAAAAAElFTkSuQmCC",
+    },
+  ];
 
-  const selectedAvatarObj = avatars.find((avatar) => avatar.id === selectedAvatar)
+  const selectedAvatarObj = avatars.find((avatar) => avatar.id === selectedAvatar);
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]}>
@@ -119,7 +202,7 @@ export default function EditAvatar() {
           <Ionicons name="chevron-back" size={24} color={theme.text} />
         </TouchableOpacity>
         <Text style={[styles.headerTitle, { color: theme.text }]}>Rediger Avatar</Text>
-        <View style={{ width: 24 }}>{/* Spacer for symmetry */}</View>
+        <View style={{ width: 24 }} />
       </View>
 
       <View style={styles.content}>
@@ -198,8 +281,9 @@ export default function EditAvatar() {
                   selectedAvatar === avatar.id && [styles.selectedAvatar, { backgroundColor: theme.primary + "20" }],
                 ]}
                 onPress={() => {
-                  setSelectedAvatar(avatar.id)
-                  setPhoto(null)
+                  setSelectedAvatar(avatar.id);
+                  setPhoto(null);
+                  setPhotoBase64(null);
                 }}
               >
                 <Image source={avatar.source} style={styles.avatar} />
@@ -287,7 +371,7 @@ export default function EditAvatar() {
         </View>
       </Modal>
     </SafeAreaView>
-  )
+  );
 }
 
 const styles = StyleSheet.create({
@@ -499,5 +583,4 @@ const styles = StyleSheet.create({
   cancelButtonText: {
     color: "#00B6AA",
   },
-})
-
+});
