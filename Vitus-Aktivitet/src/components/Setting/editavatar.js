@@ -15,6 +15,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { Camera } from "lucide-react-native";
 import * as ImagePicker from "expo-image-picker";
 import * as FileSystem from "expo-file-system";
+import * as ImageManipulator from "expo-image-manipulator"; // Import the image manipulator
 import { useNavigation } from "@react-navigation/native";
 import { useTheme } from "../context/ThemeContext";
 import { UserContext } from "../context/UserContext";
@@ -71,12 +72,20 @@ export default function EditAvatar() {
       });
       if (!result.canceled) {
         const uri = result.assets[0].uri;
-        setPhoto(uri);
-        const base64 = await FileSystem.readAsStringAsync(uri, {
+        // Resize and compress the image
+        const manipulatedImage = await ImageManipulator.manipulateAsync(
+          uri,
+          [{ resize: { width: 300 } }], // Resize to 300px width (height will scale proportionally)
+          { compress: 0.7, format: ImageManipulator.SaveFormat.JPEG } // Compress to 70% quality
+        );
+        setPhoto(manipulatedImage.uri);
+        const base64 = await FileSystem.readAsStringAsync(manipulatedImage.uri, {
           encoding: FileSystem.EncodingType.Base64,
         });
-        setPhotoBase64(`data:image/jpeg;base64,${base64}`);
+        const formattedBase64 = `data:image/jpeg;base64,${base64}`;
+        setPhotoBase64(formattedBase64);
         setSelectedAvatar(null);
+        console.log("Photo base64 length:", formattedBase64.length); // Log the size for debugging
       }
     } else {
       alert("Camera permission is required to take a photo.");
@@ -95,12 +104,20 @@ export default function EditAvatar() {
       });
       if (!result.canceled) {
         const uri = result.assets[0].uri;
-        setPhoto(uri);
-        const base64 = await FileSystem.readAsStringAsync(uri, {
+        // Resize and compress the image
+        const manipulatedImage = await ImageManipulator.manipulateAsync(
+          uri,
+          [{ resize: { width: 300 } }], // Resize to 300px width
+          { compress: 0.7, format: ImageManipulator.SaveFormat.JPEG } // Compress to 70% quality
+        );
+        setPhoto(manipulatedImage.uri);
+        const base64 = await FileSystem.readAsStringAsync(manipulatedImage.uri, {
           encoding: FileSystem.EncodingType.Base64,
         });
-        setPhotoBase64(`data:image/jpeg;base64,${base64}`);
+        const formattedBase64 = `data:image/jpeg;base64,${base64}`;
+        setPhotoBase64(formattedBase64);
         setSelectedAvatar(null);
+        console.log("Photo base64 length:", formattedBase64.length); // Log the size for debugging
       }
     } else {
       alert("Gallery permission is required to choose a photo.");
@@ -118,7 +135,13 @@ export default function EditAvatar() {
         const avatarData = selectedAvatar
           ? avatars.find((avatar) => avatar.id === selectedAvatar).base64
           : photoBase64;
-        console.log("Updating avatar with data:", { avatar: avatarData.substring(0, 50) + "..." });
+
+        // Validate avatarData format
+        if (!avatarData.startsWith("data:image/")) {
+          throw new Error("Invalid base64 format: Missing data URI prefix");
+        }
+
+        console.log("Updating avatar with data:", avatarData.substring(0, 50) + "...");
         console.log("Request URL:", `${SERVER_CONFIG.getBaseUrl()}/user`);
         console.log("Request Headers:", { Authorization: `Bearer ${token}` });
         const response = await axios.put(
@@ -131,12 +154,15 @@ export default function EditAvatar() {
           alert("Avatar updated successfully!");
           navigation.goBack();
         } else {
-          alert("Failed to update avatar.");
+          console.error("Failed to update avatar:", response.data.message);
+          alert("Failed to update avatar: " + response.data.message);
         }
       } catch (error) {
-        console.error("Error saving avatar:", error);
-        alert("Error saving avatar.");
+        console.error("Error saving avatar:", error.message);
+        alert("Error saving avatar: " + error.message);
       }
+    } else {
+      alert("Please select an avatar or take a photo.");
     }
   };
 
@@ -240,7 +266,11 @@ export default function EditAvatar() {
               styles.toggleButton,
               selectedMode === "avatar" && [styles.toggleButtonActive, { backgroundColor: theme.card }],
             ]}
-            onPress={() => setSelectedMode("avatar")}
+            onPress={() => {
+              setSelectedMode("avatar");
+              setPhoto(null);
+              setPhotoBase64(null);
+            }}
           >
             <Text
               style={[
@@ -257,7 +287,10 @@ export default function EditAvatar() {
               styles.toggleButton,
               selectedMode === "picture" && [styles.toggleButtonActive, { backgroundColor: theme.card }],
             ]}
-            onPress={() => setSelectedMode("picture")}
+            onPress={() => {
+              setSelectedMode("picture");
+              setSelectedAvatar(null);
+            }}
           >
             <Text
               style={[
@@ -323,16 +356,16 @@ export default function EditAvatar() {
           style={[
             styles.continueButton,
             { backgroundColor: theme.border },
-            (selectedAvatar || photo) && [styles.continueButtonActive, { backgroundColor: theme.primary }],
+            (selectedAvatar || photoBase64) && [styles.continueButtonActive, { backgroundColor: theme.primary }],
           ]}
           onPress={handleContinue}
-          disabled={!(selectedAvatar || photo)}
+          disabled={!(selectedAvatar || photoBase64)}
         >
           <Text
             style={[
               styles.continueButtonText,
               { color: theme.textSecondary },
-              (selectedAvatar || photo) && [styles.continueButtonTextActive, { color: theme.card }],
+              (selectedAvatar || photoBase64) && [styles.continueButtonTextActive, { color: theme.card }],
             ]}
           >
             Fortsett
