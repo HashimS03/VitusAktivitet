@@ -102,7 +102,7 @@ const authenticateJWT = (req, res, next) => {
 app.post("/register", async (req, res) => {
   serverLog("log", "Register request received:", req.body);
   try {
-    const { name, email, password, avatar } = req.body;
+    const { name, email, password, avatar, phone, address } = req.body;
 
     if (!name || !email || !password) {
       return res.status(400).json({ success: false, message: "Name, email, and password are required" });
@@ -119,10 +119,12 @@ app.post("/register", async (req, res) => {
       .input("email", sql.NVarChar, email)
       .input("password", sql.VarChar, hashedPassword)
       .input("avatar", sql.VarBinary(sql.MAX), avatar ? Buffer.from(avatar.split(",")[1], "base64") : null)
+      .input("phone", sql.NVarChar, phone || null) // Add phone
+      .input("address", sql.NVarChar, address || null) // Add address
       .query(`
-        INSERT INTO [USER] ([name], [email], [password], [avatar], [created_at], [last_login])
+        INSERT INTO [USER] ([name], [email], [password], [avatar], [created_at], [last_login], [phone], [address])
         OUTPUT INSERTED.Id
-        VALUES (@name, @email, @password, @avatar, GETDATE(), NULL)
+        VALUES (@name, @email, @password, @avatar, GETDATE(), NULL, @phone, @address)
       `);
 
     const newUserId = userResult.recordset[0].Id;
@@ -339,7 +341,7 @@ app.put("/user", authenticateJWT, async (req, res) => {
       }
     }
 
-    // Prepare avatar data for VARBINARY storage
+    // Prepare avatar data for VARBINARY storage, only if avatar is provided
     let avatarBuffer = null;
     if (avatar) {
       try {
@@ -352,7 +354,7 @@ app.put("/user", authenticateJWT, async (req, res) => {
       }
     }
 
-    // Update user data
+    // Update user data, only updating avatar if provided
     await pool
       .request()
       .input("id", sql.Int, req.session.userId)
@@ -367,7 +369,10 @@ app.put("/user", authenticateJWT, async (req, res) => {
             email = COALESCE(@email, email),
             phone = @phone,
             address = @address,
-            avatar = @avatar
+            avatar = CASE 
+                      WHEN @avatar IS NOT NULL THEN @avatar 
+                      ELSE avatar 
+                     END
         WHERE Id = @id
       `);
 
@@ -636,7 +641,7 @@ app.put("/events/:id", authenticateJWT, async (req, res) => {
       .query("SELECT Id FROM [EVENTS] WHERE Id = @eventId AND created_by = @userId");
 
     if (result.recordset.length === 0) {
-      return res.status(404).json({ success: false, message: "Event not found or you lack permission" });
+      return res.status(404).json({ success: false, message: "Event not dissipated or you lack permission" });
     }
 
     await pool
