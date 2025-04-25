@@ -119,8 +119,8 @@ app.post("/register", async (req, res) => {
       .input("email", sql.NVarChar, email)
       .input("password", sql.VarChar, hashedPassword)
       .input("avatar", sql.VarBinary(sql.MAX), avatar ? Buffer.from(avatar.split(",")[1], "base64") : null)
-      .input("phone", sql.NVarChar, phone || null) // Add phone
-      .input("address", sql.NVarChar, address || null) // Add address
+      .input("phone", sql.NVarChar, phone || null)
+      .input("address", sql.NVarChar, address || null)
       .query(`
         INSERT INTO [USER] ([name], [email], [password], [avatar], [created_at], [last_login], [phone], [address])
         OUTPUT INSERTED.Id
@@ -354,7 +354,7 @@ app.put("/user", authenticateJWT, async (req, res) => {
       }
     }
 
-    // Update user data, only updating avatar if provided
+    // Update user data, only updating fields if they are provided
     await pool
       .request()
       .input("id", sql.Int, req.session.userId)
@@ -367,8 +367,14 @@ app.put("/user", authenticateJWT, async (req, res) => {
         UPDATE [USER]
         SET name = COALESCE(@name, name),
             email = COALESCE(@email, email),
-            phone = @phone,
-            address = @address,
+            phone = CASE 
+                      WHEN @phone IS NOT NULL THEN @phone 
+                      ELSE phone 
+                    END,
+            address = CASE 
+                        WHEN @address IS NOT NULL THEN @address 
+                        ELSE address 
+                      END,
             avatar = CASE 
                       WHEN @avatar IS NOT NULL THEN @avatar 
                       ELSE avatar 
@@ -584,7 +590,9 @@ app.post("/events", authenticateJWT, async (req, res) => {
       stack: process.env.NODE_ENV !== "production" ? err.stack : undefined,
     };
     serverLog("error", "Error details:", errorDetails);
-    res.status(500).json({ success: false, message: `Failed to create event: ${err.message}` });
+    res.status(500).json({ success
+
+: false, message: `Failed to create event: ${err.message}` });
   }
 });
 
@@ -641,7 +649,7 @@ app.put("/events/:id", authenticateJWT, async (req, res) => {
       .query("SELECT Id FROM [EVENTS] WHERE Id = @eventId AND created_by = @userId");
 
     if (result.recordset.length === 0) {
-      return res.status(404).json({ success: false, message: "Event not dissipated or you lack permission" });
+      return res.status(404).json({ success: false, message: "Event not found or you lack permission" });
     }
 
     await pool
