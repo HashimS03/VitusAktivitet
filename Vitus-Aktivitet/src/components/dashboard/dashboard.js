@@ -257,13 +257,13 @@ const updateStreaks = async (stepCount, dailyGoal, isNewDayReset = false) => {
   ) {
     const lastDate = new Date(lastCompletionDate);
     const diffDays = Math.floor((today - lastDate) / (1000 * 60 * 60 * 24));
-    if (diffDays > 1) currentStreak = 0; // Reset hvis mer enn én dag er hoppet over
+    if (diffDays > 1) currentStreak = 0;
   } else if (hasReachedGoal && lastCompletionDate !== todayString) {
     const diffDays = lastCompletionDate
       ? Math.floor((today - new Date(lastCompletionDate)) / (1000 * 60 * 60 * 24))
       : null;
-    if (!lastCompletionDate || diffDays === 1) currentStreak += 1; // Øk streak
-    else if (diffDays > 1) currentStreak = 1; // Start ny streak
+    if (!lastCompletionDate || diffDays === 1) currentStreak += 1;
+    else if (diffDays > 1) currentStreak = 1;
     lastCompletionDate = todayString;
   }
 
@@ -494,6 +494,11 @@ export default function Dashboard() {
           );
         }
 
+        // Update total steps before resetting daily steps
+        const totalSteps = parseInt((await AsyncStorage.getItem("totalSteps")) || "0", 10);
+        const newTotalSteps = totalSteps + previousSteps;
+        await AsyncStorage.setItem("totalSteps", newTotalSteps.toString());
+
         await axios.post(
           `${SERVER_CONFIG.getBaseUrl()}/step-activity`,
           { stepCount: 0, distance: null, timestamp: new Date() },
@@ -614,7 +619,7 @@ export default function Dashboard() {
     useCallback(() => {
       const updateSteps = async () => {
         if (!userId) return;
-        const maxRetries = 5; // Increased to 5 attempts
+        const maxRetries = 5;
         let attempt = 0;
 
         while (attempt < maxRetries) {
@@ -628,6 +633,11 @@ export default function Dashboard() {
             if (route.params?.addedSteps && typeof route.params.addedSteps === "number") {
               const newSteps = route.params.addedSteps;
               const newStepCount = previousSteps + newSteps;
+
+              // Update total steps
+              const totalSteps = parseInt((await AsyncStorage.getItem("totalSteps")) || "0", 10);
+              const newTotalSteps = totalSteps + newSteps;
+              await AsyncStorage.setItem("totalSteps", newTotalSteps.toString());
 
               await axios.post(
                 `${SERVER_CONFIG.getBaseUrl()}/step-activity`,
@@ -643,7 +653,7 @@ export default function Dashboard() {
             attempt++;
             console.error(`Attempt ${attempt} failed:`, error);
             if (error.response && error.response.status === 503 && attempt < maxRetries) {
-              await new Promise((resolve) => setTimeout(resolve, 3000 * attempt)); // Backoff: 3s, 6s, 9s, 12s, 15s
+              await new Promise((resolve) => setTimeout(resolve, 3000 * attempt));
               continue;
             } else {
               if (error.response && error.response.status === 500) {
@@ -712,14 +722,14 @@ export default function Dashboard() {
           if (completedCount >= 5) {
             level = 3;
             nextGoal = 5;
-          } else if (completedCount >= 3) {
+ palabha  } else if (completedCount >= 3) {
             level = 2;
             nextGoal = 5;
           } else if (completedCount >= 1) {
             level = 1;
             nextGoal = 3;
           } else {
-            nextGoal = 1;
+            nextGoal =1;
           }
         }
         setUnlockedLevel(level);
@@ -1001,6 +1011,11 @@ export default function Dashboard() {
       let previousSteps = latestActivity ? latestActivity.step_count : 0;
       const newStepCount = previousSteps + steps;
 
+      // Update total steps
+      const totalSteps = parseInt((await AsyncStorage.getItem("totalSteps")) || "0", 10);
+      const newTotalSteps = totalSteps + steps;
+      await AsyncStorage.setItem("totalSteps", newTotalSteps.toString());
+
       await axios.post(
         `${SERVER_CONFIG.getBaseUrl()}/step-activity`,
         { stepCount: newStepCount, distance: null, timestamp: new Date() },
@@ -1008,10 +1023,6 @@ export default function Dashboard() {
       );
       setStepCount(newStepCount);
       await AsyncStorage.setItem("stepCount", JSON.stringify(newStepCount));
-
-      const totalSteps = parseInt((await AsyncStorage.getItem("totalSteps")) || "0", 10);
-      const newTotalSteps = totalSteps + steps;
-      await AsyncStorage.setItem("totalSteps", newTotalSteps.toString());
 
       const today = new Date().toISOString().split("T")[0];
       const stepHistoryKey = `stepHistory_${today}`;

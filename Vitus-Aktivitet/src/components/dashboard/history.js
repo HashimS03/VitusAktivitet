@@ -342,8 +342,8 @@ const fetchStepHistory = async (period) => {
       default:
         return {
           total: 0,
-          labels: [],
-          values: [],
+          labels: ["Ingen data"],
+          values: [0],
           maxValue: 2000,
         };
     }
@@ -388,6 +388,7 @@ const HistoryScreen = () => {
   const [tooltipData, setTooltipData] = useState(null);
   const [periodData, setPeriodData] = useState(null);
   const [streaks, setStreaks] = useState({ currentStreak: 0, bestStreak: 0 });
+  const [totalSteps, setTotalSteps] = useState(0);
   const tooltipPosition = useRef(new Animated.ValueXY()).current;
   const { theme } = useTheme();
 
@@ -395,8 +396,10 @@ const HistoryScreen = () => {
     const loadData = async () => {
       const data = await fetchStepHistory(selectedPeriod);
       const streakData = await fetchStreaks();
+      const storedTotalSteps = await AsyncStorage.getItem("totalSteps");
       setPeriodData(data);
       setStreaks(streakData);
+      setTotalSteps(parseInt(storedTotalSteps || "0", 10));
     };
     loadData();
   }, [selectedPeriod]);
@@ -564,7 +567,7 @@ const HistoryScreen = () => {
         <View style={[styles.summaryItem, { backgroundColor: theme.surface }]}>
           <MaterialCommunityIcons name="walk" size={20} color={theme.primary} />
           <Text style={[styles.summaryValue, { color: theme.text }]}>
-            {periodData.total}
+            {totalSteps.toLocaleString()}
           </Text>
           <Text style={[styles.summaryLabel, { color: theme.text }]}>
             Totale skritt

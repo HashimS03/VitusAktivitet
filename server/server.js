@@ -102,7 +102,7 @@ const authenticateJWT = (req, res, next) => {
 app.post("/register", async (req, res) => {
   serverLog("log", "Register request received:", req.body);
   try {
-    const { name, email, password, avatar } = req.body;
+    const { name, email, password, avatar, phone, address } = req.body;
 
     if (!name || !email || !password) {
       return res.status(400).json({ success: false, message: "Name, email, and password are required" });
@@ -118,11 +118,13 @@ app.post("/register", async (req, res) => {
       .input("name", sql.NVarChar, name)
       .input("email", sql.NVarChar, email)
       .input("password", sql.VarChar, hashedPassword)
-      .input("avatar", sql.VarBinary(sql.MAX), avatar ? Buffer.from(avatar, "base64") : null)
+      .input("avatar", sql.VarBinary(sql.MAX), avatar ? Buffer.from(avatar.split(",")[1], "base64") : null)
+      .input("phone", sql.NVarChar, phone || null)
+      .input("address", sql.NVarChar, address || null)
       .query(`
-        INSERT INTO [USER] ([name], [email], [password], [avatar], [created_at], [last_login])
+        INSERT INTO [USER] ([name], [email], [password], [avatar], [created_at], [last_login], [phone], [address])
         OUTPUT INSERTED.Id
-        VALUES (@name, @email, @password, @avatar, GETDATE(), NULL)
+        VALUES (@name, @email, @password, @avatar, GETDATE(), NULL, @phone, @address)
       `);
 
     const newUserId = userResult.recordset[0].Id;
@@ -277,7 +279,7 @@ app.get("/user", authenticateJWT, async (req, res) => {
       .request()
       .input("id", sql.Int, req.session.userId)
       .query(`
-        SELECT [Id], [name], [email], [avatar], [created_at], [last_login]
+        SELECT [Id], [name], [email], [avatar], [created_at], [last_login], [phone], [address]
         FROM [USER]
         WHERE [Id] = @id
       `);
@@ -300,6 +302,102 @@ app.get("/user", authenticateJWT, async (req, res) => {
     };
     serverLog("error", "Error details:", errorDetails);
     res.status(500).json({ success: false, message: `Failed to fetch user: ${err.message}` });
+  }
+});
+
+// 🔹 Route to Update User Data
+app.put("/user", authenticateJWT, async (req, res) => {
+  serverLog("log", "User update request received for userId:", req.session.userId);
+  try {
+    const { name, email, phone, address, avatar } = req.body;
+
+    // If updating profile (from editprofile.js), name and email are required
+    if (name || email) {
+      if (!name || !email) {
+        return res.status(400).json({ success: false, message: "Name and email are required when updating profile" });
+      }
+    }
+
+    const pool = await poolPromise;
+
+    // Check if user exists
+    const userCheck = await pool
+      .request()
+      .input("id", sql.Int, req.session.userId)
+      .query("SELECT Id FROM [USER] WHERE Id = @id");
+    if (userCheck.recordset.length === 0) {
+      return res.status(404).json({ success: false, message: "User not found" });
+    }
+
+    // Check for email uniqueness (excluding the current user) if email is provided
+    if (email) {
+      const emailCheck = await pool
+        .request()
+        .input("email", sql.NVarChar, email)
+        .input("id", sql.Int, req.session.userId)
+        .query("SELECT Id FROM [USER] WHERE email = @email AND Id != @id");
+      if (emailCheck.recordset.length > 0) {
+        return res.status(400).json({ success: false, message: "Email is already in use by another user" });
+      }
+    }
+
+    // Prepare avatar data for VARBINARY storage, only if avatar is provided
+    let avatarBuffer = null;
+    if (avatar) {
+      try {
+        // Remove the data URI prefix (e.g., "data:image/jpeg;base64,")
+        const base64String = avatar.split(",")[1];
+        avatarBuffer = Buffer.from(base64String, "base64");
+      } catch (err) {
+        serverLog("error", "Invalid avatar base64 data:", err);
+        return res.status(400).json({ success: false, message: "Invalid avatar data format" });
+      }
+    }
+
+    // Update user data, only updating fields if they are provided
+    await pool
+      .request()
+      .input("id", sql.Int, req.session.userId)
+      .input("name", sql.NVarChar, name || null)
+      .input("email", sql.NVarChar, email || null)
+      .input("phone", sql.NVarChar, phone || null)
+      .input("address", sql.NVarChar, address || null)
+      .input("avatar", sql.VarBinary(sql.MAX), avatarBuffer || null)
+      .query(`
+        UPDATE [USER]
+        SET name = COALESCE(@name, name),
+            email = COALESCE(@email, email),
+            phone = CASE 
+                      WHEN @phone IS NOT NULL THEN @phone 
+                      ELSE phone 
+                    END,
+            address = CASE 
+                        WHEN @address IS NOT NULL THEN @address 
+                        ELSE address 
+                      END,
+            avatar = CASE 
+                      WHEN @avatar IS NOT NULL THEN @avatar 
+                      ELSE avatar 
+                     END
+        WHERE Id = @id
+      `);
+
+    serverLog("log", "User updated successfully for userId:", req.session.userId);
+    res.json({ success: true, message: "User updated successfully" });
+  } catch (err) {
+    serverLog("error", "User update error:", err);
+    const errorDetails = {
+      message: err.message,
+      stack: process.env.NODE_ENV !== "production" ? err.stack : undefined,
+      code: err.code,
+      number: err.number,
+    };
+    serverLog("error", "Error details:", errorDetails);
+
+    if (err.number === 2627) { // Unique constraint violation (likely email)
+      return res.status(400).json({ success: false, message: "Email is already in use" });
+    }
+    res.status(500).json({ success: false, message: `Failed to update user: ${err.message}` });
   }
 });
 
@@ -492,7 +590,9 @@ app.post("/events", authenticateJWT, async (req, res) => {
       stack: process.env.NODE_ENV !== "production" ? err.stack : undefined,
     };
     serverLog("error", "Error details:", errorDetails);
-    res.status(500).json({ success: false, message: `Failed to create event: ${err.message}` });
+    res.status(500).json({ success
+
+: false, message: `Failed to create event: ${err.message}` });
   }
 });
 
