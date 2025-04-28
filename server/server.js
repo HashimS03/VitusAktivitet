@@ -206,7 +206,7 @@ app.post("/login", async (req, res) => {
     const result = await pool
       .request()
       .input("email", sql.NVarChar, email)
-      .query("SELECT [Id], [password] FROM [USER] WHERE [email] = @email");
+      .query("SELECT [Id], [password], [last_login] FROM [USER] WHERE [email] = @email");
 
     if (result.recordset.length === 0) {
       return res
@@ -229,11 +229,16 @@ app.post("/login", async (req, res) => {
 
       req.session.userId = user.Id;
 
+      const isFirstLogin = user.last_login === null;
+
+      serverLog("log", "Login successful for user:", { id: user.Id, isFirstLogin });
+
       res.json({
         success: true,
         message: "Login successful",
         userId: user.Id,
         token,
+        isFirstLogin,
       });
     } else {
       res
@@ -338,7 +343,7 @@ app.get("/user", authenticateJWT, async (req, res) => {
     const user = result.recordset[0];
     user.avatar =
       user.avatar && Buffer.isBuffer(user.avatar)
-        ? `data:image/jpeg;base64,${user.avatar.toString("base64")}`
+        ? `data:image/jpeg;base64,${row.avatar.toString("base64")}`
         : null;
 
     res.json({ success: true, user });

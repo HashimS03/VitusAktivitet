@@ -50,26 +50,35 @@ export default function login({ navigation }) {
       console.log("Login response received:", {
         success: response.data.success,
         userId: response.data.userId,
-        hasToken: !!response.data.token
+        hasToken: !!response.data.token,
+        isFirstLogin: response.data.isFirstLogin
       });
 
       if (response.data.success) {
-        // Store the JWT token with the correct key
+        // Store the JWT token
         if (response.data.token) {
-          await AsyncStorage.setItem('authToken', response.data.token); // Changed from 'userToken' to 'authToken'
+          await AsyncStorage.setItem('authToken', response.data.token);
           console.log("Token stored successfully");
         } else {
           console.error("No token received from server");
         }
         
         setUserId(response.data.userId);
+        
         Alert.alert("Success", "Login successful");
-        navigation.replace("MainApp");
+        
+        // Navigate based on whether it's the first login
+        // Fallback to false if isFirstLogin is undefined
+        if (response.data.isFirstLogin === true) {
+          navigation.replace("AvatarSelection");
+        } else {
+          navigation.replace("MainApp");
+        }
       }
     } catch (error) {
       console.log("Login error:", error);
       Alert.alert(
-        "Error", 
+        "Error",
         error.response?.data?.message || "Login failed. Please check your connection."
       );
     }
