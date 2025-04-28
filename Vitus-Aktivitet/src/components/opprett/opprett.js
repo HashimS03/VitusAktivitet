@@ -12,12 +12,14 @@ import axios from "axios";
 import { SERVER_CONFIG } from "../../config/serverConfig";
 
 const { width } = Dimensions.get("window");
+const PRIMARY_COLOR = "#48CAB2";
+const DARKER_COLOR = "#3AA891";
 
 export default function opprett({ navigation }) {
+  const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-  const [name, setName] = useState("");
 
   const validateEmail = (email) => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -25,7 +27,6 @@ export default function opprett({ navigation }) {
   };
 
   const handleRegister = async () => {
-    // Client-side validation
     if (!name.trim()) {
       Alert.alert("Error", "Name is required");
       return;
@@ -49,7 +50,7 @@ export default function opprett({ navigation }) {
 
     try {
       console.log(`Sending registration request to: ${SERVER_CONFIG.getBaseUrl()}/register`);
-      console.log("Registration data:", { name, email, password });
+      console.log("Registration data:", { name, email });
 
       const response = await axios.post(`${SERVER_CONFIG.getBaseUrl()}/register`, {
         name: name.trim(),
@@ -63,8 +64,8 @@ export default function opprett({ navigation }) {
       console.log("Registration response:", response.status, response.data);
 
       if (response.data.success) {
-        Alert.alert("Success", "User registered successfully. Please log in with your new account.");
-        navigation.replace("Login");
+        Alert.alert("Success", "User registered successfully. Please log in.");
+        navigation.navigate("Login");
       }
     } catch (error) {
       console.error("Registration error:", error);
@@ -88,66 +89,78 @@ export default function opprett({ navigation }) {
     }
   };
 
+  const isFormFilled = name.trim().length > 0 && email.trim().length > 0 && password.trim().length > 0 && confirmPassword.trim().length > 0;
+  const buttonColor = isFormFilled ? DARKER_COLOR : PRIMARY_COLOR;
+
   return (
     <View style={styles.container}>
       <View style={styles.formContainer}>
-        <Text style={styles.title}>Create</Text>
+        <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
+          <Text style={styles.backButtonText}>← Back</Text>
+        </TouchableOpacity>
+
+        <Text style={styles.title}>Create Account</Text>
+        <Text style={styles.subtitle}>Sign up with your Entra ID</Text>
 
         <View style={styles.inputContainer}>
+          <Text style={styles.label}>Name</Text>
           <TextInput
             style={styles.input}
-            placeholder="Name"
+            placeholder="Your Name"
             value={name}
             onChangeText={setName}
             autoCapitalize="words"
             autoCorrect={false}
           />
-          <View style={styles.inputBorder} />
         </View>
 
         <View style={styles.inputContainer}>
+          <Text style={styles.label}>Email</Text>
           <TextInput
             style={styles.input}
-            placeholder="raziul.cse@gmail.com"
+            placeholder="yourname@company.com"
             value={email}
             onChangeText={setEmail}
             keyboardType="email-address"
             autoCapitalize="none"
             autoCorrect={false}
           />
-          <View style={styles.inputBorder} />
         </View>
 
         <View style={styles.inputContainer}>
+          <Text style={styles.label}>Password</Text>
           <TextInput
             style={styles.input}
-            placeholder="Password"
+            placeholder="Enter your password"
             value={password}
             onChangeText={setPassword}
             secureTextEntry
             autoCapitalize="none"
           />
-          <View style={styles.inputBorder} />
         </View>
 
         <View style={styles.inputContainer}>
+          <Text style={styles.label}>Confirm Password</Text>
           <TextInput
             style={styles.input}
-            placeholder="Re-write Password"
+            placeholder="Re-enter your password"
             value={confirmPassword}
             onChangeText={setConfirmPassword}
             secureTextEntry
             autoCapitalize="none"
           />
-          <View style={styles.inputBorder} />
         </View>
 
-        <TouchableOpacity style={styles.createButton} onPress={handleRegister}>
-          <Text style={styles.createButtonText}>Create Now</Text>
+        <TouchableOpacity
+          style={[styles.registerButton, { backgroundColor: buttonColor, opacity: isFormFilled ? 1 : 0.6 }]}
+          onPress={handleRegister}
+          disabled={!isFormFilled}
+        >
+          <Text style={styles.registerButtonText}>Register</Text>
         </TouchableOpacity>
 
         <View style={styles.loginContainer}>
-          <Text style={styles.loginText}>Already have account? </Text>
+          <Text style={styles.loginText}>Already have an account? </Text>
           <TouchableOpacity onPress={() => navigation.navigate("Login")}>
             <Text style={styles.loginLink}>Login now</Text>
           </TouchableOpacity>
@@ -160,48 +173,74 @@ export default function opprett({ navigation }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#F5F5F5",
+    backgroundColor: "#F7FAFC",
+    justifyContent: "center",
   },
   formContainer: {
-    flex: 1,
     backgroundColor: "#FFFFFF",
-    borderTopLeftRadius: 30,
-    borderTopRightRadius: 30,
-    padding: 24,
-    marginTop: 100,
+    borderRadius: 24,
+    padding: 28,
+    marginHorizontal: 20,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.05,
+    shadowRadius: 12,
+    elevation: 3,
+    position: "relative",
+  },
+  backButton: {
+    position: "absolute",
+    top: 20,
+    left: 20,
+  },
+  backButtonText: {
+    color: PRIMARY_COLOR,
+    fontSize: 16,
+    fontWeight: "500",
   },
   title: {
-    fontSize: 32,
-    fontWeight: "bold",
-    color: "#1B1B3D",
-    marginBottom: 40,
+    fontSize: 30,
+    fontWeight: "600",
+    color: "#1A1A1A",
     textAlign: "center",
+    marginBottom: 12,
+    marginTop: 40,
+  },
+  subtitle: {
+    fontSize: 16,
+    color: "#6B7280",
+    textAlign: "center",
+    marginBottom: 36,
   },
   inputContainer: {
-    marginBottom: 24,
+    marginBottom: 28,
+  },
+  label: {
+    fontSize: 14,
+    fontWeight: "500",
+    color: "#374151",
+    marginBottom: 8,
   },
   input: {
     fontSize: 16,
-    paddingVertical: 8,
-    color: "#1B1B3D",
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    backgroundColor: "#F9FAFB",
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+    color: "#1F2937",
   },
-  inputBorder: {
-    height: 1,
-    backgroundColor: "#E5E5E5",
-    marginTop: 8,
-  },
-  createButton: {
-    backgroundColor: "#1B1B3D",
-    borderRadius: 12,
+  registerButton: {
+    borderRadius: 16,
     paddingVertical: 16,
     alignItems: "center",
-    marginTop: 8,
-    marginBottom: 32,
+    marginBottom: 20,
   },
-  createButtonText: {
+  registerButtonText: {
     color: "#FFFFFF",
     fontSize: 16,
-    fontWeight: "600",
+    fontWeight: "500",
   },
   loginContainer: {
     flexDirection: "row",
@@ -209,12 +248,12 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   loginText: {
-    color: "#666666",
+    color: "#6B7280",
     fontSize: 16,
   },
   loginLink: {
-    color: "#1B1B3D",
+    color: PRIMARY_COLOR,
     fontSize: 16,
-    fontWeight: "600",
+    fontWeight: "500",
   },
 });

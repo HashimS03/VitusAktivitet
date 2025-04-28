@@ -231,8 +231,6 @@ app.post("/login", async (req, res) => {
 
       const isFirstLogin = user.last_login === null;
 
-      serverLog("log", "Login successful for user:", { id: user.Id, isFirstLogin });
-
       res.json({
         success: true,
         message: "Login successful",
@@ -343,7 +341,7 @@ app.get("/user", authenticateJWT, async (req, res) => {
     const user = result.recordset[0];
     user.avatar =
       user.avatar && Buffer.isBuffer(user.avatar)
-        ? `data:image/jpeg;base64,${row.avatar.toString("base64")}`
+        ? `data:image/jpeg;base64,${user.avatar.toString("base64")}`
         : null;
 
     res.json({ success: true, user });
