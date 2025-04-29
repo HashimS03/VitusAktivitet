@@ -19,8 +19,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { PanResponder } from "react-native";
 import axios from "axios";
 import { SERVER_CONFIG } from "../../config/serverConfig";
-import axios from "axios";
-import { SERVER_CONFIG } from "../../config/serverConfig";
+
 
 // Constants
 const screenWidth = Dimensions.get("window").width;
