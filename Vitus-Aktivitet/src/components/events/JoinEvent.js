@@ -11,6 +11,7 @@ import {
 } from "react-native";
 import { CameraView, useCameraPermissions } from "expo-camera";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
+import apiClient from "../../utils/apiClient"; // Assuming you have an apiClient utility
 
 export default function JoinEvent({ navigation }) {
   const [permission, requestPermission] = useCameraPermissions();
@@ -20,17 +21,33 @@ export default function JoinEvent({ navigation }) {
     if (!permission || permission.status !== "granted") {
       requestPermission();
     }
-  }, [permission, requestPermission]); // Added requestPermission to dependencies
+  }, [permission, requestPermission]);
 
-  const handleBarCodeScanned = ({ data }) => {
+  const handleBarCodeScanned = async ({ data }) => {
     setScanned(true);
     const eventId = data.split("/event/")[1];
-    Alert.alert("QR Skannet", `Bli med i hendelse: ${data}`, [
-      {
-        text: "OK",
-        onPress: () => navigation.navigate("ActiveEvent", { eventId }),
-      },
-    ]);
+    try {
+      // Call the API to join the event
+      const response = await apiClient.post(`/join-event/${eventId}`);
+      if (response.data.success) {
+        Alert.alert("Suksess", "Du har blitt med i hendelsen!", [
+          {
+            text: "OK",
+            onPress: () => navigation.navigate("ActiveEvent", { eventId }),
+          },
+        ]);
+      } else {
+        Alert.alert(
+          "Feil",
+          response.data.message || "Kunne ikke bli med i hendelsen"
+        );
+        setScanned(false);
+      }
+    } catch (error) {
+      console.error("Error joining event:", error);
+      Alert.alert("Feil", "Kunne ikke bli med i hendelsen. Prøv igjen.");
+      setScanned(false);
+    }
   };
 
   if (!permission) {

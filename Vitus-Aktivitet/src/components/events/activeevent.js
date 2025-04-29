@@ -21,12 +21,12 @@ import InviteMembersScreen from "./InviteMembersScreen";
 import { useTheme } from "../context/ThemeContext";
 import * as Progress from "react-native-progress";
 import { EventContext } from "../events/EventContext";
+import apiClient from "../../utils/apiClient";
 
 const ActiveEvent = ({ route }) => {
   const { eventId } = route.params || {};
   const { activeEvents, pastEvents, updateEvent, deleteEvent } =
-    useContext(EventContext); // Hent både activeEvents og pastEvents
-  // Finn hendelsen fra enten activeEvents eller pastEvents
+    useContext(EventContext);
   const eventDetails =
     activeEvents.find((event) => event.id === eventId) ||
     pastEvents.find((event) => event.id === eventId);
@@ -37,10 +37,10 @@ const ActiveEvent = ({ route }) => {
   const [currentValue, setCurrentValue] = useState(0);
   const [showProgressModal, setShowProgressModal] = useState(false);
   const [newProgress, setNewProgress] = useState("");
+  const [participants, setParticipants] = useState([]);
   const navigation = useNavigation();
   const { theme, isDarkMode } = useTheme();
 
-  // Sjekk om hendelsen er ferdig
   const isEventFinished =
     eventDetails && new Date(eventDetails.end_date) < new Date();
 
@@ -64,7 +64,21 @@ const ActiveEvent = ({ route }) => {
         },
       }),
     });
-  }, [navigation]);
+
+    // Fetch participants and teams
+    const fetchParticipants = async () => {
+      try {
+        const response = await apiClient.get(`/events/${eventId}/participants`);
+        if (response.data.success) {
+          setParticipants(response.data.participants || []);
+        }
+      } catch (error) {
+        console.error("Error fetching participants:", error);
+      }
+    };
+
+    fetchParticipants();
+  }, [navigation, eventId]);
 
   const toggleModal = () => setModalVisible(!isModalVisible);
 
@@ -98,23 +112,31 @@ const ActiveEvent = ({ route }) => {
     setShowProgressModal(true);
   };
 
-  const submitProgress = () => {
+  const submitProgress = async () => {
     const newValue = Number.parseInt(newProgress, 10);
-    if (
-      !isNaN(newValue) &&
-      newValue >= 0 &&
-      newValue <= eventDetails.goalValue
-    ) {
-      setCurrentValue(newValue);
-      setProgress(newValue / eventDetails.goalValue);
-      setShowProgressModal(false);
-      setNewProgress("");
+    if (!isNaN(newValue) && newValue >= 0 && newValue <= eventDetails.goal) {
+      try {
+        const response = await apiClient.put(`/events/${eventId}/progress`, {
+          progress: newValue,
+        });
+        if (response.data.success) {
+          setCurrentValue(newValue);
+          setProgress(newValue / eventDetails.goal);
+          setShowProgressModal(false);
+          setNewProgress("");
 
-      updateEvent({
-        ...eventDetails,
-        currentValue: newValue,
-        progress: newValue / eventDetails.goalValue,
-      });
+          updateEvent({
+            ...eventDetails,
+            currentValue: newValue,
+            progress: newValue / eventDetails.goal,
+          });
+        } else {
+          Alert.alert("Feil", "Kunne ikke oppdatere fremgang.");
+        }
+      } catch (error) {
+        console.error("Error updating progress:", error);
+        Alert.alert("Feil", "Kunne ikke oppdatere fremgang. Prøv igjen.");
+      }
     } else {
       Alert.alert(
         "Ugyldig verdi",
@@ -124,7 +146,7 @@ const ActiveEvent = ({ route }) => {
   };
 
   const renderTeamMembers = () => {
-    if (!eventDetails.teams || eventDetails.teams.length === 0) {
+    if (!eventDetails.team_count || eventDetails.team_count === 0) {
       return (
         <Text style={[styles.memberCount, { color: theme.textSecondary }]}>
           Ingen lag tilgjengelig
@@ -132,8 +154,8 @@ const ActiveEvent = ({ route }) => {
       );
     }
 
-    const totalMembers = 1; // Only you are in the first team
-    const maxMembers = eventDetails.teamCount * eventDetails.membersPerTeam;
+    const totalMembers = participants.length + 1; // Including the host
+    const maxMembers = eventDetails.team_count * eventDetails.members_per_team;
 
     return (
       <>
@@ -145,42 +167,51 @@ const ActiveEvent = ({ route }) => {
           showsHorizontalScrollIndicator={false}
           style={styles.membersList}
         >
-          {eventDetails.teams.map((team, teamIndex) => (
-            <View
-              key={team.id}
-              style={[
-                styles.teamContainer,
-                teamIndex > 0 && { marginLeft: 24 },
-              ]}
-            >
-              <Text style={[styles.teamTitle, { color: theme.text }]}>
-                {team.name}
-              </Text>
-              <View style={styles.teamMembers}>
-                {teamIndex === 0 ? (
-                  <View style={styles.memberAvatar}>
-                    <Image
-                      source={require("../../../assets/member-avatar.png")}
-                      style={styles.avatarImage}
-                    />
-                    <Text
-                      style={[
-                        styles.memberName,
-                        { color: theme.textSecondary },
-                      ]}
-                    >
-                      Du
-                    </Text>
-                  </View>
-                ) : (
+          {/* Simplified team rendering */}
+          <View style={styles.teamContainer}>
+            <Text style={[styles.teamTitle, { color: theme.text }]}>
+              Team 1
+            </Text>
+            <View style={styles.teamMembers}>
+              <View style={styles.memberAvatar}>
+                <Image
+                  source={require("../../../assets/member-avatar.png")}
+                  style={styles.avatarImage}
+                />
+                <Text
+                  style={[styles.memberName, { color: theme.textSecondary }]}
+                >
+                  Du
+                </Text>
+              </View>
+              {participants.map((participant, index) => (
+                <View key={index} style={styles.memberAvatar}>
+                  <Image
+                    source={require("../../../assets/member-avatar.png")}
+                    style={styles.avatarImage}
+                  />
+                  <Text
+                    style={[styles.memberName, { color: theme.textSecondary }]}
+                  >
+                    {participant.name || "Deltaker"}
+                  </Text>
+                </View>
+              ))}
+              {Array.from(
+                {
+                  length:
+                    eventDetails.members_per_team - participants.length - 1,
+                },
+                (_, i) => (
                   <TouchableOpacity
+                    key={`empty_${i}`}
                     style={[
                       styles.emptyAvatar,
                       { backgroundColor: theme.primary },
                     ]}
                     onPress={() =>
                       !isEventFinished && setShowInviteScreen(true)
-                    } // Deaktiver invitasjon hvis hendelsen er ferdig
+                    }
                     disabled={isEventFinished}
                   >
                     <MaterialCommunityIcons
@@ -189,51 +220,18 @@ const ActiveEvent = ({ route }) => {
                       color={isDarkMode ? theme.surface : theme.background}
                     />
                   </TouchableOpacity>
-                )}
-                {Array.from(
-                  { length: eventDetails.membersPerTeam - 1 },
-                  (_, i) => (
-                    <TouchableOpacity
-                      key={`empty_${team.id}_${i}`}
-                      style={[
-                        styles.emptyAvatar,
-                        {
-                          backgroundColor: theme.primary,
-                          marginLeft: 16,
-                        },
-                      ]}
-                      onPress={() =>
-                        !isEventFinished && setShowInviteScreen(true)
-                      } // Deaktiver invitasjon
-                      disabled={isEventFinished}
-                    >
-                      <MaterialCommunityIcons
-                        name="plus"
-                        size={24}
-                        color={isDarkMode ? theme.surface : theme.background}
-                      />
-                    </TouchableOpacity>
-                  )
-                )}
-              </View>
+                )
+              )}
             </View>
-          ))}
+          </View>
         </ScrollView>
       </>
     );
   };
 
   const renderIndividualParticipants = () => {
-    if (!eventDetails.participants || eventDetails.participants.length === 0) {
-      return (
-        <Text style={[styles.memberCount, { color: theme.textSecondary }]}>
-          Ingen deltakere tilgjengelig
-        </Text>
-      );
-    }
-
-    const filledParticipants = 1;
-    const totalParticipants = eventDetails.participantCount || 0;
+    const filledParticipants = participants.length + 1; // Including the host
+    const totalParticipants = eventDetails.total_participants || 0;
     const emptySlots = Math.max(0, totalParticipants - filledParticipants);
 
     return (
@@ -256,9 +254,22 @@ const ActiveEvent = ({ route }) => {
                 <Text
                   style={[styles.memberName, { color: theme.textSecondary }]}
                 >
-                  {eventDetails.participants[0]?.name || "Du"}
+                  Du
                 </Text>
               </View>
+              {participants.map((participant, index) => (
+                <View key={index} style={styles.memberAvatar}>
+                  <Image
+                    source={require("../../../assets/member-avatar.png")}
+                    style={styles.avatarImage}
+                  />
+                  <Text
+                    style={[styles.memberName, { color: theme.textSecondary }]}
+                  >
+                    {participant.name || "Deltaker"}
+                  </Text>
+                </View>
+              ))}
               {Array.from({ length: emptySlots }, (_, i) => (
                 <TouchableOpacity
                   key={`empty_${i}`}
@@ -266,7 +277,7 @@ const ActiveEvent = ({ route }) => {
                     styles.emptyAvatar,
                     { backgroundColor: theme.primary },
                   ]}
-                  onPress={() => !isEventFinished && setShowInviteScreen(true)} // Deaktiver invitasjon
+                  onPress={() => !isEventFinished && setShowInviteScreen(true)}
                   disabled={isEventFinished}
                 >
                   <MaterialCommunityIcons
@@ -288,19 +299,14 @@ const ActiveEvent = ({ route }) => {
       navigation.goBack();
     } else {
       setCurrentValue(eventDetails.currentValue || 0);
-      setProgress(eventDetails.progress || 0);
+      setProgress((eventDetails.currentValue || 0) / eventDetails.goal);
     }
   }, [eventDetails, navigation]);
-
-  useEffect(() => {
-    console.log("Event Details:", eventDetails);
-  }, [eventDetails]);
 
   if (!eventDetails) {
     return null;
   }
 
-  // Formater dato og tid
   const formatDate = (dateString) => {
     const date = new Date(dateString);
     return date.toLocaleDateString("no", {
@@ -428,8 +434,7 @@ const ActiveEvent = ({ route }) => {
               <Text
                 style={[styles.progressText, { color: theme.textSecondary }]}
               >
-                {currentValue} av {eventDetails.goalValue}{" "}
-                {eventDetails.activityUnit}
+                {currentValue} av {eventDetails.goal} {eventDetails.activity}
               </Text>
               <Text
                 style={[styles.progressPercentage, { color: theme.primary }]}
@@ -441,7 +446,7 @@ const ActiveEvent = ({ route }) => {
           <TouchableOpacity
             style={[styles.updateButton, { backgroundColor: theme.primary }]}
             onPress={handleUpdateProgress}
-            disabled={isEventFinished} // Deaktiver oppdatering av fremgang for ferdige hendelser
+            disabled={isEventFinished}
           >
             <MaterialCommunityIcons
               name="plus"
@@ -458,11 +463,11 @@ const ActiveEvent = ({ route }) => {
 
         <View style={styles.membersSection}>
           <Text style={[styles.sectionTitle, { color: theme.text }]}>
-            {eventDetails.eventType === "team"
+            {eventDetails.event_type === "team"
               ? "Lag og Medlemmer"
               : "Deltakere"}
           </Text>
-          {eventDetails.eventType === "team"
+          {eventDetails.event_type === "team"
             ? renderTeamMembers()
             : renderIndividualParticipants()}
         </View>
@@ -484,9 +489,9 @@ const ActiveEvent = ({ route }) => {
               styles.actionButton,
               {
                 backgroundColor: isEventFinished ? theme.border : theme.primary,
-              }, // Grå ut knappen hvis ferdig
+              },
             ]}
-            onPress={() => !isEventFinished && setShowInviteScreen(true)} // Deaktiver invitasjon
+            onPress={() => !isEventFinished && setShowInviteScreen(true)}
             disabled={isEventFinished}
           >
             <MaterialCommunityIcons
@@ -533,7 +538,7 @@ const ActiveEvent = ({ route }) => {
             <TouchableOpacity
               style={styles.modalOption}
               onPress={handleEditEvent}
-              disabled={isEventFinished} // Deaktiver redigering for ferdige hendelser
+              disabled={isEventFinished}
             >
               <MaterialCommunityIcons
                 name="pencil"
@@ -594,7 +599,7 @@ const ActiveEvent = ({ route }) => {
                   styles.input,
                   { color: theme.text, borderColor: theme.border },
                 ]}
-                placeholder={`Skriv inn antall ${eventDetails.activityUnit}`}
+                placeholder={`Skriv inn antall ${eventDetails.activity}`}
                 placeholderTextColor={theme.textSecondary}
                 keyboardType="numeric"
                 value={newProgress}
@@ -766,6 +771,7 @@ const styles = StyleSheet.create({
   },
   memberAvatar: {
     alignItems: "center",
+    marginRight: 16,
   },
   avatarImage: {
     width: 60,
@@ -782,6 +788,7 @@ const styles = StyleSheet.create({
     borderRadius: 30,
     alignItems: "center",
     justifyContent: "center",
+    marginRight: 16,
   },
   descriptionSection: {
     padding: 16,

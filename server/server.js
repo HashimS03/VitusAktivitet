@@ -88,12 +88,10 @@ const authenticateJWT = (req, res, next) => {
       if (err) {
         serverLog("log", "JWT verification failed:", err.message);
         if (err.name === "TokenExpiredError") {
-          return res
-            .status(401)
-            .json({
-              success: false,
-              message: "Token expired, please log in again",
-            });
+          return res.status(401).json({
+            success: false,
+            message: "Token expired, please log in again",
+          });
         } else if (err.name === "JsonWebTokenError") {
           return res
             .status(403)
@@ -124,12 +122,10 @@ app.post("/register", async (req, res) => {
     const { name, email, password, avatar, phone, address } = req.body;
 
     if (!name || !email || !password) {
-      return res
-        .status(400)
-        .json({
-          success: false,
-          message: "Name, email, and password are required",
-        });
+      return res.status(400).json({
+        success: false,
+        message: "Name, email, and password are required",
+      });
     }
 
     const saltRounds = 10;
@@ -349,12 +345,10 @@ app.get("/user", authenticateJWT, async (req, res) => {
       stack: process.env.NODE_ENV !== "production" ? err.stack : undefined,
     };
     serverLog("error", "Error details:", errorDetails);
-    res
-      .status(500)
-      .json({
-        success: false,
-        message: `Failed to fetch user: ${err.message}`,
-      });
+    res.status(500).json({
+      success: false,
+      message: `Failed to fetch user: ${err.message}`,
+    });
   }
 });
 
@@ -387,6 +381,149 @@ app.get("/user-statistics", authenticateJWT, async (req, res) => {
   }
 });
 
+// 🔹 Route to Fetch Participants for an Event
+app.get("/events/:eventId/participants", authenticateJWT, async (req, res) => {
+  serverLog(
+    "log",
+    "Participants fetch request for eventId:",
+    req.params.eventId
+  );
+  try {
+    const eventId = req.params.eventId;
+    const userId = req.session.userId;
+
+    const pool = await poolPromise;
+
+    // Check if the event exists and the user is authorized (host or participant)
+    const eventCheck = await pool
+      .request()
+      .input("eventId", sql.Int, eventId)
+      .input("userId", sql.Int, userId).query(`
+        SELECT e.Id
+        FROM [EVENTS] e
+        LEFT JOIN [EVENT_PARTICIPANTS] ep ON e.Id = ep.event_id
+        WHERE e.Id = @eventId AND (e.created_by = @userId OR ep.user_id = @userId)
+      `);
+    if (eventCheck.recordset.length === 0) {
+      return res.status(403).json({
+        success: false,
+        message: "Event not found or you lack permission",
+      });
+    }
+
+    // Fetch participants
+    const participants = await pool.request().input("eventId", sql.Int, eventId)
+      .query(`
+        SELECT ep.user_id, ep.progress, u.name
+        FROM [EVENT_PARTICIPANTS] ep
+        JOIN [USER] u ON ep.user_id = u.Id
+        WHERE ep.event_id = @eventId
+      `);
+
+    res.json({ success: true, participants: participants.recordset });
+  } catch (err) {
+    serverLog("error", "Participants fetch error:", err);
+    res.status(500).json({
+      success: false,
+      message: `Failed to fetch participants: ${err.message}`,
+    });
+  }
+});
+
+// 🔹 Route to Join an Event via QR Code
+app.post("/join-event/:eventId", authenticateJWT, async (req, res) => {
+  serverLog(
+    "log",
+    "Join event request received for eventId:",
+    req.params.eventId
+  );
+  try {
+    const eventId = req.params.eventId;
+    const userId = req.session.userId;
+
+    const pool = await poolPromise;
+
+    // Check if the event exists
+    const eventCheck = await pool
+      .request()
+      .input("eventId", sql.Int, eventId)
+      .query("SELECT Id, created_by FROM [EVENTS] WHERE Id = @eventId");
+    if (eventCheck.recordset.length === 0) {
+      return res
+        .status(404)
+        .json({ success: false, message: "Event not found" });
+    }
+
+    const event = eventCheck.recordset[0];
+    const hostId = event.created_by;
+
+    // Prevent the host from joining their own event as a participant
+    if (userId === hostId) {
+      return res
+        .status(400)
+        .json({ success: false, message: "You are the host of this event" });
+    }
+
+    // Check if the user is already a participant
+    const participantCheck = await pool
+      .request()
+      .input("eventId", sql.Int, eventId)
+      .input("userId", sql.Int, userId)
+      .query(
+        "SELECT Id FROM [EVENT_PARTICIPANTS] WHERE event_id = @eventId AND user_id = @userId"
+      );
+    if (participantCheck.recordset.length > 0) {
+      return res.status(400).json({
+        success: false,
+        message: "You are already a participant in this event",
+      });
+    }
+
+    // Fetch the user's team or assign to a team
+    let teamId = null;
+    const teamCheck = await pool
+      .request()
+      .input("eventId", sql.Int, eventId)
+      .query("SELECT Id FROM [TEAMS] WHERE event_id = @eventId");
+    if (teamCheck.recordset.length > 0) {
+      teamId = teamCheck.recordset[0].Id; // Simplified: Assign to the first team for now
+    }
+
+    // Add the user as a participant
+    await pool
+      .request()
+      .input("userId", sql.Int, userId)
+      .input("eventId", sql.Int, eventId)
+      .input("teamId", sql.Int, teamId)
+      .input("joinedAt", sql.DateTime, new Date()).query(`
+        INSERT INTO [EVENT_PARTICIPANTS] (user_id, event_id, team_id, joined_at)
+        VALUES (@userId, @eventId, @teamId, @joinedAt)
+      `);
+
+    // If a team is assigned, add to TEAM_MEMBERS
+    if (teamId) {
+      await pool
+        .request()
+        .input("teamId", sql.Int, teamId)
+        .input("userId", sql.Int, userId)
+        .input("progress", sql.Int, 0).query(`
+          INSERT INTO [TEAM_MEMBERS] (team_id, user_id, progress)
+          VALUES (@teamId, @userId, @progress)
+        `);
+    }
+
+    res
+      .status(201)
+      .json({ success: true, message: "Joined event successfully" });
+  } catch (err) {
+    serverLog("error", "Join event error:", err);
+    res.status(500).json({
+      success: false,
+      message: `Failed to join event: ${err.message}`,
+    });
+  }
+});
+
 // 🔹 Route to Update User Data
 app.put("/user", authenticateJWT, async (req, res) => {
   serverLog(
@@ -400,12 +537,10 @@ app.put("/user", authenticateJWT, async (req, res) => {
     // If updating profile (from editprofile.js), name and email are required
     if (name || email) {
       if (!name || !email) {
-        return res
-          .status(400)
-          .json({
-            success: false,
-            message: "Name and email are required when updating profile",
-          });
+        return res.status(400).json({
+          success: false,
+          message: "Name and email are required when updating profile",
+        });
       }
     }
 
@@ -430,12 +565,10 @@ app.put("/user", authenticateJWT, async (req, res) => {
         .input("id", sql.Int, req.session.userId)
         .query("SELECT Id FROM [USER] WHERE email = @email AND Id != @id");
       if (emailCheck.recordset.length > 0) {
-        return res
-          .status(400)
-          .json({
-            success: false,
-            message: "Email is already in use by another user",
-          });
+        return res.status(400).json({
+          success: false,
+          message: "Email is already in use by another user",
+        });
       }
     }
 
@@ -503,12 +636,10 @@ app.put("/user", authenticateJWT, async (req, res) => {
         .status(400)
         .json({ success: false, message: "Email is already in use" });
     }
-    res
-      .status(500)
-      .json({
-        success: false,
-        message: `Failed to update user: ${err.message}`,
-      });
+    res.status(500).json({
+      success: false,
+      message: `Failed to update user: ${err.message}`,
+    });
   }
 });
 
@@ -685,12 +816,10 @@ app.get("/step-activity", authenticateJWT, async (req, res) => {
       stack: process.env.NODE_ENV !== "production" ? err.stack : undefined,
     };
     serverLog("error", "Error details:", errorDetails);
-    res
-      .status(500)
-      .json({
-        success: false,
-        message: `Failed to fetch step activity: ${err.message}`,
-      });
+    res.status(500).json({
+      success: false,
+      message: `Failed to fetch step activity: ${err.message}`,
+    });
   }
 });
 
@@ -713,12 +842,10 @@ app.post("/events", authenticateJWT, async (req, res) => {
     } = req.body;
 
     if (!title || !start_date || !end_date) {
-      return res
-        .status(400)
-        .json({
-          success: false,
-          message: "Title, start_date, and end_date are required",
-        });
+      return res.status(400).json({
+        success: false,
+        message: "Title, start_date, and end_date are required",
+      });
     }
 
     const pool = await poolPromise;
@@ -768,24 +895,133 @@ app.post("/events", authenticateJWT, async (req, res) => {
       stack: process.env.NODE_ENV !== "production" ? err.stack : undefined,
     };
     serverLog("error", "Error details:", errorDetails);
-    res
-      .status(500)
-      .json({
-        success: false,
-        message: `Failed to create event: ${err.message}`,
-      });
+    res.status(500).json({
+      success: false,
+      message: `Failed to create event: ${err.message}`,
+    });
   }
 });
 
-// 🔹 Route to Fetch All Events for a User
+// 🔹 Route to Update Progress in an Event
+app.put("/events/:eventId/progress", authenticateJWT, async (req, res) => {
+  serverLog("log", "Progress update request for eventId:", req.params.eventId);
+  try {
+    const eventId = req.params.eventId;
+    const userId = req.session.userId;
+    const { progress } = req.body;
+
+    if (progress === undefined || progress < 0) {
+      return res
+        .status(400)
+        .json({ success: false, message: "Valid progress value is required" });
+    }
+
+    const pool = await poolPromise;
+
+    // Check if the event exists
+    const eventCheck = await pool
+      .request()
+      .input("eventId", sql.Int, eventId)
+      .query(
+        "SELECT Id, created_by, event_type FROM [EVENTS] WHERE Id = @eventId"
+      );
+    if (eventCheck.recordset.length === 0) {
+      return res
+        .status(404)
+        .json({ success: false, message: "Event not found" });
+    }
+
+    const event = eventCheck.recordset[0];
+    const isHost = event.created_by === userId;
+
+    // Check if the user is a participant (or host)
+    const participantCheck = await pool
+      .request()
+      .input("eventId", sql.Int, eventId)
+      .input("userId", sql.Int, userId)
+      .query(
+        "SELECT Id, team_id FROM [EVENT_PARTICIPANTS] WHERE event_id = @eventId AND user_id = @userId"
+      );
+
+    if (!isHost && participantCheck.recordset.length === 0) {
+      return res
+        .status(403)
+        .json({ success: false, message: "You are not part of this event" });
+    }
+
+    // Update progress based on event type
+    if (event.event_type === "team") {
+      const teamId = participantCheck.recordset[0]?.team_id;
+      if (!teamId && !isHost) {
+        return res
+          .status(400)
+          .json({ success: false, message: "No team assigned" });
+      }
+
+      // Update progress in TEAM_MEMBERS for the user
+      await pool
+        .request()
+        .input("teamId", sql.Int, teamId)
+        .input("userId", sql.Int, userId)
+        .input("progress", sql.Int, progress).query(`
+          UPDATE [TEAM_MEMBERS]
+          SET progress = @progress
+          WHERE team_id = @teamId AND user_id = @userId
+        `);
+
+      // Update the team's overall progress in TEAMS
+      const teamProgress = await pool.request().input("teamId", sql.Int, teamId)
+        .query(`
+          SELECT AVG(progress) as avgProgress
+          FROM [TEAM_MEMBERS]
+          WHERE team_id = @teamId
+        `);
+
+      const avgProgress = teamProgress.recordset[0].avgProgress || 0;
+      await pool
+        .request()
+        .input("teamId", sql.Int, teamId)
+        .input("progress", sql.Int, avgProgress).query(`
+          UPDATE [TEAMS]
+          SET progress = @progress
+          WHERE Id = @teamId
+        `);
+    } else {
+      // For individual events, update progress in EVENT_PARTICIPANTS
+      await pool
+        .request()
+        .input("eventId", sql.Int, eventId)
+        .input("userId", sql.Int, userId)
+        .input("progress", sql.Int, progress).query(`
+          UPDATE [EVENT_PARTICIPANTS]
+          SET progress = @progress
+          WHERE event_id = @eventId AND user_id = @userId
+        `);
+    }
+
+    res.json({ success: true, message: "Progress updated successfully" });
+  } catch (err) {
+    serverLog("error", "Progress update error:", err);
+    res.status(500).json({
+      success: false,
+      message: `Failed to update progress: ${err.message}`,
+    });
+  }
+});
+
+// 🔹 Route to Fetch All Events for a User (Host or Participant)
 app.get("/events", authenticateJWT, async (req, res) => {
   serverLog("log", "Events fetch request for userId:", req.session.userId);
   try {
     const pool = await poolPromise;
     const result = await pool
       .request()
-      .input("userId", sql.Int, req.session.userId)
-      .query("SELECT * FROM [EVENTS] WHERE created_by = @userId");
+      .input("userId", sql.Int, req.session.userId).query(`
+        SELECT e.*
+        FROM [EVENTS] e
+        LEFT JOIN [EVENT_PARTICIPANTS] ep ON e.Id = ep.event_id
+        WHERE e.created_by = @userId OR ep.user_id = @userId
+      `);
 
     res.json({ success: true, data: result.recordset });
   } catch (err) {
@@ -795,12 +1031,10 @@ app.get("/events", authenticateJWT, async (req, res) => {
       stack: process.env.NODE_ENV !== "production" ? err.stack : undefined,
     };
     serverLog("error", "Error details:", errorDetails);
-    res
-      .status(500)
-      .json({
-        success: false,
-        message: `Failed to fetch events: ${err.message}`,
-      });
+    res.status(500).json({
+      success: false,
+      message: `Failed to fetch events: ${err.message}`,
+    });
   }
 });
 
@@ -824,12 +1058,10 @@ app.put("/events/:id", authenticateJWT, async (req, res) => {
     } = req.body;
 
     if (!title || !start_date || !end_date) {
-      return res
-        .status(400)
-        .json({
-          success: false,
-          message: "Title, start_date, and end_date are required",
-        });
+      return res.status(400).json({
+        success: false,
+        message: "Title, start_date, and end_date are required",
+      });
     }
 
     const pool = await poolPromise;
@@ -842,12 +1074,10 @@ app.put("/events/:id", authenticateJWT, async (req, res) => {
       );
 
     if (result.recordset.length === 0) {
-      return res
-        .status(404)
-        .json({
-          success: false,
-          message: "Event not found or you lack permission",
-        });
+      return res.status(404).json({
+        success: false,
+        message: "Event not found or you lack permission",
+      });
     }
 
     await pool
@@ -887,12 +1117,10 @@ app.put("/events/:id", authenticateJWT, async (req, res) => {
       stack: process.env.NODE_ENV !== "production" ? err.stack : undefined,
     };
     serverLog("error", "Error details:", errorDetails);
-    res
-      .status(500)
-      .json({
-        success: false,
-        message: `Failed to update event: ${err.message}`,
-      });
+    res.status(500).json({
+      success: false,
+      message: `Failed to update event: ${err.message}`,
+    });
   }
 });
 
@@ -916,12 +1144,10 @@ app.delete("/events/:id", authenticateJWT, async (req, res) => {
       );
 
     if (result.rowsAffected[0] === 0) {
-      return res
-        .status(404)
-        .json({
-          success: false,
-          message: "Event not found or you lack permission",
-        });
+      return res.status(404).json({
+        success: false,
+        message: "Event not found or you lack permission",
+      });
     }
 
     res.json({ success: true, message: "Event deleted successfully" });
@@ -932,12 +1158,10 @@ app.delete("/events/:id", authenticateJWT, async (req, res) => {
       stack: process.env.NODE_ENV !== "production" ? err.stack : undefined,
     };
     serverLog("error", "Error details:", errorDetails);
-    res
-      .status(500)
-      .json({
-        success: false,
-        message: `Failed to delete event: ${err.message}`,
-      });
+    res.status(500).json({
+      success: false,
+      message: `Failed to delete event: ${err.message}`,
+    });
   }
 });
 
@@ -1003,7 +1227,7 @@ app.get("/logs", authenticateJWT, (req, res) => {
 
 // 🔹 Root Endpoint
 app.get("/", (req, res) => {
-  res.send("API is running ✅");
+  res.send("API is running ✅ ");
 });
 
 // Start Server
