@@ -1,168 +1,295 @@
-import React, { useState } from "react";
+"use client";
+
+import { useState, useEffect, useContext } from "react";
 import {
   View,
   Text,
   TextInput,
   TouchableOpacity,
   StyleSheet,
-  ScrollView,
-  KeyboardAvoidingView,
-  Platform,
+  SafeAreaView,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
-import { useTheme } from "../context/ThemeContext"; // 🌙 Import Theme Support
+import { useTheme } from "../context/ThemeContext";
+import { UserContext } from "../context/UserContext";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import axios from "axios";
+import { SERVER_CONFIG } from "../../config/serverConfig";
+import { Alert } from "react-native";
 
-const EditProfile = () => {
+export default function EditProfile() {
   const navigation = useNavigation();
-  const { theme, accentColor } = useTheme(); // Get theme and accent color
+  const { theme, isDarkMode } = useTheme();
+  const { userId } = useContext(UserContext);
 
-  // State variables for input fields
-  const [fullName, setFullName] = useState("Hashem Sheikh");
-  const [nickname, setNickname] = useState("Hashem Sheikh");
-  const [email, setEmail] = useState("youremail@domain.com");
-  const [phone, setPhone] = useState("256 27 189");
-  const [address, setAddress] = useState("Alf Bjerkes Vei 28");
+  const [fullName, setFullName] = useState("");
+  const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
+  const [address, setAddress] = useState("");
+
+  useEffect(() => {
+    if (userId) {
+      loadUserData();
+    }
+  }, [userId]);
+
+  const loadUserData = async () => {
+    try {
+      const token = await AsyncStorage.getItem("authToken");
+      if (!token) {
+        throw new Error("No auth token found");
+      }
+      console.log("Fetching user data for userId:", userId);
+      console.log("Request URL:", `${SERVER_CONFIG.getBaseUrl()}/user`);
+      const response = await axios.get(`${SERVER_CONFIG.getBaseUrl()}/user`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      console.log("User data response:", response.data);
+      if (response.data.success) {
+        const user = response.data.user;
+        setFullName(user.name || "");
+        setEmail(user.email || "");
+        setPhone(user.phone || "");
+        setAddress(user.address || "");
+      }
+    } catch (error) {
+      console.error("Error loading user data:", error);
+      Alert.alert(
+        "Error",
+        error.response?.data?.message || "Failed to load user data."
+      );
+    }
+  };
+
+  const handleSubmit = async () => {
+    try {
+      const token = await AsyncStorage.getItem("authToken");
+      if (!token) {
+        throw new Error("No auth token found");
+      }
+      const updateData = {
+        name: fullName,
+        email,
+        phone,
+        address,
+      };
+      console.log("Submitting profile update with data:", updateData);
+      console.log("Request URL:", `${SERVER_CONFIG.getBaseUrl()}/user`);
+      console.log("Request Headers:", { Authorization: `Bearer ${token}` });
+      const response = await axios.put(
+        `${SERVER_CONFIG.getBaseUrl()}/user`,
+        updateData,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      console.log("Profile update response:", response.data);
+      if (response.data.success) {
+        Alert.alert("Success", "Profile updated successfully!");
+        navigation.goBack();
+      } else {
+        Alert.alert("Error", response.data.message || "Failed to update profile.");
+      }
+    } catch (error) {
+      console.error("Error updating profile:", error);
+      Alert.alert(
+        "Error",
+        error.response?.data?.message || "Failed to update profile."
+      );
+    }
+  };
 
   return (
-    <KeyboardAvoidingView
-      style={[styles.container, { backgroundColor: theme.background }]}
-      behavior={Platform.OS === "ios" ? "padding" : "height"}
-    >
-      {/* Header Section */}
-      <View style={[styles.headerWrapper, { borderBottomColor: theme.border }]}>
-        {/* Back Button */}
-        <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
-          <Ionicons name="chevron-back" size={28} color={theme.text} />
+    <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]}>
+      <View style={styles.header}>
+        <TouchableOpacity onPress={() => navigation.goBack()}>
+          <Ionicons name="chevron-back" size={24} color={theme.text} />
         </TouchableOpacity>
-
-        {/* Header Title */}
-        <Text style={[styles.header, { color: theme.text }]}>Rediger Profil</Text>
+        <Text style={[styles.headerTitle, { color: theme.text }]}>Rediger Profil</Text>
+        <View style={{ width: 24 }} />
       </View>
 
-      {/* Scrollable Form */}
-      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-        {/* Full Name */}
+      <View style={styles.content}>
+        <Text style={[styles.title, { color: theme.text }]}>Profil Detaljer</Text>
+
         <View style={styles.inputContainer}>
-          <Text style={[styles.label, { color: theme.textSecondary }]}>Navn</Text>
+          <Text style={[styles.label, { color: theme.text }]}>Fullt navn *</Text>
           <TextInput
-            style={[styles.input, { backgroundColor: theme.surface, color: theme.text }]}
+            style={[
+              styles.input,
+              {
+                backgroundColor: theme.surface,
+                color: theme.text,
+                borderColor: isDarkMode ? theme.border : theme.primary + "30",
+              },
+            ]}
             value={fullName}
             onChangeText={setFullName}
+            placeholder="Skriv inn fullt navn"
+            placeholderTextColor={theme.textSecondary}
           />
         </View>
 
-        {/* Email */}
         <View style={styles.inputContainer}>
-          <Text style={[styles.label, { color: theme.textSecondary }]}>E-post</Text>
+          <Text style={[styles.label, { color: theme.text }]}>E-postadresse *</Text>
           <TextInput
-            style={[styles.input, { backgroundColor: theme.surface, color: theme.text }]}
+            style={[
+              styles.input,
+              {
+                backgroundColor: theme.surface,
+                color: theme.text,
+                borderColor: isDarkMode ? theme.border : theme.primary + "30",
+              },
+            ]}
             value={email}
             onChangeText={setEmail}
+            placeholder="Skriv inn e-postadresse"
+            placeholderTextColor={theme.textSecondary}
             keyboardType="email-address"
+            autoCapitalize="none"
           />
         </View>
 
-        {/* Phone Number */}
         <View style={styles.inputContainer}>
-          <Text style={[styles.label, { color: theme.textSecondary }]}>Telefon Nummer</Text>
-          <View style={[styles.phoneInputContainer, { backgroundColor: theme.surface }]}>
-            <Text style={styles.flag}>🇳🇴</Text>
-            <TextInput
-              style={[styles.phoneInput, { color: theme.text }]}
-              value={phone}
-              onChangeText={setPhone}
-              keyboardType="phone-pad"
-            />
-          </View>
+          <Text style={[styles.label, { color: theme.text }]}>Telefonnummer</Text>
+          <TextInput
+            style={[
+              styles.input,
+              {
+                backgroundColor: theme.surface,
+                color: theme.text,
+                borderColor: isDarkMode ? theme.border : theme.primary + "30",
+              },
+            ]}
+            value={phone}
+            onChangeText={setPhone}
+            placeholder="Skriv inn telefonnummer"
+            placeholderTextColor={theme.textSecondary}
+            keyboardType="phone-pad"
+          />
         </View>
 
-        {/* Address */}
         <View style={styles.inputContainer}>
-          <Text style={[styles.label, { color: theme.textSecondary }]}>Adresse</Text>
+          <Text style={[styles.label, { color: theme.text }]}>Adresse</Text>
           <TextInput
-            style={[styles.input, { backgroundColor: theme.surface, color: theme.text }]}
+            style={[
+              styles.input,
+              {
+                backgroundColor: theme.surface,
+                color: theme.text,
+                borderColor: isDarkMode ? theme.border : theme.primary + "30",
+              },
+            ]}
             value={address}
             onChangeText={setAddress}
+            placeholder="Skriv inn adresse"
+            placeholderTextColor={theme.textSecondary}
           />
         </View>
+      </View>
 
-        {/* Submit Button */}
-        <TouchableOpacity style={[styles.submitButton, { backgroundColor: accentColor }]} onPress={() => alert("Profil oppdatert!")}>
-          <Text style={styles.submitText}>SUBMIT</Text>
+      <View style={styles.footer}>
+        <TouchableOpacity
+          style={[styles.skipButton, { backgroundColor: theme.primary + "20" }]}
+          onPress={() => navigation.goBack()}
+        >
+          <Text style={[styles.skipButtonText, { color: theme.primary }]}>Avbryt</Text>
         </TouchableOpacity>
-      </ScrollView>
-    </KeyboardAvoidingView>
+        <TouchableOpacity
+          style={[
+            styles.continueButton,
+            { backgroundColor: theme.border },
+            fullName && email && [styles.continueButtonActive, { backgroundColor: theme.primary }],
+          ]}
+          onPress={handleSubmit}
+          disabled={!(fullName && email)}
+        >
+          <Text
+            style={[
+              styles.continueButtonText,
+              { color: theme.textSecondary },
+              fullName && email && [styles.continueButtonTextActive, { color: theme.card }],
+            ]}
+          >
+            Lagre
+          </Text>
+        </TouchableOpacity>
+      </View>
+    </SafeAreaView>
   );
-};
+}
 
-// Styles
 const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
-  headerWrapper: {
+  header: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "center",
-    height: 60,
-    marginTop: Platform.OS === "ios" ? 60 : 40,
-    borderBottomWidth: 1,
-    position: "relative",
+    paddingHorizontal: 16,
+    paddingVertical: 16,
+    justifyContent: "space-between",
   },
-  backButton: {
-    position: "absolute",
-    left: 20,
-    padding: 10,
-  },
-  header: {
-    fontSize: 22,
+  headerTitle: {
+    fontSize: 20,
     fontWeight: "bold",
     textAlign: "center",
+    flex: 1,
   },
-  scrollContent: {
-    paddingHorizontal: 20,
-    paddingTop: 10,
-    paddingBottom: 40,
+  content: {
+    flex: 1,
+    paddingHorizontal: 24,
+    paddingTop: 20,
+  },
+  title: {
+    fontSize: 32,
+    fontWeight: "bold",
+    marginBottom: 32,
   },
   inputContainer: {
-    marginBottom: 16,
+    marginBottom: 24,
   },
   label: {
-    fontSize: 14,
-    marginBottom: 5,
+    fontSize: 16,
+    fontWeight: "600",
+    marginBottom: 8,
   },
   input: {
-    borderRadius: 8,
+    borderWidth: 2,
+    borderRadius: 12,
     padding: 12,
     fontSize: 16,
   },
-  phoneInputContainer: {
+  footer: {
     flexDirection: "row",
-    alignItems: "center",
-    borderRadius: 8,
-    padding: 12,
+    padding: 24,
+    paddingBottom: 40,
   },
-  phoneInput: {
+  skipButton: {
     flex: 1,
+    paddingVertical: 16,
+    marginRight: 12,
+    borderRadius: 12,
+  },
+  skipButtonText: {
     fontSize: 16,
-    marginLeft: 10,
+    fontWeight: "600",
+    textAlign: "center",
   },
-  flag: {
-    fontSize: 18,
-    marginRight: 10,
+  continueButton: {
+    flex: 1,
+    paddingVertical: 16,
+    marginLeft: 12,
+    borderRadius: 12,
   },
-  submitButton: {
-    borderRadius: 8,
-    padding: 16,
-    alignItems: "center",
-    marginTop: 20,
+  continueButtonActive: {
+    backgroundColor: "#00B6AA",
   },
-  submitText: {
+  continueButtonText: {
+    fontSize: 16,
+    fontWeight: "600",
+    textAlign: "center",
+  },
+  continueButtonTextActive: {
     color: "#FFF",
-    fontSize: 18,
-    fontWeight: "bold",
   },
 });
-
-export default EditProfile;

@@ -19,6 +19,8 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { PanResponder } from "react-native";
 import axios from "axios";
 import { SERVER_CONFIG } from "../../config/serverConfig";
+import axios from "axios";
+import { SERVER_CONFIG } from "../../config/serverConfig";
 
 // Constants
 const screenWidth = Dimensions.get("window").width;
@@ -180,60 +182,17 @@ const Tooltip = ({ value, label, position, period, theme }) => (
 
 const fetchStepHistory = async (period) => {
   try {
-    const token = await AsyncStorage.getItem("authToken");
-    if (!token) {
-      throw new Error("No authentication token found");
-    }
+    const allKeys = await AsyncStorage.getAllKeys();
+    const stepKeys = allKeys.filter((key) => key.startsWith("stepHistory_"));
+    const stepData = await AsyncStorage.multiGet(stepKeys);
+
+    const stepsByDate = stepData.map(([key, value]) => ({
+      date: key.replace("stepHistory_", ""),
+      steps: JSON.parse(value) || 0,
+    }));
 
     const today = new Date();
     const todayString = today.toISOString().split("T")[0];
-    let startDate, endDate;
-
-    switch (period) {
-      case "day": {
-        startDate = todayString;
-        endDate = todayString;
-        break;
-      }
-      case "week": {
-        const startOfWeek = new Date(today);
-        const dayOfWeek = today.getDay();
-        const daysToSubtract = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
-        startOfWeek.setDate(today.getDate() - daysToSubtract);
-        startOfWeek.setHours(0, 0, 0, 0);
-        startDate = startOfWeek.toISOString().split("T")[0];
-        endDate = todayString;
-        break;
-      }
-      case "month": {
-        const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
-        startDate = startOfMonth.toISOString().split("T")[0];
-        endDate = todayString;
-        break;
-      }
-      case "year": {
-        const startOfYear = new Date(today.getFullYear(), 0, 1);
-        startDate = startOfYear.toISOString().split("T")[0];
-        endDate = todayString;
-        break;
-      }
-      default:
-        throw new Error("Invalid period specified");
-    }
-
-    const response = await axios.get(`${SERVER_CONFIG.getBaseUrl()}/step-activity`, {
-      headers: {
-        Authorization: `Bearer ${token}`,
-        "Content-Type": "application/json",
-      },
-      params: {
-        startDate,
-        endDate,
-      },
-      withCredentials: true,
-    });
-
-    const stepData = response.data.data || [];
 
     switch (period) {
       case "day": {
@@ -274,9 +233,9 @@ const fetchStepHistory = async (period) => {
         const total = values.reduce((sum, val) => sum + val, 0);
         return {
           total,
-          labels: ["Man", "Tir", "Ons", "Tor", "Fre", "Lør", "Søn"],
+          labels: ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"],
           values,
-          maxValue: Math.round(Math.max(...values, 3000)),
+          maxValue: Math.round(Math.max(...values, 10000)),
           average: Math.round(total / 7),
         };
       }
@@ -288,34 +247,30 @@ const fetchStepHistory = async (period) => {
           0
         ).getDate();
         const values = Array(daysInMonth).fill(0);
-        stepData.forEach((entry) => {
-          const entryDate = new Date(entry.timestamp);
-          if (entryDate >= startOfMonth) {
-            const dayIndex = entryDate.getDate() - 1;
-            values[dayIndex] = (values[dayIndex] || 0) + entry.step_count;
-          }
+        monthData.forEach((entry) => {
+          const dayIndex = new Date(entry.date).getDate() - 1;
+          values[dayIndex] = (values[dayIndex] || 0) + entry.steps;
         });
         const total = values.reduce((sum, val) => sum + val, 0);
         return {
           total,
           labels: Array.from({ length: daysInMonth }, (_, i) => `${i + 1}`),
           values,
-          maxValue: Math.max(...values, 4000),
-          average: total / daysInMonth,
+          maxValue: Math.max(...values, 10000),
+          average: Math.round(total / daysInMonth),
         };
       }
       case "year": {
         const startOfYear = new Date(today.getFullYear(), 0, 1);
         const monthlyTotals = Array(12).fill(0);
-        stepData.forEach((entry) => {
-          const entryDate = new Date(entry.timestamp);
-          if (entryDate >= startOfYear) {
-            const monthIndex = entryDate.getMonth();
-            monthlyTotals[monthIndex] += entry.step_count;
-          }
+        yearData.forEach((entry) => {
+          const monthIndex = new Date(entry.date).getMonth();
+          monthlyTotals[monthIndex] += entry.steps;
         });
         const total = monthlyTotals.reduce((sum, val) => sum + val, 0);
-        const dailyAverage = total / 365;
+        const values = monthlyTotals.map((total, i) =>
+          daysInMonth[i] ? Math.round(total / daysInMonth[i]) : 0
+        );
         return {
           total,
           labels: [
@@ -323,41 +278,33 @@ const fetchStepHistory = async (period) => {
             "Feb",
             "Mar",
             "Apr",
-            "Mai",
+            "May",
             "Jun",
             "Jul",
             "Aug",
             "Sep",
-            "Okt",
+            "Oct",
             "Nov",
-            "Des",
+            "Dec",
           ],
-          values: monthlyTotals.map((val) => Math.round(val / 30)),
-          maxValue: Math.round(
-            Math.max(...monthlyTotals.map((val) => val / 30), 400)
-          ),
-          average: Math.round(dailyAverage),
+          values,
+          maxValue: Math.round(Math.max(...values, 10000)),
+          average: Math.round(total / 365),
         };
       }
       default:
         return {
           total: 0,
-          labels: [],
-          values: [],
+          labels: ["No data"],
+          values: [0],
           maxValue: 2000,
         };
     }
   } catch (error) {
-    console.error("Feil ved henting av step history fra serveren:", error);
-    if (error.message === "No authentication token found") {
-      console.error("Authentication token is missing. User may need to log in.");
-    } else if (error.response) {
-      console.error("Server response:", error.response.data);
-      console.error("Status code:", error.response.status);
-    }
+    console.error("Feil ved henting av step history:", error);
     return {
       total: 0,
-      labels: ["Ingen data"],
+      labels: ["No data"],
       values: [0],
       maxValue: 2000,
     };
@@ -388,6 +335,7 @@ const HistoryScreen = () => {
   const [tooltipData, setTooltipData] = useState(null);
   const [periodData, setPeriodData] = useState(null);
   const [streaks, setStreaks] = useState({ currentStreak: 0, bestStreak: 0 });
+  const [totalSteps, setTotalSteps] = useState(0);
   const tooltipPosition = useRef(new Animated.ValueXY()).current;
   const { theme } = useTheme();
 
@@ -395,8 +343,19 @@ const HistoryScreen = () => {
     const loadData = async () => {
       const data = await fetchStepHistory(selectedPeriod);
       const streakData = await fetchStreaks();
+      const statsResponse = await axios.get(
+        `${SERVER_CONFIG.getBaseUrl()}/user-statistics`,
+        {
+          headers: {
+            Authorization: `Bearer ${await AsyncStorage.getItem("authToken")}`,
+            "Content-Type": "application/json",
+          },
+          withCredentials: true,
+        }
+      );
       setPeriodData(data);
       setStreaks(streakData);
+      setTotalSteps(statsResponse.data.data.total_steps || 0);
     };
     loadData();
   }, [selectedPeriod]);
@@ -564,7 +523,7 @@ const HistoryScreen = () => {
         <View style={[styles.summaryItem, { backgroundColor: theme.surface }]}>
           <MaterialCommunityIcons name="walk" size={20} color={theme.primary} />
           <Text style={[styles.summaryValue, { color: theme.text }]}>
-            {periodData.total}
+            {totalSteps.toLocaleString()}
           </Text>
           <Text style={[styles.summaryLabel, { color: theme.text }]}>
             Totale skritt

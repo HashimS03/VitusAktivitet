@@ -83,6 +83,11 @@ export default function StepCounter({ setStepCount }) {
         if (storedAndroidSteps && Platform.OS === "android") {
           androidStepsSinceReboot = JSON.parse(storedAndroidSteps);
         }
+        // Ensure totalSteps exists in AsyncStorage
+        const storedTotalSteps = await AsyncStorage.getItem("totalSteps");
+        if (!storedTotalSteps) {
+          await AsyncStorage.setItem("totalSteps", "0");
+        }
       } catch (error) {
         handleApiError(error, "Error loading initial step data");
       }
@@ -99,6 +104,12 @@ export default function StepCounter({ setStepCount }) {
         const newStepsDelta = Math.max(0, newPhysicalSteps - lastPhysicalSteps);
         const updatedTotalSteps = currentTotalSteps + newStepsDelta;
 
+        // Update totalSteps
+        const storedTotalSteps = await AsyncStorage.getItem("totalSteps");
+        const currentTotalStepsAllTime = storedTotalSteps ? JSON.parse(storedTotalSteps) : 0;
+        const updatedTotalStepsAllTime = currentTotalStepsAllTime + newStepsDelta;
+        await AsyncStorage.setItem("totalSteps", JSON.stringify(updatedTotalStepsAllTime));
+
         await AsyncStorage.setItem("stepCount", JSON.stringify(updatedTotalSteps));
         await AsyncStorage.setItem("lastPhysicalSteps", JSON.stringify(newPhysicalSteps));
 
@@ -110,8 +121,43 @@ export default function StepCounter({ setStepCount }) {
         const updatedHistorySteps = storedHistorySteps + newStepsDelta;
         await AsyncStorage.setItem(stepHistoryKey, JSON.stringify(updatedHistorySteps));
 
-        // Use optimized step syncing with debounce
-        syncSteps(updatedTotalSteps);
+        // Sync with backend with retry
+        const maxRetries = 5;
+        let attempt = 0;
+        while (attempt < maxRetries) {
+          try {
+            await axios.post(
+              `${SERVER_CONFIG.getBaseUrl()}/step-activity`,
+              {
+                stepCount: updatedTotalSteps,
+                distance: null,
+                timestamp: new Date(),
+              },
+              { withCredentials: true }
+            );
+            break;
+          } catch (error) {
+            attempt++;
+            console.error(`Attempt ${attempt} failed:`, error);
+            if (error.response && error.response.status === 503 && attempt < maxRetries) {
+              await new Promise((resolve) => setTimeout(resolve, 3000 * attempt));
+              continue;
+            } else {
+              if (error.response && error.response.status === 500) {
+                Alert.alert("Server Error", "Unable to save step data. Please try again later.");
+              } else if (error.response && error.response.status === 401) {
+                Alert.alert("Authentication Error", "Please log in to sync step data.");
+              } else if (error.response && error.response.status === 503) {
+                queueRequest("POST", `${SERVER_CONFIG.getBaseUrl()}/step-activity`, {
+                  stepCount: updatedTotalSteps,
+                  distance: null,
+                  timestamp: new Date(),
+                });
+              }
+              break;
+            }
+          }
+        }
 
         setStepCount(updatedTotalSteps);
         console.log(
@@ -119,11 +165,67 @@ export default function StepCounter({ setStepCount }) {
           updatedTotalSteps,
           "New physical steps:",
           newStepsDelta,
+          "Total steps all time:",
+          updatedTotalStepsAllTime,
           "History steps for today:",
           updatedHistorySteps
         );
       } catch (error) {
         console.error("Error updating step count in storage:", error);
+      }
+    };
+
+    const checkAndResetDailySteps = async () => {
+      try {
+        const today = new Date();
+        const todayString = today.toISOString().split("T")[0];
+        const lastResetDate = await AsyncStorage.getItem("lastStepResetDate");
+
+        if (lastResetDate !== todayString) {
+          const previousSteps = parseInt(
+            (await AsyncStorage.getItem("stepCount")) || "0",
+            10
+          );
+
+          if (lastResetDate && previousSteps > 0) {
+            await AsyncStorage.setItem(
+              `stepHistory_${lastResetDate}`,
+              previousSteps.toString()
+            );
+          }
+
+          // Update totalSteps before resetting daily steps
+          const storedTotalSteps = await AsyncStorage.getItem("totalSteps");
+          const currentTotalStepsAllTime = storedTotalSteps ? JSON.parse(storedTotalSteps) : 0;
+          const updatedTotalStepsAllTime = currentTotalStepsAllTime + previousSteps;
+          await AsyncStorage.setItem("totalSteps", JSON.stringify(updatedTotalStepsAllTime));
+
+          await AsyncStorage.setItem("stepCount", "0");
+          await AsyncStorage.setItem("lastStepResetDate", todayString);
+          await AsyncStorage.setItem("lastPhysicalSteps", "0");
+          setStepCount(0);
+
+          await axios.post(
+            `${SERVER_CONFIG.getBaseUrl()}/step-activity`,
+            { stepCount: 0, distance: null, timestamp: new Date() },
+            { withCredentials: true }
+          ).catch((error) => {
+            if (error.response && error.response.status === 503) {
+              queueRequest("POST", `${SERVER_CONFIG.getBaseUrl()}/step-activity`, {
+                stepCount: 0,
+                distance: null,
+                timestamp: new Date(),
+              });
+            }
+          });
+
+          console.log(
+            "Daily reset performed. Total steps updated to:",
+            updatedTotalStepsAllTime
+          );
+        }
+      } catch (error) {
+        console.error("Error in checkAndResetDailySteps:", error);
       }
     };
 
@@ -169,6 +271,7 @@ export default function StepCounter({ setStepCount }) {
       if (appState.match(/inactive|background/) && nextAppState === "active") {
         console.log("App has come to the foreground!");
         syncQueue();
+        checkAndResetDailySteps();
       }
       setAppState(nextAppState);
     };
@@ -211,10 +314,15 @@ export default function StepCounter({ setStepCount }) {
       const available = await checkPedometerAvailability();
       if (!available) {
         console.log("Pedometer is not available on this device");
+        Alert.alert(
+          "Pedometer ikke tilgjengelig",
+          "Din enhet støtter ikke skrittelling."
+        );
         return;
       }
 
       await loadInitialData();
+      await checkAndResetDailySteps();
 
       appStateSubscription = AppState.addEventListener("change", handleAppStateChange);
 
