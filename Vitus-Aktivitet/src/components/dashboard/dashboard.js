@@ -1063,6 +1063,9 @@ export default function Dashboard() {
             "Failed to update your daily goal. Please try again later."
           );
         }
+      } catch (error) {
+        console.error("Error setting daily goal:", error);
+        Alert.alert("Error", "Failed to set daily goal. Please try again.");
       }
     } else {
       Alert.alert("Ugyldig mål", "Vennligst skriv inn et gyldig tall større enn 0.");
