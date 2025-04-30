@@ -1,10 +1,8 @@
 import React, { createContext, useState, useEffect } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import apiClient from '../../utils/apiClient';
-import { SERVER_CONFIG } from "../../config/serverConfig"; 
 
 const STORAGE_KEY = "events";
-const API_BASE_URL = SERVER_CONFIG.getBaseUrl();
 
 export const EventContext = createContext();
 
@@ -67,69 +65,27 @@ export const EventProvider = ({ children }) => {
     try {
       setLoading(true);
       
-      // Get userId for filtering
-      const userId = await AsyncStorage.getItem('userId');
-      const token = await AsyncStorage.getItem('authToken');
-      
-      if (!token) {
-        console.log("No auth token available, can't load events");
-        setLoading(false);
-        return;
+      // Get stored events first
+      const storedEvents = await AsyncStorage.getItem(STORAGE_KEY);
+      if (storedEvents) {
+        const localEvents = JSON.parse(storedEvents);
+        setEvents(normalizeEvents(localEvents));
       }
       
-      // Try to fetch events from server using apiClient
-      const response = await apiClient.get('/events');
-      
-      if (response.data.success) {
-        // Server returns { success: true, data: [...events] }
-        const serverEvents = response.data.data;
-        console.log(`Loaded ${serverEvents.length} events from server`);
-        
-        // Normalize events properly before setting state
-        const normalizedEvents = normalizeEvents(serverEvents);
-        
-        // Set all events
-        setEvents(normalizedEvents);
-        
-        // Filter to include both events the user created and events they're participating in
-        if (userId) {
-          const userEvents = normalizedEvents.filter(event => {
-            const isCreator = String(event.created_by) === String(userId);
-            const isParticipant = event.participants && event.participants.some(
-              p => String(p.userId) === String(userId) || String(p.user_id) === String(userId)
-            );
-            return isCreator || isParticipant;
-          });
-          
-          console.log(`Found ${userEvents.length} events related to the user (created or participating)`);
-          setMyEvents(userEvents);
+      // Then try to get from server
+      try {
+        const response = await apiClient.get('/events');
+        if (response.data && response.data.data) {
+          const serverEvents = response.data.data;
+          setEvents(normalizeEvents(serverEvents));
+          await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(serverEvents));
         }
-        
-        // Also update AsyncStorage as a backup
-        await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(normalizedEvents));
-      } else {
-        console.error("Server returned error:", response.data);
-        throw new Error("Failed to fetch events from server");
+      } catch (apiError) {
+        console.error("API error loading events:", apiError);
+        // Don't clear events on API error
       }
     } catch (error) {
-      // Improved error handling
-      console.error("Failed to load events:", error);
-      
-      if (error.response?.status === 401) {
-        // Just use local storage and don't show error - we'll already have an auth alert
-        try {
-          const storedEvents = await AsyncStorage.getItem(STORAGE_KEY);
-          if (storedEvents) {
-            const parsedEvents = JSON.parse(storedEvents);
-            const normalizedEvents = normalizeEvents(parsedEvents);
-            setEvents(normalizedEvents);
-          }
-        } catch (storageError) {
-          console.error("Storage error:", storageError);
-        }
-      } else {
-        setError(error.message);
-      }
+      console.error("Error in loadEvents:", error);
     } finally {
       setLoading(false);
     }
@@ -139,24 +95,128 @@ export const EventProvider = ({ children }) => {
   useEffect(() => {
     loadEvents();
     
-    // Set up a periodic refresh every 5 minutes (optional)
+    // Reduce polling frequency to once every 15 minutes
     const refreshInterval = setInterval(() => {
-      loadEvents();
-    }, 300000); // 5 minutes
+      // Only refresh if the app is actively being used
+      const lastActivity = AsyncStorage.getItem('lastUserActivity');
+      const now = Date.now();
+      if (lastActivity && (now - parseInt(lastActivity)) < 30 * 60 * 1000) {
+        loadEvents();
+      }
+    }, 900000); // 15 minutes
     
     return () => clearInterval(refreshInterval);
   }, []);
   
+    // Add this useEffect right after your existing loadEvents useEffect (around line 105)
+  // This will update myEvents whenever user authentication changes or events change
+  useEffect(() => {
+    const updateMyEventsForCurrentUser = async () => {
+      try {
+        const userId = await AsyncStorage.getItem('userId');
+        
+        if (!userId) {
+          console.log("No user ID found, myEvents will be empty");
+          setMyEvents([]);
+          return;
+        }
+        
+        if (!events || events.length === 0) {
+          console.log(`No events available to filter for user ${userId}`);
+          setMyEvents([]);
+          return;
+        }
+        
+      
+        
+        // Filter events where the current user is creator or participant
+        const userEvents = events.filter(event => {
+          if (!event) return false;
+          
+          // Check if user is creator (compare as strings to be safe)
+          const isCreator = String(event.created_by) === String(userId);
+          
+          // Check if user is a participant
+          let isParticipant = false;
+          if (event.participants && Array.isArray(event.participants)) {
+            isParticipant = event.participants.some(p => 
+              String(p.userId) === String(userId) || 
+              String(p.user_id) === String(userId)
+            );
+          }
+          
+          return isCreator || isParticipant;
+        });
+        
+        
+        
+        // Update myEvents with filtered list
+        setMyEvents(userEvents);
+        
+        // Store these events in user-specific storage for persistence across logins
+        await AsyncStorage.setItem(`user_${userId}_events`, JSON.stringify(userEvents));
+      } catch (error) {
+        console.error("Error updating myEvents for current user:", error);
+      }
+    };
+    
+    // Call the function
+    updateMyEventsForCurrentUser();
+  }, [events]); // This will run whenever the events list changes
+  
+    // Add this useEffect to respond to user authentication changes
+  useEffect(() => {
+    const checkAuthStatus = async () => {
+      try {
+        const userId = await AsyncStorage.getItem('userId');
+        const authToken = await AsyncStorage.getItem('authToken');
+        
+        if (userId && authToken) {
+          console.log(`User logged in with ID: ${userId}, loading their events`);
+          
+          // Try to get user-specific events from storage first
+          const userEventsJson = await AsyncStorage.getItem(`user_${userId}_events`);
+          if (userEventsJson) {
+            const userEvents = JSON.parse(userEventsJson);
+            console.log(`Found ${userEvents.length} cached events for user ${userId}`);
+            setMyEvents(normalizeEvents(userEvents));
+          }
+          
+          // Then refresh events from server
+          loadEvents();
+        } else {
+          console.log("No authenticated user, clearing myEvents");
+          setMyEvents([]);
+        }
+      } catch (error) {
+        console.error("Error checking auth status:", error);
+      }
+    };
+    
+    // Run on component mount
+    checkAuthStatus();
+    
+    // Only check auth on mount, not periodically
+    return () => {}; // No interval to clear
+  }, []);
+  
   // Add a new event with optimistic updates
   const addEvent = async (newEvent) => {
+    console.log("🔍 ADDEVENT FUNCTION CALLED with:", JSON.stringify(newEvent, null, 2));
+    
     try {
       // Get the current user ID to mark as creator
+      console.log("🔍 Getting userId from AsyncStorage");
       const userId = await AsyncStorage.getItem('userId');
+      console.log("🔍 userId retrieved:", userId);
       
       // Create a temporary event with a unique local ID
+      const tempId = `temp-${Date.now()}`;
+      console.log("🔍 Generated temporary ID:", tempId);
+      
       const tempEvent = normalizeEvent({
         ...newEvent,
-        id: `temp-${Date.now()}`,
+        id: tempId,
         created_by: userId,
         participants: [{
           userId: userId,
@@ -164,49 +224,141 @@ export const EventProvider = ({ children }) => {
         }]
       });
       
+      console.log("🔍 Created temporary event:", JSON.stringify(tempEvent, null, 2));
+      
       // Optimistically update UI
+      console.log("🔍 Updating UI with temporary event");
       setEvents(prevEvents => [...prevEvents, tempEvent]);
       setMyEvents(prevEvents => [...prevEvents, tempEvent]);
       
-      // Make the API call
-      const response = await apiClient.post('/events', newEvent);
+      // Store in local storage in case of network issues
+      console.log("🔍 Storing event in AsyncStorage");
+      try {
+        const currentEvents = [...events, tempEvent];
+        await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(currentEvents));
+        console.log("✅ Successfully saved to AsyncStorage");
+      } catch (storageError) {
+        console.error("🔴 AsyncStorage error:", storageError);
+      }
+
+      // Explicitly tie this event to the current user in local storage
+      try {
+        // Save to user-specific storage as well
+        const userEventsJson = await AsyncStorage.getItem(`user_${userId}_events`);
+        let userEvents = [];
+        
+        if (userEventsJson) {
+          userEvents = JSON.parse(userEventsJson);
+        }
+        
+        userEvents.push(tempEvent);
+        await AsyncStorage.setItem(`user_${userId}_events`, JSON.stringify(userEvents));
+        console.log(`Added event to user ${userId}'s personal storage`);
+      } catch (userStorageError) {
+        console.error("Error saving to user-specific storage:", userStorageError);
+      }
       
-      if (response.data.success) {
-        const eventId = response.data.eventId;
-        console.log("Event created with ID:", eventId);
+      // Make the API call with apiClient (not axios directly)
+      console.log("🔍 Making API call to create event...");
+      console.log("🔍 Request payload:", JSON.stringify(newEvent, null, 2));
+      
+      try {
+        const response = await apiClient.post('/events', newEvent);
+        console.log("✅ API response received:", JSON.stringify(response.data, null, 2));
         
-        // Update our local copy with the real ID from the server
-        const createdEvent = {
-          ...tempEvent,
-          id: eventId,
-          Id: eventId
-        };
-        
-        // Replace the temporary event with the real one
-        setEvents(prevEvents => 
-          prevEvents.map(e => e.id === tempEvent.id ? createdEvent : e)
-        );
-        setMyEvents(prevEvents => 
-          prevEvents.map(e => e.id === tempEvent.id ? createdEvent : e)
-        );
-        
-        // Update local storage
-        const updatedEvents = events.map(e => 
-          e.id === tempEvent.id ? createdEvent : e
-        );
-        await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(updatedEvents));
-        
-        return { success: true, eventId };
-      } else {
-        // If failed, revert the optimistic update
-        setEvents(prevEvents => prevEvents.filter(e => e.id !== tempEvent.id));
-        setMyEvents(prevEvents => prevEvents.filter(e => e.id !== tempEvent.id));
-        console.error("Server error creating event:", response.data.message);
-        return { success: false, error: response.data.message };
+        if (response.data.success) {
+          const eventId = response.data.eventId;
+          console.log("✅ Event created successfully with ID:", eventId);
+          
+          // Update our local copy with the real ID from the server
+          const createdEvent = {
+            ...tempEvent,
+            id: eventId,
+            Id: eventId
+          };
+          
+          // Replace the temporary event with the real one
+          console.log("🔍 Updating events list with real ID");
+          setEvents(prevEvents => 
+            prevEvents.map(e => e.id === tempEvent.id ? createdEvent : e)
+          );
+          setMyEvents(prevEvents => 
+            prevEvents.map(e => e.id === tempEvent.id ? createdEvent : e)
+          );
+          
+          // Update local storage
+          console.log("🔍 Updating AsyncStorage with real ID");
+          try {
+            const updatedEvents = events.map(e => 
+              e.id === tempEvent.id ? createdEvent : e
+            );
+            await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(updatedEvents));
+            console.log("✅ AsyncStorage updated successfully");
+          } catch (storageError) {
+            console.error("🔴 AsyncStorage update error:", storageError);
+          }
+
+          const result = { 
+            success: true, 
+            eventId,
+            createdEvent: {
+              ...createdEvent,
+              // Make extra sure all data needed for display is included
+              start_date: createdEvent.start_date,
+              end_date: createdEvent.end_date,
+              title: createdEvent.title,
+              description: createdEvent.description,
+              activity: createdEvent.activity,
+              progress: createdEvent.progress || 0,
+              goal: createdEvent.goal,
+              location: createdEvent.location,
+              participants: createdEvent.participants || []
+            }
+          };
+
+          // Save this event specifically to user-specific storage
+          try {
+            // Get user-specific events
+            const userEventsJson = await AsyncStorage.getItem(`user_${userId}_events`);
+            let userEvents = userEventsJson ? JSON.parse(userEventsJson) : [];
+            
+            // Add or update this event in user-specific storage
+            const existingIndex = userEvents.findIndex(e => e.id === eventId || e.Id === eventId);
+            if (existingIndex >= 0) {
+              userEvents[existingIndex] = createdEvent;
+            } else {
+              userEvents.push(createdEvent);
+            }
+            
+            await AsyncStorage.setItem(`user_${userId}_events`, JSON.stringify(userEvents));
+            console.log(`Added event ${eventId} to user ${userId}'s personal storage`);
+          } catch (error) {
+            console.error("Error updating user-specific storage:", error);
+          }
+
+          return result;
+        } else {
+          console.error("🔴 API reported failure:", response.data);
+          throw new Error(response.data.message || "Failed to create event");
+        }
+      } catch (apiError) {
+        console.error("🔴 API call failed:", apiError);
+        if (apiError.response) {
+          console.error("🔴 Response status:", apiError.response.status);
+          console.error("🔴 Response data:", JSON.stringify(apiError.response.data, null, 2));
+        }
+        throw apiError;
       }
     } catch (error) {
-      console.error("Error adding event:", error);
-      return { success: false, error: error.message };
+      console.error("🔴 Error in addEvent:", error);
+      console.error("🔴 Error stack:", error.stack);
+      
+      return { 
+        success: false, 
+        error: error.message,
+        details: error.response?.data || {},
+        status: error.response?.status
+      };
     }
   };
   
@@ -374,33 +526,37 @@ export const EventProvider = ({ children }) => {
   // Function to fetch event participants
   const fetchEventParticipants = async (eventId) => {
     try {
-      // Check if participants are already in local state
-      const event = events.find(e => e.id == eventId || e.Id == eventId);
-      if (event && event.participants && event.participants.length > 0) {
-        console.log(`Using ${event.participants.length} cached participants for event ${eventId}`);
-        return event.participants;
+      // Check if we already have cached participants
+      const cachedKey = `event_participants_${eventId}`;
+      const cachedData = await AsyncStorage.getItem(cachedKey);
+      
+      if (cachedData) {
+        // Use cached data if available and not expired (cache for 10 minutes)
+        const parsedCache = JSON.parse(cachedData);
+        const cacheAge = Date.now() - parsedCache.timestamp;
+        
+        if (cacheAge < 10 * 60 * 1000) { // 10 minutes
+          console.log(`Using cached participants for event ${eventId}`);
+          return parsedCache.participants;
+        }
       }
       
-      // Fetch from server if not in local state
+      console.log(`Fetching participants for event ${eventId}...`);
       const response = await apiClient.get(`/events/${eventId}/participants`);
-      const participants = response.data.data || [];
       
-      // Update local event with participants
-      if (participants.length > 0) {
-        setEvents(prevEvents => prevEvents.map(event => {
-          if (event.id == eventId || event.Id == eventId) {
-            return {
-              ...event,
-              participants: participants
-            };
-          }
-          return event;
+      if (response.data && response.data.participants) {
+        // Cache the participants
+        await AsyncStorage.setItem(cachedKey, JSON.stringify({
+          participants: response.data.participants,
+          timestamp: Date.now()
         }));
+        
+        return response.data.participants;
       }
-      
-      return participants;
+      return [];
     } catch (error) {
-      console.error("Failed to fetch event participants:", error);
+      console.error("Error fetching participants:", error);
+      // Don't throw - return empty array to avoid crashes
       return [];
     }
   };

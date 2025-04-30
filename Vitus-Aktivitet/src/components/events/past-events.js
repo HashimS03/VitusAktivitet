@@ -180,13 +180,13 @@ const PastEvents = () => {
         enabled={true}
       >
         <TouchableOpacity
-          style={[styles.eventCard, { backgroundColor: theme.surface }]}
-          onPress={() =>
-            navigation.navigate("ActiveEvent", { 
-              eventId,
-              eventData: normalizedEvent
-            })
-          }
+          style={[styles.eventCard, { 
+            backgroundColor: theme.surface,
+            borderWidth: 1,
+            borderColor: theme.primary + '20'
+          }]}
+          onPress={() => handleEventPress(normalizedEvent)}
+          activeOpacity={0.5}
         >
           <View style={styles.cardContent}>
             <Image
@@ -221,6 +221,35 @@ const PastEvents = () => {
         </TouchableOpacity>
       </Swipeable>
     );
+  };
+
+  const handleEventPress = (event) => {
+    // Deep copy the event to avoid any mutation issues
+    const eventCopy = JSON.parse(JSON.stringify(event));
+    
+    // Create a clean normalized event object
+    const normalizedEvent = {
+      ...eventCopy,
+      id: eventCopy.id || eventCopy.Id,
+      Id: eventCopy.id || eventCopy.Id
+    };
+    
+    console.log("🚀 Navigating to past event:", normalizedEvent.id, normalizedEvent.title);
+    
+    // Force a clean navigation action
+    navigation.reset({
+      index: 0,
+      routes: [
+        { 
+          name: 'ActiveEvent', 
+          params: {
+            eventId: normalizedEvent.id,
+            eventData: normalizedEvent,
+            timestamp: new Date().getTime()
+          }
+        }
+      ],
+    });
   };
 
   return (

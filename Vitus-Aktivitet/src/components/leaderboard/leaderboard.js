@@ -56,11 +56,10 @@ const Leaderboard = ({ route }) => {
   const [searchQuery, setSearchQuery] = useState("");
   const { theme, isDarkMode, toggleTheme, accentColor } = useTheme();
   const { activeEvents, pastEvents, deleteEvent } = useContext(EventContext);
-  const [leaderboardType, setLeaderboardType] = useState("General");
   const [selectedEvent, setSelectedEvent] = useState(
     route.params?.eventId
-      ? activeEvents.find((event) => event.id === route.params.eventId) ||
-          pastEvents.find((event) => event.id === route.params.eventId)
+      ? activeEvents.find(event => String(event.id) === String(route.params.eventId)) ||
+        pastEvents.find(event => String(event.id) === String(route.params.eventId))
       : null
   );
   const [showLeaderboardTypeDropdown, setShowLeaderboardTypeDropdown] =
@@ -72,6 +71,9 @@ const Leaderboard = ({ route }) => {
   const [generalLeaderboardData, setGeneralLeaderboardData] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [leaderboardType, setLeaderboardType] = useState(
+    route.params?.eventId ? "Event" : "General"
+  );
 
   const searchAnimation = useRef(new Animated.Value(0)).current;
 
@@ -804,6 +806,32 @@ const Leaderboard = ({ route }) => {
       </View>
     </View>
   );
+
+  useEffect(() => {
+    if (route.params?.eventId) {
+      const eventId = route.params.eventId;
+      console.log("Leaderboard received eventId:", eventId);
+      
+      const event = activeEvents.find(e => String(e.id) === String(eventId)) ||
+                   pastEvents.find(e => String(e.id) === String(eventId));
+      
+      if (event) {
+        console.log("Found matching event:", event.title);
+        setSelectedEvent(event);
+        setLeaderboardType("Event");
+      } else {
+        console.error("Event not found for ID:", eventId);
+      }
+    }
+  }, [route.params, activeEvents, pastEvents]);
+
+  // Add cleanup effect
+  useEffect(() => {
+    return () => {
+      // Reset any selections when the component unmounts
+      // This ensures a clean state next time the leaderboard is opened
+    };
+  }, []);
 
   return (
     <SafeAreaView

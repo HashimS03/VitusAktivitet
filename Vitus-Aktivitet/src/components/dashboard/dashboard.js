@@ -43,8 +43,6 @@ import { EventContext } from "../events/EventContext";
 import { trophyData } from "../profile/achievements";
 import StepCalculator from "../dashboard/StepCalculator";
 import { UserContext } from "../context/UserContext";
-import axios from "axios";
-import { SERVER_CONFIG } from "../../config/serverConfig";
 import apiClient from "../../utils/apiClient";
 
 const SCREEN_WIDTH = Dimensions.get("window").width;
@@ -350,12 +348,7 @@ export default function Dashboard() {
 
       if (!userId) return;
       try {
-        const response = await axios.get(
-          `${SERVER_CONFIG.getBaseUrl()}/step-activity`,
-          {
-            withCredentials: true,
-          }
-        );
+        const response = await apiClient.get('/step-activity');
         const latestActivity = response.data.data[0];
         const stepCount = latestActivity ? latestActivity.step_count : 0;
         const currentStreak = parseInt(
@@ -516,9 +509,7 @@ export default function Dashboard() {
       const lastResetDate = await AsyncStorage.getItem("lastStepResetDate");
 
       if (lastResetDate !== todayString && userId) {
-        const response = await axios.get(`${SERVER_CONFIG.getBaseUrl()}/step-activity`, {
-          withCredentials: true,
-        });
+        const response = await apiClient.get('/step-activity');
         const latestActivity = response.data.data[0];
         const previousSteps = latestActivity ? latestActivity.step_count : 0;
 
@@ -530,13 +521,15 @@ export default function Dashboard() {
           );
         }
 
-        await axios.post(
-          `${SERVER_CONFIG.getBaseUrl()}/step-activity`,
-          { stepCount: 0, distance: null, timestamp: new Date() },
-          { withCredentials: true }
-        ).catch((error) => {
+        try {
+          await apiClient.post('/step-activity', { 
+            stepCount: 0, 
+            distance: null, 
+            timestamp: new Date() 
+          });
+        } catch (error) {
           if (error.response && error.response.status === 503) {
-            queueRequest("POST", `${SERVER_CONFIG.getBaseUrl()}/step-activity`, {
+            queueRequest("POST", '/step-activity', {
               stepCount: 0,
               distance: null,
               timestamp: new Date(),
@@ -544,7 +537,7 @@ export default function Dashboard() {
           } else if (error.response && error.response.status === 401) {
             Alert.alert("Authentication Error", "Please log in to reset steps.");
           }
-        });
+        }
         setStepCount(0);
         await AsyncStorage.setItem("stepCount", "0");
         await AsyncStorage.setItem("lastStepResetDate", todayString);
@@ -602,9 +595,7 @@ export default function Dashboard() {
           : DAILY_STEP_GOAL;
         setDailyGoal(initialGoal);
 
-        const response = await axios.get(`${SERVER_CONFIG.getBaseUrl()}/step-activity`, {
-          withCredentials: true,
-        });
+        const response = await apiClient.get('/step-activity');
         const latestActivity = response.data.data[0];
         const initialSteps = latestActivity ? latestActivity.step_count : 0;
         setStepCount(initialSteps);
@@ -660,9 +651,7 @@ export default function Dashboard() {
 
         while (attempt < maxRetries) {
           try {
-            const response = await axios.get(`${SERVER_CONFIG.getBaseUrl()}/step-activity`, {
-              withCredentials: true,
-            });
+            const response = await apiClient.get('/step-activity');
             const latestActivity = response.data.data[0];
             let previousSteps = latestActivity ? latestActivity.step_count : 0;
 
@@ -684,11 +673,11 @@ export default function Dashboard() {
                 newTotalSteps.toString()
               );
 
-              await axios.post(
-                `${SERVER_CONFIG.getBaseUrl()}/step-activity`,
-                { stepCount: newStepCount, distance: null, timestamp: new Date() },
-                { withCredentials: true }
-              );
+              await apiClient.post('/step-activity', { 
+                stepCount: newStepCount, 
+                distance: null, 
+                timestamp: new Date() 
+              });
               setStepCount(newStepCount);
               await AsyncStorage.setItem(
                 "stepCount",
@@ -721,15 +710,11 @@ export default function Dashboard() {
                   "Please log in to sync step data."
                 );
               } else if (error.response && error.response.status === 503) {
-                queueRequest(
-                  "POST",
-                  `${SERVER_CONFIG.getBaseUrl()}/step-activity`,
-                  {
-                    stepCount: previousSteps + (route.params?.addedSteps || 0),
-                    distance: null,
-                    timestamp: new Date(),
-                  }
-                );
+                queueRequest("POST", '/step-activity', {
+                  stepCount: previousSteps + (route.params?.addedSteps || 0),
+                  distance: null,
+                  timestamp: new Date(),
+                });
                 Alert.alert(
                   "Server Problem",
                   "The server is temporarily unavailable. Steps are saved locally, and we'll sync when the server is back.",
@@ -1002,13 +987,15 @@ export default function Dashboard() {
         await AsyncStorage.multiRemove(keysToRemove);
       }
       if (userId) {
-        await axios.post(
-          `${SERVER_CONFIG.getBaseUrl()}/step-activity`,
-          { stepCount: 0, distance: null, timestamp: new Date() },
-          { withCredentials: true }
-        ).catch((error) => {
+        try {
+          await apiClient.post('/step-activity', { 
+            stepCount: 0, 
+            distance: null, 
+            timestamp: new Date() 
+          });
+        } catch (error) {
           if (error.response && error.response.status === 503) {
-            queueRequest("POST", `${SERVER_CONFIG.getBaseUrl()}/step-activity`, {
+            queueRequest("POST", '/step-activity', {
               stepCount: 0,
               distance: null,
               timestamp: new Date(),
@@ -1016,7 +1003,7 @@ export default function Dashboard() {
           } else if (error.response && error.response.status === 401) {
             Alert.alert("Authentication Error", "Please log in to reset steps.");
           }
-        });
+        }
       }
       setStepCount(0);
       setDailyGoal(DAILY_STEP_GOAL);
@@ -1074,17 +1061,15 @@ export default function Dashboard() {
 
   const handleCalculatorConfirm = async (steps) => {
     try {
-      const response = await axios.get(`${SERVER_CONFIG.getBaseUrl()}/step-activity`, {
-        withCredentials: true,
-      });
+      const response = await apiClient.get('/step-activity');
       const latestActivity = response.data.data[0];
       let previousSteps = latestActivity ? latestActivity.step_count : 0;
       const newStepCount = previousSteps + steps;
 
-      await apiClient.post('/step-activity', {
+      await apiClient.post('/step-activity', { 
         stepCount: newStepCount, 
         distance: null, 
-        timestamp: new Date()
+        timestamp: new Date() 
       });
       setStepCount(newStepCount);
       await AsyncStorage.setItem("stepCount", JSON.stringify(newStepCount));
@@ -1106,12 +1091,7 @@ export default function Dashboard() {
         let nextGoal = randomTrophy.levels[0].goal;
 
         // Fetch total steps from USER_STATISTICS
-        const statsResponse = await axios.get(
-          `${SERVER_CONFIG.getBaseUrl()}/user-statistics`,
-          {
-            withCredentials: true,
-          }
-        );
+        const statsResponse = await apiClient.get('/user-statistics');
         const totalSteps = statsResponse.data.data.total_steps || 0;
 
         switch (randomTrophy.name) {
@@ -1164,7 +1144,7 @@ export default function Dashboard() {
       } else if (error.response && error.response.status === 401) {
         Alert.alert("Authentication Error", "Please log in to sync steps.");
       } else if (error.response && error.response.status === 503) {
-        queueRequest("POST", `${SERVER_CONFIG.getBaseUrl()}/step-activity`, {
+        queueRequest("POST", '/step-activity', {
           stepCount: previousSteps + steps,
           distance: null,
           timestamp: new Date(),
@@ -1252,29 +1232,33 @@ export default function Dashboard() {
     const queue = JSON.parse(
       (await AsyncStorage.getItem("requestQueue")) || "[]"
     );
-    queue.push({ method, url, data, timestamp: new Date() });
+    queue.push({ method, url, data, timestamp: new Date().toISOString() });
     await AsyncStorage.setItem("requestQueue", JSON.stringify(queue));
+    console.log(`Request queued for later: ${method} ${url}`);
   };
 
   const syncQueue = async () => {
     const queue = JSON.parse(
       (await AsyncStorage.getItem("requestQueue")) || "[]"
     );
+    
+    if (queue.length === 0) return;
+    console.log(`Attempting to sync ${queue.length} queued requests`);
+    
     for (const request of queue) {
       try {
-        await axios[request.method.toLowerCase()](request.url, request.data, {
-          withCredentials: true,
-        });
-        const updatedQueue = queue.filter(
-          (r) => r.timestamp !== request.timestamp
+        await apiClient[request.method.toLowerCase()](
+          request.url, 
+          request.data
         );
-        await AsyncStorage.setItem(
-          "requestQueue",
-          JSON.stringify(updatedQueue)
-        );
+        
+        // Remove the successful request from queue
+        const updatedQueue = queue.filter(r => r.timestamp !== request.timestamp);
+        await AsyncStorage.setItem("requestQueue", JSON.stringify(updatedQueue));
+        console.log(`Successfully synced 1 request. Remaining: ${updatedQueue.length}`);
       } catch (error) {
         console.error("Failed to sync queued request:", error);
-        break;
+        break; // Stop processing if there's an error
       }
     }
   };

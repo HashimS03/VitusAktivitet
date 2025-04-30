@@ -22,10 +22,39 @@ import { useTheme } from "../context/ThemeContext";
 import * as Progress from "react-native-progress";
 import { EventContext } from "../events/EventContext";
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import axios from 'axios';
-import { SERVER_CONFIG } from "../../config/serverConfig";
+import { apiClient } from '../../utils/apiClient';
 
-const ActiveEvent = ({ route }) => {
+const normalizeEventId = (event) => {
+  if (!event) return null;
+  
+  // Make sure both id and Id are present
+  return {
+    ...event,
+    id: event.id || event.Id,
+    Id: event.Id || event.id
+  };
+};
+
+const ActiveEvent = ({ route, navigation }) => {
+  // Add this right at the start of your component
+  console.log("⭐️ ActiveEvent mounted with params:", route.params);
+  
+  // Add this special effect to handle navigation params
+  useEffect(() => {
+    // This will rebuild the component whenever route.params changes
+    if (route.params) {
+      const paramsEventId = route.params.eventId;
+      const eventData = route.params.eventData;
+      
+      if (eventData) {
+        console.log("⭐️ Direct event data provided:", 
+          eventData.id, eventData.title);
+      } else if (paramsEventId) {
+        console.log("⭐️ Loading event by ID:", paramsEventId);
+      }
+    }
+  }, [route.params]); // Re-run when params change
+
   const { eventId } = route.params || {};
   const { 
     activeEvents, 
@@ -48,7 +77,6 @@ const ActiveEvent = ({ route }) => {
   const [currentValue, setCurrentValue] = useState(0);
   const [showProgressModal, setShowProgressModal] = useState(false);
   const [newProgress, setNewProgress] = useState("");
-  const navigation = useNavigation();
   const { theme, isDarkMode } = useTheme();
   const [participants, setParticipants] = useState([]);
   const [isParticipating, setIsParticipating] = useState(false);
@@ -58,6 +86,7 @@ const ActiveEvent = ({ route }) => {
   const [userId, setUserId] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [fetchError, setFetchError] = useState(null);
+  const [menuVisible, setMenuVisible] = useState(false);
 
   useEffect(() => {
     navigation.setOptions({
@@ -83,8 +112,27 @@ const ActiveEvent = ({ route }) => {
 
   const toggleModal = () => setModalVisible(!isModalVisible);
 
-  const handleBackPress = () =>
-    navigation.navigate("EventsMain", { screen: "YourEvents" });
+  const handleBackPress = () => {
+    // First try regular back navigation
+    try {
+      // Check if we can go back
+      const canGoBack = navigation.canGoBack();
+      
+      if (canGoBack) {
+        navigation.goBack();
+      } else {
+        // Change this line to use EventTabs instead of MainApp
+        navigation.reset({
+          index: 0,
+          routes: [{ name: 'EventTabs' }], // This is defined in events-navigation.js
+        });
+      }
+    } catch (error) {
+      console.error("Navigation error:", error);
+      // Also update the emergency fallback
+      navigation.navigate('EventTabs');
+    }
+  };
 
   const handleEditEvent = () => {
     toggleModal();
@@ -92,16 +140,42 @@ const ActiveEvent = ({ route }) => {
   };
 
   const handleDeleteEvent = () => {
-    setMenuVisible(false);
+    toggleModal(); // Close the dots menu first
     Alert.alert(
       "Delete Event",
-      "Are you sure you want to delete this past event?",
+      "Are you sure you want to delete this event?",
       [
         { text: "Cancel", style: "cancel" },
         {
           text: "Delete",
           style: "destructive",
-          onPress: () => deleteEvent(eventId),
+          onPress: async () => {
+            const eventIdToUse = eventDetails?.id || eventDetails?.Id || eventId;
+            
+            if (!eventIdToUse) {
+              Alert.alert("Error", "Could not determine event ID");
+              return;
+            }
+            
+            const success = await deleteEvent(eventIdToUse);
+            if (success) {
+              try {
+                if (navigation.canGoBack()) {
+                  navigation.goBack();
+                } else {
+                  navigation.reset({
+                    index: 0,
+                    routes: [{ name: 'EventTabs' }], // Using EventTabs instead of MainApp
+                  });
+                }
+              } catch (navError) {
+                console.error("Navigation error after delete:", navError);
+                navigation.navigate('EventTabs'); // Using EventTabs here too
+              }
+            } else {
+              Alert.alert("Error", "Failed to delete event");
+            }
+          },
         },
       ]
     );
@@ -307,201 +381,168 @@ const ActiveEvent = ({ route }) => {
   };
 
   useEffect(() => {
-    if (!eventDetails) {
-      navigation.goBack();
-    } else {
+    if (eventDetails) {
+      console.log("📊 Updating current value and progress from event details");
       setCurrentValue(eventDetails.currentValue || 0);
       setProgress(eventDetails.progress || 0);
     }
-  }, [eventDetails, navigation]);
+  }, [eventDetails]);
 
   useEffect(() => {
     console.log("Event Details:", eventDetails);
   }, [eventDetails]);
 
-  useEffect(() => {
-    const loadEventData = async () => {
-      try {
-        // Fetch participants for this event
-        const eventParticipants = await fetchEventParticipants(eventId);
-        setParticipants(eventParticipants);
-        
-        // Check if current user is participating
-        const participation = await checkParticipation(eventId);
-        setIsParticipating(participation.isParticipating);
-        setParticipantId(participation.participantId);
-        setUserTeamId(participation.teamId);
-      } catch (error) {
-        console.error("Failed to load event data:", error);
+  const loadEventDetails = async () => {
+    try {
+      setIsLoading(true);
+      console.log("🔄 LOADING EVENT DETAILS - START");
+      
+      // Clean up any existing references
+      setEventDetails(null);
+      setParticipants([]);
+      
+      // Get event ID with consistent fallbacks
+      const eventIdParam = route.params?.eventId || 
+                          (route.params?.eventData?.id) || 
+                          (route.params?.eventData?.Id);
+      
+      console.log("🔄 Loading event with ID:", eventIdParam);
+      
+      if (!eventIdParam) {
+        console.error("❌ Missing event ID in params:", route.params);
+        setFetchError("Missing event ID");
+        setIsLoading(false);
+        return;
       }
-    };
-    
-    loadEventData();
-  }, [eventId]);
-
-  useEffect(() => {
-    const loadEventDetails = async () => {
-      try {
-        setIsLoading(true);
-        setFetchError(null);
+      
+      // If direct event data was provided, use it immediately
+      if (route.params?.eventData) {
+        const eventData = route.params.eventData;
         
-        // Get event ID from route params with more consistent fallbacks
-        const eventIdParam = route.params?.eventId || 
-                            route.params?.eventData?.id || 
-                            route.params?.eventData?.Id;
+        console.log("📦 Using provided event data:", 
+          eventData.id, eventData.title);
         
-        console.log("Navigate to event with ID:", eventIdParam);
+        // Create a clean normalized event
+        const normalizedEvent = {
+          ...JSON.parse(JSON.stringify(eventData)),
+          id: eventIdParam,
+          Id: eventIdParam
+        };
         
-        if (!eventIdParam) {
-          // If we have eventData but no ID, just use the event data directly
-          if (route.params?.eventData) {
-            const normalizedEvent = {
-              ...route.params.eventData,
-              id: route.params.eventData.Id || route.params.eventData.id,
-              Id: route.params.eventData.Id || route.params.eventData.id // Ensure both id formats exist
-            };
-            setEventDetails(normalizedEvent);
-            setCurrentValue(normalizedEvent.currentValue || 0);
-            setProgress(normalizedEvent.progress || 0);
-            
-            // Check if event is finished
-            const isFinished = new Date(normalizedEvent.end_date) < new Date();
-            setIsEventFinished(isFinished);
-            
-            setIsLoading(false);
-            return;
-          }
+        // Set state
+        setEventDetails(normalizedEvent);
+        setCurrentValue(normalizedEvent.currentValue || 0);
+        setProgress(normalizedEvent.progress || 0);
+        
+        // Check if event is finished
+        const isFinished = new Date(normalizedEvent.end_date) < new Date();
+        setIsEventFinished(isFinished);
+        
+        console.log("✅ Event details set from provided data");
+      } else {
+        // Try to find event in context first
+        console.log("🔍 Looking for event in context...");
+        const contextEvent = getEventById(eventIdParam);
+        
+        if (contextEvent) {
+          console.log("✅ Found event in context:", 
+            contextEvent.id, contextEvent.title);
           
-          setFetchError("No event ID provided");
-          setIsLoading(false);
-          return;
-        }
-        
-        // First try to get event from EventContext (all events, not just active)
-        const eventId = eventIdParam.toString();
-        const localEvent = getEventById ? getEventById(eventId) : 
-                          [...activeEvents, ...upcomingEvents, ...pastEvents]
-                            .find(e => (e.Id?.toString() === eventId || e.id?.toString() === eventId));
-        
-        // If found locally, use it immediately
-        if (localEvent) {
-          console.log("Found event in local context:", localEvent.title);
           const normalizedEvent = {
-            ...localEvent,
-            id: localEvent.Id || localEvent.id,
-            Id: localEvent.Id || localEvent.id // Ensure both id formats exist
+            ...contextEvent,
+            id: eventIdParam,
+            Id: eventIdParam
           };
           
           setEventDetails(normalizedEvent);
+          setCurrentValue(normalizedEvent.currentValue || 0);
+          setProgress(normalizedEvent.progress || 0);
           
           // Check if event is finished
-          const isFinished = new Date(localEvent.end_date) < new Date();
+          const isFinished = new Date(normalizedEvent.end_date) < new Date();
           setIsEventFinished(isFinished);
-          
-          // Set progress values
-          setCurrentValue(localEvent.currentValue || 0);
-          setProgress(localEvent.progress || 0);
-          
-          // Get userId
-          const userId = await AsyncStorage.getItem('userId');
-          setUserId(userId);
-          
-          // Fetch participants
+        } else {
+          console.log("⚠️ Event not found in context, fetching from API...");
           try {
-            const eventParticipants = await fetchEventParticipants(eventId);
-            setParticipants(eventParticipants);
-            
-            // Check if user is participating
-            const userIsParticipant = eventParticipants.some(p => 
-              p.userId == userId || p.user_id == userId
-            );
-            
-            setIsParticipating(userIsParticipant);
-            setIsLoading(false);
-            return;
-          } catch (participantsError) {
-            console.error("Error loading participants:", participantsError);
-            // Continue to server fetch if participant loading fails
+            const response = await apiClient.get(`/events/${eventIdParam}`);
+            if (response.data && response.data.data) {
+              const serverEvent = response.data.data;
+              const normalizedEvent = {
+                ...serverEvent,
+                id: eventIdParam,
+                Id: eventIdParam
+              };
+              
+              setEventDetails(normalizedEvent);
+              setCurrentValue(normalizedEvent.currentValue || 0);
+              setProgress(normalizedEvent.progress || 0);
+              
+              // Check if finished
+              const isFinished = new Date(normalizedEvent.end_date) < new Date();
+              setIsEventFinished(isFinished);
+              
+              console.log("✅ Event loaded from API");
+            } else {
+              console.error("❌ Invalid API response:", response.data);
+              setFetchError("Invalid event data from server");
+            }
+          } catch (error) {
+            console.error("❌ API error:", error);
+            setFetchError("Failed to load event from server");
           }
+        }
+      }
+      
+      // Always try to load fresh participants after setting event details
+      console.log("👥 Loading participants...");
+      try {
+        if (fetchEventParticipants) {
+          const eventParticipants = await fetchEventParticipants(eventIdParam);
+          setParticipants(eventParticipants || []);
+          console.log(`✅ Loaded ${eventParticipants?.length || 0} participants`);
         }
         
-        // If event wasn't found locally, fallback to server fetch
-        try {
-          const token = await AsyncStorage.getItem('userToken');
-          console.log(`Fetching event from ${SERVER_CONFIG.getBaseUrl()}/events/${eventIdParam}`);
-          
-          const eventResponse = await axios.get(`${SERVER_CONFIG.getBaseUrl()}/events/${eventIdParam}`, {
-            withCredentials: true,
-            headers: {
-              'Authorization': token ? `Bearer ${token}` : ''
-            }
-          });
-          
-          if (eventResponse.data && eventResponse.data.success) {
-            const event = eventResponse.data.data;
-            console.log("Event fetched directly from server:", event?.title);
-            
-            // Normalize the event object
-            const normalizedEvent = {
-              ...event,
-              id: event.Id || event.id,
-              Id: event.Id || event.id
-            };
-            
-            setEventDetails(normalizedEvent);
-            
-            // Check if event is finished
-            const isFinished = new Date(event.end_date) < new Date();
-            setIsEventFinished(isFinished);
-            
-            // Set progress values
-            setCurrentValue(event.currentValue || 0);
-            setProgress(event.progress || 0);
-            
-            // Get userId and check participation
-            const userId = await AsyncStorage.getItem('userId');
-            setUserId(userId);
-            
-            // Fetch participants directly
-            const eventParticipants = await fetchEventParticipants(eventId);
-            setParticipants(eventParticipants);
-            
-            // Check participation based on participants list
-            const userIsParticipant = eventParticipants.some(p => 
-              p.userId == userId || p.user_id == userId
-            );
-            
-            setIsParticipating(userIsParticipant);
-            setIsLoading(false);
-          } else {
-            throw new Error("Server couldn't find the event");
-          }
-        } catch (directFetchError) {
-          console.error("Error fetching event directly:", directFetchError.message);
-          setFetchError("Kunne ikke laste hendelse fra serveren");
-          setIsLoading(false);
+        if (checkParticipation) {
+          const participation = await checkParticipation(eventIdParam);
+          setIsParticipating(participation.isParticipating || false);
+          setParticipantId(participation.participantId || null);
+          setUserTeamId(participation.teamId || null);
+          console.log("✅ Checked participation status:", participation.isParticipating);
         }
-      } catch (error) {
-        console.error("Error in loadEventDetails:", error);
-        setFetchError("Kunne ikke laste hendelse");
-        setIsLoading(false);
+      } catch (participantError) {
+        console.error("⚠️ Error loading participants:", participantError);
       }
-    };
-    
-    loadEventDetails();
-  }, [route.params, getEventById]);
+      
+    } catch (error) {
+      console.error("❌ Error in loadEventDetails:", error);
+      setFetchError("Could not load event details");
+    } finally {
+      setIsLoading(false);
+      console.log("🔄 LOADING EVENT DETAILS - COMPLETE");
+    }
+  };
 
+  // Replace your useEffect dependency with this improved version
   useEffect(() => {
-    const loadUserId = async () => {
-      try {
-        const storedUserId = await AsyncStorage.getItem('userId');
+    console.log("💫 Route params changed, reloading event");
+    loadEventDetails();
+  }, [route.params?.eventId, route.params?.timestamp]); // Important to depend on eventId
+
+  const loadUserId = async () => {
+    try {
+      const storedUserId = await AsyncStorage.getItem('userId');
+      if (storedUserId) {
         setUserId(storedUserId);
-        console.log("Loaded userId from AsyncStorage:", storedUserId);
-      } catch (error) {
-        console.error("Failed to load userId from AsyncStorage:", error);
+        console.log("👤 Loaded userId:", storedUserId);
+      } else {
+        console.warn("⚠️ No userId found in storage");
       }
-    };
-    
+    } catch (error) {
+      console.error("❌ Failed to load userId:", error);
+    }
+  };
+  
+  useEffect(() => {
     loadUserId();
   }, []);
 
@@ -579,6 +620,10 @@ const ActiveEvent = ({ route }) => {
       <SafeAreaView style={[styles.safeArea, { backgroundColor: theme.background }]}>
         <View style={styles.loadingContainer}>
           <Text style={[styles.loadingText, { color: theme.text }]}>Laster hendelse...</Text>
+          {/* Add this for debugging */}
+          <Text style={{color: theme.textSecondary, marginTop: 10}}>
+            Event ID: {route.params?.eventId}
+          </Text>
         </View>
       </SafeAreaView>
     );
@@ -834,9 +879,14 @@ const ActiveEvent = ({ route }) => {
           </TouchableOpacity>
           <TouchableOpacity
             style={[styles.actionButton, { backgroundColor: theme.primary }]}
-            onPress={() =>
-              navigation.navigate("Leaderboard", { eventId: eventDetails.id })
-            }
+            onPress={() => {
+              console.log("Navigating to Leaderboard with event ID:", eventDetails.id);
+              // Navigate to your existing Leaderboard component with the event ID
+              navigation.navigate("Leaderboard", { 
+                eventId: eventDetails.id || eventDetails.Id,
+                source: "event"  // Add this to indicate it came from an event
+              });
+            }}
           >
             <MaterialCommunityIcons
               name="trophy"
