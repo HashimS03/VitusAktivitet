@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import {
   View,
   Text,
@@ -11,8 +11,8 @@ import {
 import { useNavigation } from "@react-navigation/native";
 import { useTheme } from "../context/ThemeContext";
 import { Trophy } from "lucide-react-native";
-import AsyncStorage from "@react-native-async-storage/async-storage";
-import { LinearGradient } from "expo-linear-gradient"; // Import LinearGradient for gradients
+import { LinearGradient } from "expo-linear-gradient";
+import apiClient from '../../utils/apiClient';
 
 // 🎖️ Trophy Data
 export const trophyData = {
@@ -125,88 +125,37 @@ const trophies = Object.values(trophyData);
 
 // 🏆 Trophy Item Component
 const TrophyItem = ({ item, onPress, theme }) => {
-  const [unlockedLevel, setUnlockedLevel] = React.useState(0);
+  const [unlockedLevel, setUnlockedLevel] = useState(0);
 
-  React.useEffect(() => {
-    const loadProgress = async () => {
+  useEffect(() => {
+    const fetchTrophyProgress = async () => {
       try {
-        const stepCount = parseInt(
-          (await AsyncStorage.getItem("stepCount")) || "0",
-          10
-        );
-        const currentStreak = parseInt(
-          (await AsyncStorage.getItem("currentStreak")) || "0",
-          10
-        );
-        const totalSteps = parseInt(
-          (await AsyncStorage.getItem("totalSteps")) || "0",
-          10
-        );
-        const participatedEvents = JSON.parse(
-          (await AsyncStorage.getItem("participatedEvents")) || "[]"
-        );
-        const completedEvents = JSON.parse(
-          (await AsyncStorage.getItem("completedEvents")) || "[]"
-        );
-        const leaderboardRank = parseInt(
-          (await AsyncStorage.getItem("leaderboardRank")) || "999",
-          10
-        );
-        const privacyExplored =
-          (await AsyncStorage.getItem("privacyExplored")) === "true";
-
-        let level = 0;
-        switch (item.name) {
-          case "Skritt Mester":
-            if (stepCount >= 15000) level = 3;
-            else if (stepCount >= 10000) level = 2;
-            else if (stepCount >= 5000) level = 1;
-            break;
-          case "Elsker hendelser":
-            if (participatedEvents.length >= 10) level = 3;
-            else if (participatedEvents.length >= 5) level = 2;
-            else if (participatedEvents.length >= 1) level = 1;
-            break;
-          case "Streak":
-            if (currentStreak >= 15) level = 3;
-            else if (currentStreak >= 10) level = 2;
-            else if (currentStreak >= 5) level = 1;
-            break;
-          case "Hendleses Konge":
-            if (completedEvents.length >= 5) level = 3;
-            else if (completedEvents.length >= 3) level = 2;
-            else if (completedEvents.length >= 1) level = 1;
-            break;
-          case "Ledertavle Legende":
-            if (leaderboardRank <= 1) level = 3;
-            else if (leaderboardRank <= 5) level = 2;
-            else if (leaderboardRank <= 10) level = 1;
-            break;
-          case "Skritt Titan":
-            if (totalSteps >= 250000) level = 3;
-            else if (totalSteps >= 100000) level = 2;
-            else if (totalSteps >= 50000) level = 1;
-            break;
-          case "Personverns Detektiv":
-            if (privacyExplored) level = 1;
-            break;
-          default:
-            level = 0;
+        const response = await apiClient.get('/trophy-progress');
+        const result = response.data;
+        if (result.success) {
+          const trophyProgress = result.data.find(
+            (progress) => progress.trophyId === item.id
+          );
+          if (trophyProgress) {
+            setUnlockedLevel(trophyProgress.unlockedLevel);
+          }
+        } else {
+          console.error("Failed to fetch trophy progress:", result.message);
         }
-        setUnlockedLevel(level);
       } catch (error) {
-        console.error("Error loading trophy progress:", error);
+        console.error("Error fetching trophy progress:", error);
       }
     };
-    loadProgress();
-  }, [item.name]);
+
+    fetchTrophyProgress();
+  }, [item.id]);
 
   const getTrophyColor = () => {
     return theme.textSecondary; // Keep the Trophy icon grey at all times
   };
 
   const getGradientColors = () => {
-    if (unlockedLevel === 0) return ["#4A4A4A", "#333333"]; // Grey gradient for uncompleted (matching dark theme)
+    if (unlockedLevel === 0) return ["#4A4A4A", "#333333"]; // Grey gradient for uncompleted
     if (unlockedLevel === 1 && item.name !== "Personverns Detektiv")
       return ["#CD7F32", "#8B4513"]; // Bronze gradient
     if (unlockedLevel === 2) return ["#C0C0C0", "#808080"]; // Silver gradient

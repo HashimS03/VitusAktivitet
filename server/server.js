@@ -165,6 +165,24 @@ app.post("/register", async (req, res) => {
         VALUES (@userId, @steps, @timestamp)
       `);
 
+    // Initialize trophy progress for the new user
+    const trophiesResult = await pool.request().query(`
+      SELECT Id FROM [ACHIEVEMENTS]
+    `);
+    const trophyIds = trophiesResult.recordset.map(row => row.Id);
+
+    for (const trophyId of trophyIds) {
+      await pool
+        .request()
+        .input("userId", sql.Int, newUserId)
+        .input("trophyId", sql.Int, trophyId)
+        .input("unlockedLevel", sql.Int, 0)
+        .input("progress", sql.BigInt, 0).query(`
+          INSERT INTO [USER_TROPHY_PROGRESS] (userId, trophyId, unlockedLevel, progress)
+          VALUES (@userId, @trophyId, @unlockedLevel, @progress)
+        `);
+    }
+
     serverLog("log", "User registered successfully:", { name, email });
     res
       .status(201)
@@ -647,6 +665,52 @@ app.post("/step-activity", authenticateJWT, async (req, res) => {
           `);
       }
 
+      // Update trophy progress for step-related trophies
+      const totalStepsResult = await transaction
+        .request()
+        .input("userId", sql.Int, userId)
+        .query("SELECT total_steps FROM [USER_STATISTICS] WHERE userId = @userId");
+      const totalSteps = totalStepsResult.recordset[0]?.total_steps || 0;
+
+      const trophyUpdates = [
+        { title: "Skritt Mester", progress: stepCount, goals: [5000, 10000, 15000] },
+        { title: "Skritt Titan", progress: totalSteps, goals: [50000, 100000, 250000] },
+      ];
+
+      for (const trophy of trophyUpdates) {
+        const trophyResult = await transaction
+          .request()
+          .input("title", sql.NVarChar, trophy.title)
+          .query("SELECT Id FROM [ACHIEVEMENTS] WHERE title = @title");
+        if (trophyResult.recordset.length === 0) continue;
+
+        const trophyId = trophyResult.recordset[0].Id;
+        let level = 0;
+        for (let i = 0; i < trophy.goals.length; i++) {
+          if (trophy.progress >= trophy.goals[i]) {
+            level = i + 1;
+          } else {
+            break;
+          }
+        }
+
+        await transaction
+          .request()
+          .input("userId", sql.Int, userId)
+          .input("trophyId", sql.Int, trophyId)
+          .input("unlockedLevel", sql.Int, level)
+          .input("progress", sql.BigInt, trophy.progress).query(`
+            MERGE INTO [USER_TROPHY_PROGRESS] AS target
+            USING (SELECT @userId AS userId, @trophyId AS trophyId) AS source
+            ON target.userId = source.userId AND target.trophyId = source.trophyId
+            WHEN MATCHED THEN
+              UPDATE SET unlockedLevel = @unlockedLevel, progress = @progress
+            WHEN NOT MATCHED THEN
+              INSERT (userId, trophyId, unlockedLevel, progress)
+              VALUES (@userId, @trophyId, @unlockedLevel, @progress);
+          `);
+      }
+
       await transaction.commit();
       res
         .status(201)
@@ -693,6 +757,119 @@ app.get("/step-activity", authenticateJWT, async (req, res) => {
       .json({
         success: false,
         message: `Failed to fetch step activity: ${err.message}`,
+      });
+  }
+});
+
+// 🔹 Route to Fetch Trophy Progress for User
+app.get("/trophy-progress", authenticateJWT, async (req, res) => {
+  serverLog(
+    "log",
+    "Trophy progress fetch request for userId:",
+    req.session.userId
+  );
+  try {
+    const pool = await poolPromise;
+    const result = await pool
+      .request()
+      .input("userId", sql.Int, req.session.userId)
+      .query(`
+        SELECT utp.trophyId, a.title, utp.unlockedLevel, utp.progress
+        FROM [USER_TROPHY_PROGRESS] utp
+        JOIN [ACHIEVEMENTS] a ON utp.trophyId = a.Id
+        WHERE utp.userId = @userId
+      `);
+
+    const trophyProgress = result.recordset.map(row => ({
+      trophyId: row.trophyId.toString(),
+      title: row.title,
+      unlockedLevel: row.unlockedLevel,
+      progress: parseInt(row.progress, 10),
+    }));
+
+    res.json({ success: true, data: trophyProgress });
+  } catch (err) {
+    serverLog("error", "Trophy progress fetch error:", err);
+    const errorDetails = {
+      message: err.message,
+      stack: process.env.NODE_ENV !== "production" ? err.stack : undefined,
+    };
+    serverLog("error", "Error details:", errorDetails);
+    res
+      .status(500)
+      .json({
+        success: false,
+        message: `Failed to fetch trophy progress: ${err.message}`,
+      });
+  }
+});
+
+// 🔹 Route to Update Trophy Progress for User
+app.post("/trophy-progress", authenticateJWT, async (req, res) => {
+  serverLog("log", "Trophy progress update request received:", req.body);
+  try {
+    const { trophyId, unlockedLevel, progress } = req.body;
+    const userId = req.session.userId;
+
+    if (!trophyId || unlockedLevel === undefined || progress === undefined) {
+      return res
+        .status(400)
+        .json({ success: false, message: "trophyId, unlockedLevel, and progress are required" });
+    }
+
+    const pool = await poolPromise;
+
+    // Validate user
+    const userCheck = await pool
+      .request()
+      .input("userId", sql.Int, userId)
+      .query("SELECT Id FROM [USER] WHERE Id = @userId");
+    if (userCheck.recordset.length === 0) {
+      return res
+        .status(400)
+        .json({ success: false, message: `Invalid userId: ${userId} not found in [USER]` });
+    }
+
+    // Validate trophy
+    const trophyCheck = await pool
+      .request()
+      .input("trophyId", sql.Int, trophyId)
+      .query("SELECT Id FROM [ACHIEVEMENTS] WHERE Id = @trophyId");
+    if (trophyCheck.recordset.length === 0) {
+      return res
+        .status(400)
+        .json({ success: false, message: `Invalid trophyId: ${trophyId} not found in [ACHIEVEMENTS]` });
+    }
+
+    await pool
+      .request()
+      .input("userId", sql.Int, userId)
+      .input("trophyId", sql.Int, trophyId)
+      .input("unlockedLevel", sql.Int, unlockedLevel)
+      .input("progress", sql.BigInt, progress).query(`
+        MERGE INTO [USER_TROPHY_PROGRESS] AS target
+        USING (SELECT @userId AS userId, @trophyId AS trophyId) AS source
+        ON target.userId = source.userId AND target.trophyId = source.trophyId
+        WHEN MATCHED THEN
+          UPDATE SET unlockedLevel = @unlockedLevel, progress = @progress
+        WHEN NOT MATCHED THEN
+          INSERT (userId, trophyId, unlockedLevel, progress)
+          VALUES (@userId, @trophyId, @unlockedLevel, @progress);
+      `);
+
+    res.json({ success: true, message: "Trophy progress updated successfully" });
+  } catch (err) {
+    serverLog("error", "Trophy progress update error:", err);
+    const errorDetails = {
+      message: err.message,
+      stack: process.env.NODE_ENV !== "production" ? err.stack : undefined,
+    };
+    serverLog("error", "Error details:", errorDetails);
+    res
+      .status(500)
+      .json({
+        success: false,
+        message: `Failed to update trophy progress: ${err.message}`,
       });
   }
 });

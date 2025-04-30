@@ -18,11 +18,8 @@ import { ChevronLeft, Trophy } from "lucide-react-native";
 import { trophyData } from "./achievements";
 import { LinearGradient } from "expo-linear-gradient";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
-import AsyncStorage from "@react-native-async-storage/async-storage";
-import { useContext } from "react";
-import { EventContext } from "../events/EventContext";
 import * as Progress from "react-native-progress";
-
+import apiClient from '../../utils/apiClient';
 const { width } = Dimensions.get("window");
 
 const MEDAL_COLORS = {
@@ -35,83 +32,36 @@ const TrophyDetails = () => {
   const navigation = useNavigation();
   const route = useRoute();
   const { trophy } = route.params;
-  const { theme, isDarkMode } = useTheme(); // Added isDarkMode to handle light/dark mode
-  const { activeEvents } = useContext(EventContext);
+  const { theme, isDarkMode } = useTheme();
   const [unlockedLevel, setUnlockedLevel] = useState(0);
   const [progress, setProgress] = useState({ current: 0, nextGoal: 0 });
   const [animation] = useState(new Animated.Value(0));
 
   const trophyInfo = trophyData[trophy.name];
 
-  // Load progress and determine unlocked level
+  // Fetch trophy progress from the server using apiClient
   useEffect(() => {
     const loadProgress = async () => {
       try {
-        const stepCount = parseInt(await AsyncStorage.getItem("stepCount") || "0", 10);
-        const currentStreak = parseInt(await AsyncStorage.getItem("currentStreak") || "0", 10);
-        const totalSteps = parseInt(await AsyncStorage.getItem("totalSteps") || "0", 10);
-        const participatedEvents = JSON.parse(await AsyncStorage.getItem("participatedEvents") || "[]");
-        const completedEvents = JSON.parse(await AsyncStorage.getItem("completedEvents") || "[]");
-        const leaderboardRank = parseInt(await AsyncStorage.getItem("leaderboardRank") || "999", 10);
-        const privacyExplored = (await AsyncStorage.getItem("privacyExplored")) === "true";
-
-        let level = 0;
-        let currentProgress = 0;
-        let nextGoal = trophyInfo.levels[0].goal;
-
-        switch (trophy.name) {
-          case "Skritt Mester":
-            currentProgress = stepCount;
-            if (stepCount >= 15000) level = 3;
-            else if (stepCount >= 10000) level = 2;
-            else if (stepCount >= 5000) level = 1;
-            if (level < 3) nextGoal = trophyInfo.levels[level].goal || trophyInfo.levels[level + 1]?.goal || 15000;
-            break;
-          case "Hendelses Soldat":
-            currentProgress = participatedEvents.length;
-            if (participatedEvents.length >= 10) level = 3;
-            else if (participatedEvents.length >= 5) level = 2;
-            else if (participatedEvents.length >= 1) level = 1;
-            if (level < 3) nextGoal = trophyInfo.levels[level].goal || trophyInfo.levels[level + 1]?.goal || 10;
-            break;
-          case "Streak":
-            currentProgress = currentStreak;
-            if (currentStreak >= 15) level = 3;
-            else if (currentStreak >= 10) level = 2;
-            else if (currentStreak >= 5) level = 1;
-            if (level < 3) nextGoal = trophyInfo.levels[level].goal || trophyInfo.levels[level + 1]?.goal || 15;
-            break;
-          case "Hendleses Konge":
-            currentProgress = completedEvents.length;
-            if (completedEvents.length >= 5) level = 3;
-            else if (completedEvents.length >= 3) level = 2;
-            else if (completedEvents.length >= 1) level = 1;
-            if (level < 3) nextGoal = trophyInfo.levels[level].goal || trophyInfo.levels[level + 1]?.goal || 5;
-            break;
-          case "Ledertavle Legende":
-            currentProgress = leaderboardRank <= 10 ? 11 - leaderboardRank : 0;
-            if (leaderboardRank <= 1) level = 3;
-            else if (leaderboardRank <= 5) level = 2;
-            else if (leaderboardRank <= 10) level = 1;
-            if (level < 3) nextGoal = trophyInfo.levels[level].goal || trophyInfo.levels[level + 1]?.goal || 1;
-            break;
-          case "Skritt Titan":
-            currentProgress = totalSteps;
-            if (totalSteps >= 250000) level = 3;
-            else if (totalSteps >= 100000) level = 2;
-            else if (totalSteps >= 50000) level = 1;
-            if (level < 3) nextGoal = trophyInfo.levels[level].goal || trophyInfo.levels[level + 1]?.goal || 250000;
-            break;
-          case "Personverns Detektiv":
-            currentProgress = privacyExplored ? 1 : 0;
-            if (privacyExplored) level = 1;
-            nextGoal = 1;
-            break;
-          default:
-            level = 0;
+        const response = await apiClient.get('/trophy-progress');
+        const result = response.data;
+        if (result.success) {
+          const trophyProgress = result.data.find(
+            (prog) => prog.trophyId === trophy.id
+          );
+          if (trophyProgress) {
+            setUnlockedLevel(trophyProgress.unlockedLevel);
+            setProgress({
+              current: trophyProgress.progress,
+              nextGoal:
+                trophyInfo.levels[trophyProgress.unlockedLevel]?.goal ||
+                trophyInfo.levels[trophyProgress.unlockedLevel + 1]?.goal ||
+                trophyInfo.levels[trophyInfo.levels.length - 1].goal,
+            });
+          }
+        } else {
+          console.error("Failed to fetch trophy progress:", result.message);
         }
-        setUnlockedLevel(level);
-        setProgress({ current: currentProgress, nextGoal });
       } catch (error) {
         console.error("Error loading progress:", error);
       }
@@ -127,7 +77,7 @@ const TrophyDetails = () => {
 
     const interval = setInterval(loadProgress, 5000);
     return () => clearInterval(interval);
-  }, [animation, trophy.name]);
+  }, [animation, trophy.id]);
 
   const headerTranslate = animation.interpolate({
     inputRange: [0, 1],
@@ -147,7 +97,7 @@ const TrophyDetails = () => {
   };
 
   const getMedalIcon = (level) => {
-    if (level === 1 && trophy.name !== "Privacy Sleuth") return "medal-outline";
+    if (level === 1 && trophy.name !== "Personverns Detektiv") return "medal-outline";
     return "medal";
   };
 
@@ -156,10 +106,10 @@ const TrophyDetails = () => {
   };
 
   const getGradientColors = () => {
-    if (unlockedLevel === 0) return ["#4A4A4A", "#333333"]; // Grey gradient for uncompleted (matching dark theme)
-    if (unlockedLevel === 1 && trophy.name !== "Personverns Detektiv") return MEDAL_COLORS.bronze; // Bronze gradient
-    if (unlockedLevel === 2) return MEDAL_COLORS.silver; // Silver gradient
-    return MEDAL_COLORS.gold; // Gold gradient
+    if (unlockedLevel === 0) return ["#4A4A4A", "#333333"];
+    if (unlockedLevel === 1 && trophy.name !== "Personverns Detektiv") return MEDAL_COLORS.bronze;
+    if (unlockedLevel === 2) return MEDAL_COLORS.silver;
+    return MEDAL_COLORS.gold;
   };
 
   return (
@@ -217,7 +167,7 @@ const TrophyDetails = () => {
               <Text
                 style={[
                   styles.requirement,
-                  { color: isDarkMode ? "#FFFFFF" : "#000000" }, // White in dark mode, black in light mode
+                  { color: isDarkMode ? "#FFFFFF" : "#000000" },
                 ]}
               >
                 {level.requirement}
