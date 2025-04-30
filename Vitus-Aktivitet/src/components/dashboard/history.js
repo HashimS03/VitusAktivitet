@@ -17,9 +17,7 @@ import { Svg, Rect, Line, Text as SvgText } from "react-native-svg";
 import { useTheme } from "../context/ThemeContext";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { PanResponder } from "react-native";
-import axios from "axios";
-import { SERVER_CONFIG } from "../../config/serverConfig";
-
+import apiClient from "../../utils/apiClient";
 
 // Constants
 const screenWidth = Dimensions.get("window").width;
@@ -342,16 +340,7 @@ const HistoryScreen = () => {
     const loadData = async () => {
       const data = await fetchStepHistory(selectedPeriod);
       const streakData = await fetchStreaks();
-      const statsResponse = await axios.get(
-        `${SERVER_CONFIG.getBaseUrl()}/user-statistics`,
-        {
-          headers: {
-            Authorization: `Bearer ${await AsyncStorage.getItem("authToken")}`,
-            "Content-Type": "application/json",
-          },
-          withCredentials: true,
-        }
-      );
+      const statsResponse = await apiClient.get('/user-statistics');
       setPeriodData(data);
       setStreaks(streakData);
       setTotalSteps(statsResponse.data.data.total_steps || 0);

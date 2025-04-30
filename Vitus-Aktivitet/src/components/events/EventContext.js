@@ -67,15 +67,16 @@ export const EventProvider = ({ children }) => {
     try {
       setLoading(true);
       
-      // Get userId for filtering
-      const userId = await AsyncStorage.getItem('userId');
+      // Check if token exists before making the request
       const token = await AsyncStorage.getItem('authToken');
-      
       if (!token) {
-        console.log("No auth token available, can't load events");
+        console.log("No authentication token available - please log in");
         setLoading(false);
         return;
       }
+      
+      // Get userId for filtering
+      const userId = await AsyncStorage.getItem('userId');
       
       // Try to fetch events from server using apiClient
       const response = await apiClient.get('/events');
