@@ -25,7 +25,16 @@ export const EventProvider = ({ children }) => {
           const participantsResponse = await apiClient.get(
             `/events/${event.id}/participants`
           );
-          event.participants = participantsResponse.data.participants || [];
+          event.isTeamEvent = participantsResponse.data.isTeamEvent || false;
+          event.participants = (
+            participantsResponse.data.participants || []
+          ).map((participant) => ({
+            user_id: participant.user_id,
+            name: participant.name,
+            team_id: participant.team_id,
+            individual_progress: participant.individual_progress || 0,
+            team_progress: participant.team_progress || 0,
+          }));
         }
 
         setEvents(serverEvents);

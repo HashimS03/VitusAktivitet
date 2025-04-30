@@ -389,8 +389,19 @@ app.get("/events/:eventId/participants", authenticateJWT, async (req, res) => {
     req.params.eventId
   );
   try {
-    const eventId = req.params.eventId;
+    const eventId = parseInt(req.params.eventId, 10);
+    if (isNaN(eventId)) {
+      return res
+        .status(400)
+        .json({ success: false, message: "Invalid event ID" });
+    }
+
     const userId = req.session.userId;
+    if (!userId) {
+      return res
+        .status(401)
+        .json({ success: false, message: "User not authenticated" });
+    }
 
     const pool = await poolPromise;
 
@@ -399,7 +410,7 @@ app.get("/events/:eventId/participants", authenticateJWT, async (req, res) => {
       .request()
       .input("eventId", sql.Int, eventId)
       .input("userId", sql.Int, userId).query(`
-        SELECT e.Id
+        SELECT e.Id, e.event_type
         FROM [EVENTS] e
         LEFT JOIN [EVENT_PARTICIPANTS] ep ON e.Id = ep.event_id
         WHERE e.Id = @eventId AND (e.created_by = @userId OR ep.user_id = @userId)
@@ -411,16 +422,29 @@ app.get("/events/:eventId/participants", authenticateJWT, async (req, res) => {
       });
     }
 
-    // Fetch participants
+    const event = eventCheck.recordset[0];
+    const isTeamEvent = event.event_type === "team";
+
+    // Fetch participants with team info
     const participants = await pool.request().input("eventId", sql.Int, eventId)
       .query(`
-        SELECT ep.user_id, ep.progress, u.name
+        SELECT 
+          ep.user_id, 
+          ep.team_id, 
+          ep.progress AS individual_progress,
+          t.progress AS team_progress,
+          u.name
         FROM [EVENT_PARTICIPANTS] ep
         JOIN [USER] u ON ep.user_id = u.Id
+        LEFT JOIN [TEAMS] t ON ep.team_id = t.Id
         WHERE ep.event_id = @eventId
       `);
 
-    res.json({ success: true, participants: participants.recordset });
+    res.json({
+      success: true,
+      isTeamEvent,
+      participants: participants.recordset,
+    });
   } catch (err) {
     serverLog("error", "Participants fetch error:", err);
     res.status(500).json({
@@ -438,8 +462,19 @@ app.post("/join-event/:eventId", authenticateJWT, async (req, res) => {
     req.params.eventId
   );
   try {
-    const eventId = req.params.eventId;
+    const eventId = parseInt(req.params.eventId, 10);
+    if (isNaN(eventId)) {
+      return res
+        .status(400)
+        .json({ success: false, message: "Invalid event ID" });
+    }
+
     const userId = req.session.userId;
+    if (!userId) {
+      return res
+        .status(401)
+        .json({ success: false, message: "User not authenticated" });
+    }
 
     const pool = await poolPromise;
 
@@ -457,7 +492,7 @@ app.post("/join-event/:eventId", authenticateJWT, async (req, res) => {
     const event = eventCheck.recordset[0];
     const hostId = event.created_by;
 
-    // Prevent the host from joining their own event as a participant
+    // Prevent the host from joining their own event
     if (userId === hostId) {
       return res
         .status(400)
@@ -489,28 +524,18 @@ app.post("/join-event/:eventId", authenticateJWT, async (req, res) => {
       teamId = teamCheck.recordset[0].Id; // Simplified: Assign to the first team for now
     }
 
-    // Add the user as a participant
+    // Add the user as a participant with initial progress of 0
     await pool
       .request()
       .input("userId", sql.Int, userId)
       .input("eventId", sql.Int, eventId)
       .input("teamId", sql.Int, teamId)
-      .input("joinedAt", sql.DateTime, new Date()).query(`
-        INSERT INTO [EVENT_PARTICIPANTS] (user_id, event_id, team_id, joined_at)
-        VALUES (@userId, @eventId, @teamId, @joinedAt)
+      .input("joinedAt", sql.DateTime, new Date())
+      .input("progress", sql.Int, 0) // Set initial progress
+      .query(`
+        INSERT INTO [EVENT_PARTICIPANTS] (user_id, event_id, team_id, joined_at, progress)
+        VALUES (@userId, @eventId, @teamId, @joinedAt, @progress)
       `);
-
-    // If a team is assigned, add to TEAM_MEMBERS
-    if (teamId) {
-      await pool
-        .request()
-        .input("teamId", sql.Int, teamId)
-        .input("userId", sql.Int, userId)
-        .input("progress", sql.Int, 0).query(`
-          INSERT INTO [TEAM_MEMBERS] (team_id, user_id, progress)
-          VALUES (@teamId, @userId, @progress)
-        `);
-    }
 
     res
       .status(201)
@@ -523,7 +548,6 @@ app.post("/join-event/:eventId", authenticateJWT, async (req, res) => {
     });
   }
 });
-
 // 🔹 Route to Update User Data
 app.put("/user", authenticateJWT, async (req, res) => {
   serverLog(
@@ -906,7 +930,13 @@ app.post("/events", authenticateJWT, async (req, res) => {
 app.put("/events/:eventId/progress", authenticateJWT, async (req, res) => {
   serverLog("log", "Progress update request for eventId:", req.params.eventId);
   try {
-    const eventId = req.params.eventId;
+    const eventId = parseInt(req.params.eventId, 10);
+    if (isNaN(eventId)) {
+      return res
+        .status(400)
+        .json({ success: false, message: "Invalid event ID" });
+    }
+
     const userId = req.session.userId;
     const { progress } = req.body;
 
@@ -949,7 +979,18 @@ app.put("/events/:eventId/progress", authenticateJWT, async (req, res) => {
         .json({ success: false, message: "You are not part of this event" });
     }
 
-    // Update progress based on event type
+    // Update progress in EVENT_PARTICIPANTS for the user
+    await pool
+      .request()
+      .input("eventId", sql.Int, eventId)
+      .input("userId", sql.Int, userId)
+      .input("progress", sql.Int, progress).query(`
+        UPDATE [EVENT_PARTICIPANTS]
+        SET progress = @progress
+        WHERE event_id = @eventId AND user_id = @userId
+      `);
+
+    // If it's a team event, update the team's overall progress in TEAMS
     if (event.event_type === "team") {
       const teamId = participantCheck.recordset[0]?.team_id;
       if (!teamId && !isHost) {
@@ -958,26 +999,17 @@ app.put("/events/:eventId/progress", authenticateJWT, async (req, res) => {
           .json({ success: false, message: "No team assigned" });
       }
 
-      // Update progress in TEAM_MEMBERS for the user
-      await pool
-        .request()
-        .input("teamId", sql.Int, teamId)
-        .input("userId", sql.Int, userId)
-        .input("progress", sql.Int, progress).query(`
-          UPDATE [TEAM_MEMBERS]
-          SET progress = @progress
-          WHERE team_id = @teamId AND user_id = @userId
-        `);
-
-      // Update the team's overall progress in TEAMS
+      // Calculate the average progress of all participants in the team
       const teamProgress = await pool.request().input("teamId", sql.Int, teamId)
         .query(`
-          SELECT AVG(progress) as avgProgress
-          FROM [TEAM_MEMBERS]
-          WHERE team_id = @teamId
+          SELECT AVG(CAST(progress AS FLOAT)) as avgProgress
+          FROM [EVENT_PARTICIPANTS]
+          WHERE team_id = @teamId AND event_id = @eventId
         `);
 
-      const avgProgress = teamProgress.recordset[0].avgProgress || 0;
+      const avgProgress = Math.round(
+        teamProgress.recordset[0].avgProgress || 0
+      );
       await pool
         .request()
         .input("teamId", sql.Int, teamId)
@@ -985,17 +1017,6 @@ app.put("/events/:eventId/progress", authenticateJWT, async (req, res) => {
           UPDATE [TEAMS]
           SET progress = @progress
           WHERE Id = @teamId
-        `);
-    } else {
-      // For individual events, update progress in EVENT_PARTICIPANTS
-      await pool
-        .request()
-        .input("eventId", sql.Int, eventId)
-        .input("userId", sql.Int, userId)
-        .input("progress", sql.Int, progress).query(`
-          UPDATE [EVENT_PARTICIPANTS]
-          SET progress = @progress
-          WHERE event_id = @eventId AND user_id = @userId
         `);
     }
 

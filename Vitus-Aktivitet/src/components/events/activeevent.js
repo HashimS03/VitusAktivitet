@@ -28,8 +28,8 @@ const ActiveEvent = ({ route }) => {
   const { activeEvents, pastEvents, updateEvent, deleteEvent } =
     useContext(EventContext);
   const eventDetails =
-    activeEvents.find((event) => event.id === eventId) ||
-    pastEvents.find((event) => event.id === eventId);
+    activeEvents.find((event) => event.Id === eventId) || // Endret fra `id` til `Id`
+    pastEvents.find((event) => event.Id === eventId); // Endret fra `id` til `Id`
 
   const [isModalVisible, setModalVisible] = useState(false);
   const [showInviteScreen, setShowInviteScreen] = useState(false);
@@ -70,7 +70,16 @@ const ActiveEvent = ({ route }) => {
       try {
         const response = await apiClient.get(`/events/${eventId}/participants`);
         if (response.data.success) {
-          setParticipants(response.data.participants || []);
+          const fetchedParticipants = (response.data.participants || []).map(
+            (participant) => ({
+              user_id: participant.user_id,
+              name: participant.name,
+              team_id: participant.team_id,
+              individual_progress: participant.individual_progress || 0,
+              team_progress: participant.team_progress || 0,
+            })
+          );
+          setParticipants(fetchedParticipants);
         }
       } catch (error) {
         console.error("Error fetching participants:", error);
@@ -130,6 +139,23 @@ const ActiveEvent = ({ route }) => {
             currentValue: newValue,
             progress: newValue / eventDetails.goal,
           });
+
+          // Oppdater deltakere etter fremgangsoppdatering
+          const updatedParticipantsResponse = await apiClient.get(
+            `/events/${eventId}/participants`
+          );
+          if (updatedParticipantsResponse.data.success) {
+            const updatedParticipants = (
+              updatedParticipantsResponse.data.participants || []
+            ).map((participant) => ({
+              user_id: participant.user_id,
+              name: participant.name,
+              team_id: participant.team_id,
+              individual_progress: participant.individual_progress || 0,
+              team_progress: participant.team_progress || 0,
+            }));
+            setParticipants(updatedParticipants);
+          }
         } else {
           Alert.alert("Feil", "Kunne ikke oppdatere fremgang.");
         }
@@ -154,7 +180,7 @@ const ActiveEvent = ({ route }) => {
       );
     }
 
-    const totalMembers = participants.length + 1; // Including the host
+    const totalMembers = participants.length + 1; // Inkluderer verten
     const maxMembers = eventDetails.team_count * eventDetails.members_per_team;
 
     return (
@@ -167,7 +193,6 @@ const ActiveEvent = ({ route }) => {
           showsHorizontalScrollIndicator={false}
           style={styles.membersList}
         >
-          {/* Simplified team rendering */}
           <View style={styles.teamContainer}>
             <Text style={[styles.teamTitle, { color: theme.text }]}>
               Team 1
@@ -183,6 +208,14 @@ const ActiveEvent = ({ route }) => {
                 >
                   Du
                 </Text>
+                <Text
+                  style={[
+                    styles.memberProgress,
+                    { color: theme.textSecondary },
+                  ]}
+                >
+                  Fremgang: {currentValue} {eventDetails.activity}
+                </Text>
               </View>
               {participants.map((participant, index) => (
                 <View key={index} style={styles.memberAvatar}>
@@ -194,6 +227,15 @@ const ActiveEvent = ({ route }) => {
                     style={[styles.memberName, { color: theme.textSecondary }]}
                   >
                     {participant.name || "Deltaker"}
+                  </Text>
+                  <Text
+                    style={[
+                      styles.memberProgress,
+                      { color: theme.textSecondary },
+                    ]}
+                  >
+                    Fremgang: {participant.individual_progress}{" "}
+                    {eventDetails.activity}
                   </Text>
                 </View>
               ))}
@@ -223,6 +265,12 @@ const ActiveEvent = ({ route }) => {
                 )
               )}
             </View>
+            {participants.length > 0 && (
+              <Text style={[styles.teamProgress, { color: theme.primary }]}>
+                Lagets totale fremgang: {participants[0]?.team_progress || 0}{" "}
+                {eventDetails.activity}
+              </Text>
+            )}
           </View>
         </ScrollView>
       </>
@@ -230,7 +278,7 @@ const ActiveEvent = ({ route }) => {
   };
 
   const renderIndividualParticipants = () => {
-    const filledParticipants = participants.length + 1; // Including the host
+    const filledParticipants = participants.length + 1; // Inkluderer verten
     const totalParticipants = eventDetails.total_participants || 0;
     const emptySlots = Math.max(0, totalParticipants - filledParticipants);
 
@@ -256,6 +304,14 @@ const ActiveEvent = ({ route }) => {
                 >
                   Du
                 </Text>
+                <Text
+                  style={[
+                    styles.memberProgress,
+                    { color: theme.textSecondary },
+                  ]}
+                >
+                  Fremgang: {currentValue} {eventDetails.activity}
+                </Text>
               </View>
               {participants.map((participant, index) => (
                 <View key={index} style={styles.memberAvatar}>
@@ -267,6 +323,15 @@ const ActiveEvent = ({ route }) => {
                     style={[styles.memberName, { color: theme.textSecondary }]}
                   >
                     {participant.name || "Deltaker"}
+                  </Text>
+                  <Text
+                    style={[
+                      styles.memberProgress,
+                      { color: theme.textSecondary },
+                    ]}
+                  >
+                    Fremgang: {participant.individual_progress}{" "}
+                    {eventDetails.activity}
                   </Text>
                 </View>
               ))}
@@ -463,13 +528,13 @@ const ActiveEvent = ({ route }) => {
 
         <View style={styles.membersSection}>
           <Text style={[styles.sectionTitle, { color: theme.text }]}>
-            {eventDetails.event_type === "team"
-              ? "Lag og Medlemmer"
-              : "Deltakere"}
+            {eventDetails.isTeamEvent ? "Lag og Medlemmer" : "Deltakere"}{" "}
+            {/* Endret fra event_type til isTeamEvent */}
           </Text>
-          {eventDetails.event_type === "team"
+          {eventDetails.isTeamEvent
             ? renderTeamMembers()
-            : renderIndividualParticipants()}
+            : renderIndividualParticipants()}{" "}
+          {/* Endret fra event_type til isTeamEvent */}
         </View>
 
         <View style={styles.descriptionSection}>
@@ -507,8 +572,9 @@ const ActiveEvent = ({ route }) => {
           </TouchableOpacity>
           <TouchableOpacity
             style={[styles.actionButton, { backgroundColor: theme.primary }]}
-            onPress={() =>
-              navigation.navigate("Leaderboard", { eventId: eventDetails.id })
+            onPress={
+              () =>
+                navigation.navigate("Leaderboard", { eventId: eventDetails.Id }) // Endret fra `id` til `Id`
             }
           >
             <MaterialCommunityIcons
@@ -639,7 +705,7 @@ const ActiveEvent = ({ route }) => {
       <InviteMembersScreen
         visible={showInviteScreen}
         onClose={() => setShowInviteScreen(false)}
-        eventId={eventDetails.id}
+        eventId={eventDetails.Id} // Endret fra `id` til `Id`
       />
     </SafeAreaView>
   );
@@ -781,6 +847,15 @@ const styles = StyleSheet.create({
   },
   memberName: {
     fontSize: 12,
+  },
+  memberProgress: {
+    fontSize: 12,
+    marginTop: 4,
+  },
+  teamProgress: {
+    fontSize: 16,
+    fontWeight: "600",
+    marginTop: 16,
   },
   emptyAvatar: {
     width: 60,
