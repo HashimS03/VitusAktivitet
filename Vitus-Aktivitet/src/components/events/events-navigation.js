@@ -1,9 +1,16 @@
-import { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { View, Text, StyleSheet, TouchableOpacity, Animated, Dimensions } from "react-native";
+import { createStackNavigator } from '@react-navigation/stack';
 import UpcomingEvents from "./upcoming-events";
 import YourEvents from "./your-events";
 import PastEvents from "./past-events";
-import { useTheme } from "../context/ThemeContext"; // Import Theme Context
+import EventLeaderboard from "./EventLeaderboard";
+import ActiveEvent from "./activeevent";
+import NewEvent from "./NewEvent";
+import JoinEvent from "./JoinEvent"; // Add this import
+import { useTheme } from "../context/ThemeContext";
+import { getFocusedRouteNameFromRoute } from '@react-navigation/native';
+import { Leaderboard } from "../leaderboard/leaderboard"; // Add this import
 
 const SCREEN_WIDTH = Dimensions.get("window").width;
 const TAB_WIDTH = SCREEN_WIDTH * 0.94;
@@ -13,10 +20,14 @@ const PILL_OFFSET_LEFT = 8;
 const PILL_OFFSET_RIGHT = 2;
 const PILL_WIDTH = (TAB_WIDTH - CONTAINER_PADDING * 2) / TAB_COUNT;
 
-export default function EventsNavigation() {
+// Create a Stack Navigator for Events
+const EventStack = createStackNavigator();
+
+// Create a component for the main tab content
+const EventTabs = ({ navigation }) => {
   const [activeTab, setActiveTab] = useState("your");
   const translateX = useRef(new Animated.Value(PILL_WIDTH + PILL_OFFSET_LEFT)).current;
-  const { theme, accentColor } = useTheme(); // Get theme values
+  const { theme, accentColor } = useTheme();
 
   useEffect(() => {
     let activeIndex = 1;
@@ -34,13 +45,13 @@ export default function EventsNavigation() {
   const renderContent = () => {
     switch (activeTab) {
       case "upcoming":
-        return <UpcomingEvents />;
+        return <UpcomingEvents navigation={navigation} />;
       case "your":
-        return <YourEvents />;
+        return <YourEvents navigation={navigation} />;
       case "past":
-        return <PastEvents />;
+        return <PastEvents navigation={navigation} />;
       default:
-        return <YourEvents />;
+        return <YourEvents navigation={navigation} />;
     }
   };
 
@@ -88,6 +99,92 @@ export default function EventsNavigation() {
 
       <View style={styles.contentWrapper}>{renderContent()}</View>
     </View>
+  );
+};
+
+// Replace your default export with this updated version
+export default function EventsNavigation() {
+  const { theme } = useTheme();
+  
+  return (
+    <EventStack.Navigator
+      initialRouteName="EventTabs"
+      screenOptions={({ route }) => ({
+        headerShown: false,
+        cardStyle: { backgroundColor: theme.background },
+        // Hide tab bar when in ActiveEvent, NewEvent, or EventLeaderboard
+        tabBarVisible: ((route) => {
+          const routeName = getFocusedRouteNameFromRoute(route) ?? '';
+          const hideOnScreens = ['ActiveEvent', 'NewEvent', 'EventLeaderboard', 'JoinEvent'];
+          return !hideOnScreens.includes(routeName);
+        })(route),
+        // For newer React Navigation versions
+        tabBarStyle: ((route) => {
+          const routeName = getFocusedRouteNameFromRoute(route) ?? '';
+          const hideOnScreens = ['ActiveEvent', 'NewEvent', 'EventLeaderboard', 'JoinEvent'];
+          if (hideOnScreens.includes(routeName)) {
+            return { display: 'none' };
+          }
+        })(route),
+      })}
+    >
+      <EventStack.Screen name="EventTabs" component={EventTabs} />
+      <EventStack.Screen 
+        name="ActiveEvent" 
+        component={ActiveEvent}
+        options={{
+          headerShown: false,
+          presentation: 'card',
+          animationEnabled: true,
+          tabBarVisible: false, // Explicitly hide tab bar
+          tabBarStyle: { display: 'none' }
+        }}
+      />
+      <EventStack.Screen 
+        name="EventLeaderboard" 
+        component={EventLeaderboard}
+        options={{
+          headerShown: false,
+          presentation: 'card',
+          animationEnabled: true,
+          tabBarVisible: false,
+          tabBarStyle: { display: 'none' }
+        }}
+      />
+      <EventStack.Screen 
+        name="NewEvent" 
+        component={NewEvent}
+        options={{
+          headerShown: false,
+          presentation: 'card',
+          animationEnabled: true,
+          tabBarVisible: false,
+          tabBarStyle: { display: 'none' }
+        }}
+      />
+      <EventStack.Screen 
+        name="Leaderboard" 
+        component={Leaderboard}
+        options={{
+          headerShown: false,
+          presentation: 'card', 
+          animationEnabled: true,
+          tabBarVisible: false,
+          tabBarStyle: { display: 'none' }
+        }}
+      />
+      <EventStack.Screen 
+        name="JoinEvent" 
+        component={JoinEvent}
+        options={{
+          headerShown: false,
+          presentation: 'card',
+          animationEnabled: true,
+          tabBarVisible: false,
+          tabBarStyle: { display: 'none' }
+        }}
+      />
+    </EventStack.Navigator>
   );
 }
 

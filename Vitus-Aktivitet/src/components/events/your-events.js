@@ -74,6 +74,28 @@ const YourEvents = () => {
     loadUserId();
   }, []);
 
+    // Update the handleEventPress function to be more robust:
+  const handleEventPress = (event) => {
+    // Deep copy the event to avoid any mutation issues
+    const eventCopy = JSON.parse(JSON.stringify(event));
+    
+    // Create a normalized event object
+    const normalizedEvent = {
+      ...eventCopy,
+      id: eventCopy.id || eventCopy.Id,
+      Id: eventCopy.id || eventCopy.Id
+    };
+    
+    console.log("🚀 Navigating to event:", normalizedEvent.id, normalizedEvent.title);
+    
+    // Use simple navigate instead of reset
+    navigation.navigate('ActiveEvent', { 
+      eventId: normalizedEvent.id,
+      eventData: normalizedEvent,
+      timestamp: new Date().getTime() // Force params to be seen as new
+    });
+  };
+
   const handleCreateEvent = () => {
     navigation.navigate("NewEvent");
   };
@@ -103,6 +125,8 @@ const YourEvents = () => {
     setMenuVisible(false);
     navigation.navigate("NewEvent", { eventDetails: event, isEditing: true });
   };
+
+
 
   const truncateText = (text, maxLength) => {
     if (!text) return ""; // Handle null or undefined text
@@ -143,12 +167,16 @@ const YourEvents = () => {
 
     return (
       <TouchableOpacity
-        key={eventId}
-        style={[styles.eventCard, { backgroundColor: theme.surface }]}
-        onPress={() => navigation.navigate("ActiveEvent", { 
-          eventId,
-          eventData: normalizedEvent // Pass the full normalized event data
-        })}
+        style={[
+          styles.eventCard, 
+          { 
+            backgroundColor: theme.surface,
+            borderWidth: 1,
+            borderColor: theme.primary + '20'  // Add a subtle border
+          }
+        ]}
+        onPress={() => handleEventPress(normalizedEvent)}
+        activeOpacity={0.5} // More noticeable feedback
       >
         <View style={styles.cardContent}>
           <Image
@@ -309,7 +337,11 @@ const YourEvents = () => {
                     Aktive hendelser
                   </Text>
                 </View>
-                {myActiveEvents.map(event => renderEvent(event))}
+                {myActiveEvents.map(event => (
+                  <React.Fragment key={event.id || event.Id || `event-${Math.random()}`}>
+                    {renderEvent(event)}
+                  </React.Fragment>
+                ))}
               </>
             )}
           </>

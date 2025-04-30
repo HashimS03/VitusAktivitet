@@ -248,6 +248,88 @@ app.post("/login", async (req, res) => {
   }
 });
 
+// 🔹 Route to Refresh Token
+app.post("/refresh-token", async (req, res) => {
+  serverLog("log", "Token refresh request received");
+  try {
+    const { refreshToken } = req.body;
+    
+    if (!refreshToken) {
+      return res.status(400).json({ 
+        success: false, 
+        message: "Refresh token is required" 
+      });
+    }
+    
+    // Verify the refresh token
+    jwt.verify(refreshToken, JWT_SECRET, async (err, decoded) => {
+      if (err) {
+        serverLog("error", "Refresh token verification failed:", err.message);
+        return res.status(401).json({ 
+          success: false, 
+          message: "Invalid refresh token, please log in again" 
+        });
+      }
+      
+      // Check if user still exists in database
+      try {
+        const pool = await poolPromise;
+        const result = await pool
+          .request()
+          .input("id", sql.Int, decoded.id)
+          .query("SELECT [Id], [email] FROM [USER] WHERE [Id] = @id");
+        
+        if (result.recordset.length === 0) {
+          return res.status(404).json({ 
+            success: false, 
+            message: "User not found, please log in again" 
+          });
+        }
+        
+        const user = result.recordset[0];
+        
+        // Generate new access token
+        const newToken = jwt.sign(
+          { id: user.Id, email: user.email }, 
+          JWT_SECRET, 
+          { expiresIn: "7d" }
+        );
+        
+        // Generate new refresh token as well - best practice for token rotation
+        const newRefreshToken = jwt.sign(
+          { id: user.Id, email: user.email }, 
+          JWT_SECRET, 
+          { expiresIn: "30d" }
+        );
+        
+        // Ensure the session is updated
+        req.session.userId = user.Id;
+        
+        serverLog("log", "Token refreshed successfully for user:", user.Id);
+        res.json({
+          success: true,
+          message: "Token refreshed successfully",
+          userId: user.Id,
+          token: newToken,
+          refreshToken: newRefreshToken
+        });
+      } catch (dbError) {
+        serverLog("error", "Database error during token refresh:", dbError);
+        res.status(500).json({ 
+          success: false, 
+          message: "Error refreshing token, please try again" 
+        });
+      }
+    });
+  } catch (err) {
+    serverLog("error", "Token refresh error:", err);
+    res.status(500).json({ 
+      success: false, 
+      message: `Failed to refresh token: ${err.message}` 
+    });
+  }
+});
+
 // 🔹 Route to Fetch Leaderboard Data
 app.get("/leaderboard", async (req, res) => {
   serverLog("log", "Leaderboard request received");
@@ -1102,7 +1184,6 @@ app.post("/events/:id/join", authenticateJWT, async (req, res) => {
       .input("teamId", sql.Int, teamId || null)
       .query(`
         INSERT INTO [EVENT_PARTICIPANTS] (event_id, user_id, team_id)
-        OUTPUT INSERTED.id
         VALUES (@eventId, @userId, @teamId)
       `);
     

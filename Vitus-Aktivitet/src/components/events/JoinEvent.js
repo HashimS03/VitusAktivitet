@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useContext } from "react";
 import {
   View,
   Text,
@@ -11,10 +11,32 @@ import {
 } from "react-native";
 import { CameraView, useCameraPermissions } from "expo-camera";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
+import { useTheme } from "../context/ThemeContext";
+import { formatDate } from "../../utils/dateUtils"; // Adjust path if needed
+import { joinEvent } from "../../utils/eventServices"; // Adjust path if needed
+import { UserContext } from "../context/UserContext";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 export default function JoinEvent({ navigation }) {
+  const { theme, isDarkMode } = useTheme();
   const [permission, requestPermission] = useCameraPermissions();
   const [scanned, setScanned] = useState(false);
+  const [userId, setUserId] = useState(null);
+
+  useEffect(() => {
+    const loadUserId = async () => {
+      try {
+        const storedUserId = await AsyncStorage.getItem('userId');
+        if (storedUserId) {
+          setUserId(storedUserId);
+        }
+      } catch (error) {
+        console.error("Failed to load userId:", error);
+      }
+    };
+    
+    loadUserId();
+  }, []);
 
   useEffect(() => {
     if (!permission || permission.status !== "granted") {
@@ -31,125 +53,6 @@ export default function JoinEvent({ navigation }) {
         onPress: () => navigation.navigate("ActiveEvent", { eventId }),
       },
     ]);
-  };
-
-  // Normalize event information for consistent rendering
-  const renderEvent = (event) => {
-    // Ensure consistent event ID handling
-    const eventId = event.id || event.Id;
-    
-    if (!eventId) {
-      console.error("Event missing ID:", event);
-      return null;
-    }
-    
-    // Check if user is already participating
-    const isUserParticipating = !!event.participants?.some(
-      p => p.userId?.toString() === userId?.toString() || 
-           p.user_id?.toString() === userId?.toString()
-    );
-
-    return (
-      <TouchableOpacity
-        key={eventId}
-        style={[
-          styles.eventCard,
-          { backgroundColor: isDarkMode ? "#333" : theme.surface },
-        ]}
-        onPress={() => handleEventPress(event)}
-      >
-        <View style={styles.cardContent}>
-          <Image
-            source={getEventImage(event)}
-            style={styles.eventImage}
-            resizeMode="contain"
-          />
-          <View style={styles.eventDetails}>
-            <Text
-              style={[
-                styles.eventTitle,
-                { color: isDarkMode ? "#fff" : theme.text },
-              ]}
-            >
-              {event.title}
-            </Text>
-            <Text
-              style={[
-                styles.eventDescription,
-                { color: isDarkMode ? "#ccc" : theme.textSecondary },
-              ]}
-            >
-              {event.description && event.description.length > 60
-                ? `${event.description.substring(0, 60)}...`
-                : event.description}
-            </Text>
-            <View style={styles.eventMeta}>
-              <View style={styles.metaItem}>
-                <MaterialCommunityIcons
-                  name="calendar"
-                  size={16}
-                  color={isDarkMode ? "#ccc" : theme.textSecondary}
-                />
-                <Text
-                  style={[
-                    styles.metaText,
-                    { color: isDarkMode ? "#ccc" : theme.textSecondary },
-                  ]}
-                >
-                  {formatDate(event.start_date)} -{" "}
-                  {formatDate(event.end_date)}
-                </Text>
-              </View>
-              <View style={styles.metaItem}>
-                <MaterialCommunityIcons
-                  name="map-marker"
-                  size={16}
-                  color={isDarkMode ? "#ccc" : theme.textSecondary}
-                />
-                <Text
-                  style={[
-                    styles.metaText,
-                    { color: isDarkMode ? "#ccc" : theme.textSecondary },
-                  ]}
-                >
-                  {event.location || "No location"}
-                </Text>
-              </View>
-            </View>
-          </View>
-          <View style={styles.joinStatus}>
-            {isUserParticipating ? (
-              <View
-                style={[
-                  styles.joinedBadge,
-                  { backgroundColor: theme.primaryLight },
-                ]}
-              >
-                <Text
-                  style={[styles.joinedBadgeText, { color: theme.primary }]}
-                >
-                  Joined
-                </Text>
-              </View>
-            ) : (
-              <TouchableOpacity
-                style={[styles.joinButton, { backgroundColor: theme.primary }]}
-                onPress={() => handleJoinPress(event)}
-              >
-                <Text
-                  style={[
-                    styles.joinButtonText,
-                    { color: isDarkMode ? "#000" : "#fff" },
-                  ]}
-                >
-                  Join
-                </Text>
-              </TouchableOpacity>
-            )}
-          </View>
-        </View>
-      </TouchableOpacity>
-    );
   };
 
   const handleJoinPress = async (event) => {
@@ -186,6 +89,26 @@ export default function JoinEvent({ navigation }) {
       console.error("Error joining event:", error);
       Alert.alert("Error", "Failed to join the event: " + error.message);
     }
+  };
+
+  const getEventImage = (event) => {
+    // Default image if none provided
+    return event.image 
+      ? { uri: event.image } 
+      : require("../../../assets/Vitus_Happy.png");
+  };
+
+  const handleEventPress = (event) => {
+    const eventId = event.id || event.Id;
+    navigation.navigate("ActiveEvent", { eventId });
+  };
+
+  const refreshEvents = () => {
+    // You'd need to implement this based on your app's state management
+    // For example, if using a context:
+    // const { refreshEvents } = useContext(EventContext);
+    // refreshEvents();
+    navigation.goBack(); // Simple fallback
   };
 
   if (!permission) {

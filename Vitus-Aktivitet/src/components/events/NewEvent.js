@@ -378,91 +378,129 @@ const NewEvent = ({ route }) => {
     }
   };
 
+  // Modify the finishEvent function to add comprehensive logging
   const finishEvent = async () => {
+    console.log("🔍 STARTING EVENT CREATION PROCESS");
+    console.log("Modal state before closing:", { showConfirmModal });
     setShowConfirmModal(false);
+    console.log("Modal closed, continuing with event creation");
     
-    // Format event data for server
-    const eventData = {
-      title: eventDetails.title,
-      description: eventDetails.description,
-      activity: eventDetails.selectedActivity?.name,
-      goal: eventDetails.goalValue,
-      start_date: new Date(eventDetails.startDate).toISOString(),
-      end_date: new Date(eventDetails.endDate).toISOString(),
-      location: eventDetails.location,
-      event_type: eventDetails.eventType,
-      total_participants: Number.parseInt(eventDetails.participantCount) || 0,
-      team_count: Number.parseInt(eventDetails.teamCount) || 0,
-      members_per_team: Number.parseInt(eventDetails.membersPerTeam) || 0,
-      // Server-side properties
-      selectedActivity: eventDetails.selectedActivity,
-      activityUnit: eventDetails.selectedActivity?.unit || "",
-      progress: 0, // Start with 0 progress
-      participants: [], // Filled in later
-      teams: [], // Filled in later
-      goal: eventDetails.goalValue, // Add goal property for server
-    };
-
     try {
+      console.log("🔍 Preparing event data for server");
+      // Format event data for server
+      const eventData = {
+        title: eventDetails.title,
+        description: eventDetails.description,
+        activity: eventDetails.selectedActivity?.name,
+        goal: eventDetails.goalValue,
+        start_date: new Date(eventDetails.startDate).toISOString(),
+        end_date: new Date(eventDetails.endDate).toISOString(),
+        location: eventDetails.location,
+        event_type: eventDetails.eventType,
+        total_participants: Number.parseInt(eventDetails.participantCount) || 0,
+        team_count: Number.parseInt(eventDetails.teamCount) || 0,
+        members_per_team: Number.parseInt(eventDetails.membersPerTeam) || 0,
+        // Server-side properties
+        selectedActivity: eventDetails.selectedActivity,
+        activityUnit: eventDetails.selectedActivity?.unit || "",
+        progress: 0, // Start with 0 progress
+        participants: [], // Filled in later
+        teams: [], // Filled in later
+        goal: eventDetails.goalValue, // Add goal property for server
+      };
+
       const updatedEvent = {
         ...eventDetails,
         ...eventData,
       };
 
-      // Fill in participants or teams based on eventType
-      if (updatedEvent.eventType === "individual") {
-        updatedEvent.participants = Array.from(
-          { length: Number.parseInt(updatedEvent.participantCount) || 0 },
-          (_, i) => ({
-            id: `participant_${i + 1}`,
-            name: `Deltaker ${i + 1}`,
-          })
-        );
-      } else if (updatedEvent.eventType === "team") {
-        updatedEvent.teams = Array.from(
-          { length: Number.parseInt(updatedEvent.teamCount) || 0 },
-          (_, i) => ({
-            id: `team_${i + 1}`,
-            name: `Lag ${i + 1}`,
-            members: Array.from(
-              { length: Number.parseInt(updatedEvent.membersPerTeam) || 0 },
-              (_, j) => ({
-                id: `member_${i + 1}_${j + 1}`,
-                name: `Medlem ${j + 1}`,
-              })
-            ),
-          })
-        );
-      }
-
+      console.log("🔍 COMPLETE EVENT OBJECT:", JSON.stringify(updatedEvent, null, 2));
+      
       let result;
       
       if (isEditing) {
-        // Update existing event
+        console.log("🔍 UPDATING existing event with ID:", updatedEvent.id || updatedEvent.Id);
         const success = await updateEvent(updatedEvent);
-        result = success ? updatedEvent : null;
+        console.log("🔍 Update result:", success);
+        result = success ? { success: true, eventId: updatedEvent.id || updatedEvent.Id } : null;
       } else {
-        // Create new event
-        result = await addEvent(updatedEvent);
+        console.log("🔍 CREATING new event - calling addEvent()");
+        try {
+          console.log("🔍 Before API call to create event");
+          result = await addEvent(updatedEvent);
+          console.log("🔍 After API call - Event creation result:", JSON.stringify(result, null, 2));
+        } catch (error) {
+          console.error("🔴 ERROR in addEvent:", error);
+          console.error("🔴 Error stack:", error.stack);
+          if (error.response) {
+            console.error("🔴 Response status:", error.response.status);
+            console.error("🔴 Response data:", JSON.stringify(error.response.data, null, 2));
+          }
+          Alert.alert("Error", "Failed to add event: " + error.message);
+          return;
+        }
       }
       
-      if (result) {
-        console.log("Event saved successfully:", result);
-        // Ensure we navigate with the correct event ID
-        const eventId = result.id || result.Id || result.eventId;
+      console.log("🔍 Checking result:", result);
+      
+      if (result && (result.success || result.eventId)) {
+        console.log("🔍 EVENT SAVED SUCCESSFULLY:", result);
+
+        // Get the event ID safely
+        const eventId = result.eventId || 
+                       (result.data && result.data.eventId) || 
+                       updatedEvent.id || 
+                       updatedEvent.Id;
+        
+        console.log("🔍 Event ID for navigation:", eventId);
+        
         if (eventId) {
-          // Navigate to the event detail screen with the event ID
-          navigation.replace("ActiveEvent", { eventId });
+          try {
+            // IMPORTANT: Don't use a timeout - it causes navigation issues
+            console.log("🚀 Navigating to ActiveEvent with ID:", eventId);
+            
+            // Use the created event data from the result
+            const eventToPass = result.createdEvent || {
+              ...updatedEvent,
+              id: eventId,
+              Id: eventId
+            };
+            
+            // Add some critical debugging
+            console.log("🔍 Event data being passed:", JSON.stringify({
+              id: eventToPass.id,
+              title: eventToPass.title,
+              participants: eventToPass.participants?.length || 0,
+            }));
+            
+            // Direct navigation with no timeouts
+            navigation.navigate("ActiveEvent", { 
+              eventId: eventId,
+              eventData: eventToPass,
+              skipServerFetch: true,
+              fromCreate: true
+            });
+            
+            console.log("✅ Navigation executed");
+          } catch (navError) {
+            console.error("🔴 NAVIGATION ERROR:", navError);
+            console.error("🔴 Stack:", navError.stack);
+            Alert.alert("Navigation Error", "Could not navigate to event details.");
+          }
         } else {
-          // Fallback if no ID is available
+          // Fallback navigation
+          console.log("⚠️ No event ID found, navigating to EventsMain");
           navigation.navigate("EventsMain", { screen: "YourEvents" });
         }
       } else {
-        Alert.alert("Feil", "Kunne ikke lagre hendelsen. Prøv igjen senere.");
+        const errorMsg = result?.error || "Could not save the event";
+        console.error("🔴 Error saving event:", errorMsg);
+        Alert.alert("Error", `Failed to save event: ${errorMsg}`);
       }
     } catch (error) {
-      console.error("Error saving event:", error);
-      Alert.alert("Feil", "Kunne ikke lagre hendelsen: " + error.message);
+      console.error("🔴 EXCEPTION during event creation:", error);
+      console.error("🔴 Error stack:", error.stack);
+      Alert.alert("Error", "An unexpected error occurred during event creation.");
     }
   };
 
@@ -624,12 +662,21 @@ const NewEvent = ({ route }) => {
           </View>
         </View>
       );
-    } else {
+    } else if (eventDetails.selectedActivity.type === "count") {
       return renderInput(
-        `Mål (${eventDetails.selectedActivity.unit})`,
+        "Mål (antall)",
         eventDetails.goalValue.toString(),
         (text) => updateEventDetails("goalValue", text),
-        "0",
+        "Skriv inn målverdi",
+        false,
+        "numeric"
+      );
+    } else if (eventDetails.selectedActivity.type === "distance") {
+      return renderInput(
+        "Mål (km)",
+        eventDetails.goalValue.toString(),
+        (text) => updateEventDetails("goalValue", text),
+        "Skriv inn målverdi",
         false,
         "numeric"
       );
@@ -1062,42 +1109,42 @@ const NewEvent = ({ route }) => {
               { backgroundColor: "rgba(0,0,0,0.5)" },
             ]}
           >
-            <View
-              style={[
-                styles.dateTimePickerContainer,
-                { backgroundColor: theme.surface },
-              ]}
-            >
-              <DateTimePicker
-                value={dateTimePickerConfig.currentValue}
-                mode={dateTimePickerConfig.mode}
-                is24Hour={true}
-                display="spinner"
-                onChange={handleDateTimeChange}
-                themeVariant={isDarkMode ? "dark" : "light"}
-                textColor={isDarkMode ? "#FFFFFF" : "#000000"}
-                style={styles.dateTimePicker}
-              />
-              {Platform.OS === "ios" && (
-                <TouchableOpacity
+          <View
+            style={[
+              styles.dateTimePickerContainer,
+              { backgroundColor: theme.surface },
+            ]}
+          >
+            <DateTimePicker
+              value={dateTimePickerConfig.currentValue}
+              mode={dateTimePickerConfig.mode}
+              is24Hour={true}
+              display="spinner"
+              onChange={handleDateTimeChange}
+              themeVariant={isDarkMode ? "dark" : "light"}
+              textColor={isDarkMode ? "#FFFFFF" : "#000000"}
+              style={styles.dateTimePicker}
+            />
+            {Platform.OS === "ios" && (
+              <TouchableOpacity
+                style={[
+                  styles.closeDateTimeButton,
+                  { backgroundColor: theme.primary },
+                ]}
+                onPress={confirmDateTime}
+              >
+                <Text
                   style={[
-                    styles.closeDateTimeButton,
-                    { backgroundColor: theme.primary },
+                    styles.closeDateTimeButtonText,
+                    { color: theme.background },
                   ]}
-                  onPress={confirmDateTime}
                 >
-                  <Text
-                    style={[
-                      styles.closeDateTimeButtonText,
-                      { color: theme.background },
-                    ]}
-                  >
-                    Bekreft
-                  </Text>
-                </TouchableOpacity>
-              )}
-            </View>
+                  Bekreft
+                </Text>
+              </TouchableOpacity>
+            )}
           </View>
+        </View>
         </Modal>
       )}
     </SafeAreaView>

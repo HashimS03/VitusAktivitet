@@ -4,6 +4,7 @@ import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { useEffect } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { View } from "react-native";
 
 // Dashboard and Navigation
 import Dashboard from "../components/dashboard/dashboard";
@@ -309,10 +310,19 @@ const AppContent = () => {
           return <LogRecordingScreen {...props} />;
         }}
       </Stack.Screen>
-      <Stack.Screen name="ActiveEvent">
+      <Stack.Screen name="ActiveEvent" options={{
+        headerShown: false,
+        presentation: 'card',
+        animationEnabled: true,
+        // This is important:
+        detachPreviousScreen: false,
+        // Don't cache (forces reload):
+        unmountOnBlur: true, 
+      }}>
         {(props) => {
-          console.log("ActiveEvent rendering"); // Debug log
-          return <ActiveEvent {...props} />;
+          console.log("ActiveEvent Screen Rendering"); // Debug log
+          // Force a new component instance on each navigation
+          return <ActiveEvent key={props.route?.params?.timestamp || 'default'} {...props} />;
         }}
       </Stack.Screen>
     </Stack.Navigator>
@@ -343,13 +353,20 @@ const App = () => {
     checkLoginStatus();
   }, []);
 
+  // In your main App.js file, add a touch handler to track user activity
+  const trackUserActivity = () => {
+    AsyncStorage.setItem('lastUserActivity', Date.now().toString());
+  };
+
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <UserProvider>
         <ThemeProvider>
           <EventProvider>
             <NavigationContainer>
-              <AppContent />
+              <View style={{ flex: 1 }} onTouchStart={trackUserActivity}>
+                <AppContent />
+              </View>
             </NavigationContainer>
           </EventProvider>
         </ThemeProvider>

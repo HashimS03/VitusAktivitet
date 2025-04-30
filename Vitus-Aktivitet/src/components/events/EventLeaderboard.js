@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useContext } from "react";
 import {
   View,
   Text,
@@ -6,113 +6,127 @@ import {
   FlatList,
   Image,
   TouchableOpacity,
+  SafeAreaView,
+  ActivityIndicator
 } from "react-native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
-
-const MOCK_PARTICIPANTS = [
-  {
-    id: "1",
-    name: "Anna",
-    score: 1200,
-    avatar: require("../../../assets/figure/avatar1.jpg"),
-    rankChange: 1,
-  },
-  {
-    id: "2",
-    name: "Bjørn",
-    score: 980,
-    avatar: require("../../../assets/figure/avatar2.jpg"),
-    rankChange: -1,
-  },
-  {
-    id: "3",
-    name: "Camilla",
-    score: 850,
-    avatar: require("../../../assets/figure/avatar3.jpg"),
-    rankChange: 2,
-  },
-  {
-    id: "4",
-    name: "David",
-    score: 720,
-    avatar: require("../../../assets/figure/avatar1.jpg"),
-    rankChange: 0,
-  },
-  {
-    id: "5",
-    name: "Eva",
-    score: 650,
-    avatar: require("../../../assets/figure/avatar1.jpg"),
-    rankChange: -2,
-  },
-];
+import { EventContext } from './EventContext';
+import { apiClient } from '../../utils/apiClient';
+import { useTheme } from '../context/ThemeContext';
 
 const EventLeaderboard = ({ navigation, route }) => {
+  const { theme } = useTheme();
+  const { 
+    activeEvents, 
+    pastEvents, 
+    upcomingEvents,
+    fetchEventParticipants 
+  } = useContext(EventContext);
+  
   const [participants, setParticipants] = useState([]);
   const [isEventActive, setIsEventActive] = useState(true);
+  const [loading, setLoading] = useState(true);
+  const [eventData, setEventData] = useState(null);
+  const [leaderboardData, setLeaderboardData] = useState([]);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
     const loadEventData = async () => {
       try {
-        // Normalize eventId from route params to handle both id and Id formats
+        setLoading(true);
+        
+        // Get event ID from params
         const eventIdParam = route.params?.eventId;
+        
         if (!eventIdParam) {
-          console.error("No event ID provided to Leaderboard");
-          navigation.goBack();
+          console.error("No event ID provided to EventLeaderboard");
+          setError("No event ID provided");
+          setLoading(false);
           return;
         }
         
-        // Find event using normalized ID comparison
-        const event = [...activeEvents, ...pastEvents].find(e => 
-          e.id?.toString() === eventIdParam.toString() || 
-          e.Id?.toString() === eventIdParam.toString()
-        );
+        console.log(`Loading leaderboard for event ID: ${eventIdParam}`);
         
-        if (!event) {
-          console.error("Event not found for ID:", eventIdParam);
-          console.log("Available events:", 
-            activeEvents.map(e => ({id: e.id, Id: e.Id, title: e.title})),
-            pastEvents.map(e => ({id: e.id, Id: e.Id, title: e.title}))
+        // Check if we already have the event data in params
+        if (route.params?.eventData) {
+          setEventData(route.params.eventData);
+          
+          // Determine if the event is active
+          const currentDate = new Date();
+          const endDate = new Date(route.params.eventData.end_date);
+          setIsEventActive(currentDate <= endDate);
+        } else {
+          // Find event in context if not provided directly
+          const allEvents = [...(activeEvents || []), ...(pastEvents || []), ...(upcomingEvents || [])];
+          const event = allEvents.find(e => 
+            String(e?.id) === String(eventIdParam) || 
+            String(e?.Id) === String(eventIdParam)
           );
-          navigation.goBack();
-          return;
+          
+          if (event) {
+            setEventData(event);
+            
+            // Determine if the event is active
+            const currentDate = new Date();
+            const endDate = new Date(event.end_date);
+            setIsEventActive(currentDate <= endDate);
+          } else {
+            // If event not found in context, try API
+            try {
+              const response = await apiClient.get(`/events/${eventIdParam}`);
+              if (response.data && response.data.data) {
+                setEventData(response.data.data);
+                
+                const currentDate = new Date();
+                const endDate = new Date(response.data.data.end_date);
+                setIsEventActive(currentDate <= endDate);
+              } else {
+                setError("Event not found");
+              }
+            } catch (apiError) {
+              console.error("API error:", apiError);
+              setError("Failed to load event");
+            }
+          }
         }
         
-        setEventData({
-          ...event,
-          id: event.id || event.Id // Ensure consistent id property
-        });
-        
-        // Continue with loading participants
-        console.log("Loading participants for event:", event.title);
-        const participants = await fetchEventParticipants(eventIdParam);
-        console.log("Fetched participants:", participants);
-        
-        // Process participants to create leaderboard data
-        if (Array.isArray(participants)) {
-          const leaderboardData = participants.map(participant => ({
-            id: participant.id.toString(),
-            name: participant.userName || "Unknown",
-            score: Math.floor(Math.random() * 1000), // Replace with actual scores when available
-            team: participant.teamId ? `Team ${participant.teamId}` : "No Team",
-            avatar: participant.avatar || null
-          }));
+        // Load participants for the leaderboard
+        if (fetchEventParticipants) {
+          const participantsData = await fetchEventParticipants(eventIdParam);
           
-          // Sort by score descending
-          leaderboardData.sort((a, b) => b.score - a.score);
-          
-          setLeaderboardData(leaderboardData);
+          if (Array.isArray(participantsData) && participantsData.length > 0) {
+            // Transform participant data to leaderboard format
+            const leaderboardData = participantsData
+              .filter(p => p && p.score !== undefined)
+              .map(p => ({
+                id: p.id?.toString(),
+                name: p.userName || "Unknown",
+                score: p.score || 0,
+                avatar: p.avatar || require("../../../assets/member-avatar.png"),
+                team: p.teamId ? `Team ${p.teamId}` : null,
+              }))
+              .sort((a, b) => b.score - a.score); // Sort by score in descending order
+            
+            setParticipants(leaderboardData);
+          } else {
+            setParticipants([]); // Empty array instead of mock data
+            setError("No participants found");
+          }
+        } else {
+          setParticipants([]); // Empty array instead of mock data
+          setError("Cannot load participants");
         }
-        
       } catch (error) {
-        console.error("Error loading event data for leaderboard:", error);
+        console.error("Error loading leaderboard data:", error);
+        setError("Failed to load leaderboard data");
+        setParticipants([]); // Empty array instead of mock data
       } finally {
         setLoading(false);
       }
     };
     
     loadEventData();
-  }, [route.params?.eventId, activeEvents, pastEvents]);
+  }, [route.params?.eventId, route.params?.eventData]);
 
   const renderParticipantItem = ({ item, index }) => (
     <View
@@ -140,30 +154,49 @@ const EventLeaderboard = ({ navigation, route }) => {
   );
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={[styles.container, {backgroundColor: theme.background}]}>
       <TouchableOpacity
         style={styles.backButton}
         onPress={() => navigation.goBack()}
       >
-        <MaterialCommunityIcons name="chevron-left" size={28} color="#000" />
+        <MaterialCommunityIcons name="chevron-left" size={28} color={theme.text} />
       </TouchableOpacity>
 
-      <Text style={styles.title}>Leaderboard</Text>
+      <Text style={[styles.title, {color: theme.text}]}>
+        {eventData?.title ? `${eventData.title} Leaderboard` : "Leaderboard"}
+      </Text>
 
-      <FlatList
-        data={participants}
-        renderItem={renderParticipantItem}
-        keyExtractor={(item) => item.id}
-        showsVerticalScrollIndicator={false}
-      />
-    </View>
+      {loading ? (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={theme.primary} />
+          <Text style={[styles.loadingText, {color: theme.textSecondary}]}>Loading leaderboard...</Text>
+        </View>
+      ) : error ? (
+        <View style={styles.errorContainer}>
+          <MaterialCommunityIcons name="alert-circle" size={50} color={theme.error} />
+          <Text style={[styles.errorText, {color: theme.error}]}>{error}</Text>
+          <TouchableOpacity 
+            style={[styles.retryButton, {backgroundColor: theme.primary}]} 
+            onPress={() => navigation.goBack()}>
+            <Text style={{color: theme.background, fontWeight: '600'}}>Go Back</Text>
+          </TouchableOpacity>
+        </View>
+      ) : (
+        <FlatList
+          data={participants}
+          renderItem={renderParticipantItem}
+          keyExtractor={(item) => item.id}
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={{paddingBottom: 40}}
+        />
+      )}
+    </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#f4f4f4",
     padding: 20,
   },
   backButton: {
@@ -218,6 +251,32 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: "bold",
     marginLeft: 5,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loadingText: {
+    marginTop: 20,
+    fontSize: 16,
+  },
+  errorContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  errorText: {
+    marginTop: 20,
+    fontSize: 16,
+    textAlign: 'center',
+    marginBottom: 20,
+  },
+  retryButton: {
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 8,
   },
 });
 

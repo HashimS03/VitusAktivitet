@@ -8,10 +8,10 @@ import {
   Dimensions,
   Alert,
 } from "react-native";
-import axios from "axios";
 import { UserContext } from "../context/UserContext";
 import { SERVER_CONFIG } from "../../config/serverConfig";
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import apiClient, { authHelpers } from "../../utils/apiClient";
 
 const { width } = Dimensions.get("window");
 const PRIMARY_COLOR = "#48CAB2";
@@ -21,6 +21,7 @@ export default function login({ navigation }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPasswordField, setShowPasswordField] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   const { setUserId } = useContext(UserContext);
 
   const handleEmailChange = (text) => {
@@ -39,10 +40,12 @@ export default function login({ navigation }) {
       return;
     }
 
+    setIsLoading(true);
+    
     try {
       console.log("Sending login request to:", `${SERVER_CONFIG.getBaseUrl()}/login`);
       
-      const response = await axios.post(`${SERVER_CONFIG.getBaseUrl()}/login`, {
+      const response = await apiClient.post('/login', {
         email,
         password,
       });
@@ -54,16 +57,23 @@ export default function login({ navigation }) {
       });
 
       if (response.data.success) {
-        // Store the JWT token with the correct key
+        // Use authHelpers to store both tokens consistently
         if (response.data.token) {
-          await AsyncStorage.setItem('authToken', response.data.token);
-          console.log("Token stored successfully");
+          // Save auth token with refresh token if provided
+          await authHelpers.setAuthTokens(
+            response.data.token,
+            response.data.refreshToken // This might be undefined depending on the server
+          );
+          
+          // Also save user ID
+          await AsyncStorage.setItem('userId', response.data.userId.toString());
+          
+          console.log("Auth tokens stored successfully");
         } else {
           console.error("No token received from server");
         }
         
         setUserId(response.data.userId);
-        Alert.alert("Success", "Login successful");
         navigation.replace("MainApp");
       }
     } catch (error) {
@@ -72,12 +82,16 @@ export default function login({ navigation }) {
         "Error", 
         error.response?.data?.message || "Login failed. Please check your connection."
       );
+    } finally {
+      setIsLoading(false);
     }
   };
 
   const isPasswordFilled = password.trim().length > 0;
   const buttonColor = showPasswordField && isPasswordFilled ? DARKER_COLOR : PRIMARY_COLOR;
-  const isButtonDisabled = (showPasswordField && !isPasswordFilled) || (!showPasswordField && email.trim().length === 0);
+  const isButtonDisabled = isLoading || 
+    (showPasswordField && !isPasswordFilled) || 
+    (!showPasswordField && email.trim().length === 0);
 
   return (
     <View style={styles.container}>
@@ -99,6 +113,7 @@ export default function login({ navigation }) {
             keyboardType="email-address"
             autoCapitalize="none"
             autoCorrect={false}
+            editable={!isLoading}
           />
         </View>
 
@@ -111,12 +126,16 @@ export default function login({ navigation }) {
               value={password}
               onChangeText={setPassword}
               secureTextEntry
+              editable={!isLoading}
             />
           </View>
         )}
 
         <TouchableOpacity
-          style={[styles.loginButton, { backgroundColor: buttonColor, opacity: isButtonDisabled ? 0.6 : 1 }]}
+          style={[
+            styles.loginButton, 
+            { backgroundColor: buttonColor, opacity: isButtonDisabled ? 0.6 : 1 }
+          ]}
           onPress={() => {
             if (!showPasswordField) {
               handleNextPress();
@@ -126,7 +145,9 @@ export default function login({ navigation }) {
           }}
           disabled={isButtonDisabled}
         >
-          <Text style={styles.loginButtonText}>{showPasswordField ? "Login" : "Next"}</Text>
+          <Text style={styles.loginButtonText}>
+            {isLoading ? "Logging in..." : (showPasswordField ? "Login" : "Next")}
+          </Text>
         </TouchableOpacity>
       </View>
     </View>
