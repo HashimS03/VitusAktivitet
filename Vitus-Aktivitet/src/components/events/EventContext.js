@@ -80,7 +80,7 @@ export const EventProvider = ({ children }) => {
       const response = await apiClient.post("/events", serverEventData);
       const eventWithId = {
         ...newEvent,
-        id: response.data.eventId || Date.now().toString(),
+        Id: response.data.eventId || Date.now().toString(),
         participants: [],
       };
 

@@ -11,7 +11,7 @@ import {
 import axios from "axios";
 import { UserContext } from "../context/UserContext";
 import { SERVER_CONFIG } from "../../config/serverConfig";
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 const { width } = Dimensions.get("window");
 const PRIMARY_COLOR = "#48CAB2";
@@ -40,8 +40,11 @@ export default function login({ navigation }) {
     }
 
     try {
-      console.log("Sending login request to:", `${SERVER_CONFIG.getBaseUrl()}/login`);
-      
+      console.log(
+        "Sending login request to:",
+        `${SERVER_CONFIG.getBaseUrl()}/login`
+      );
+
       const response = await axios.post(`${SERVER_CONFIG.getBaseUrl()}/login`, {
         email,
         password,
@@ -50,18 +53,21 @@ export default function login({ navigation }) {
       console.log("Login response received:", {
         success: response.data.success,
         userId: response.data.userId,
-        hasToken: !!response.data.token
+        hasToken: !!response.data.token,
       });
 
       if (response.data.success) {
         // Store the JWT token with the correct key
         if (response.data.token) {
-          await AsyncStorage.setItem('authToken', response.data.token); // Changed from 'userToken' to 'authToken'
-          console.log("Token stored successfully");
+          await AsyncStorage.setItem("authToken", response.data.token);
+          console.log(
+            "Token stored successfully. Token value:",
+            response.data.token
+          ); // Legg til denne linjen
         } else {
           console.error("No token received from server");
         }
-        
+
         setUserId(response.data.userId);
         Alert.alert("Success", "Login successful");
         navigation.replace("MainApp");
@@ -69,20 +75,27 @@ export default function login({ navigation }) {
     } catch (error) {
       console.log("Login error:", error);
       Alert.alert(
-        "Error", 
-        error.response?.data?.message || "Login failed. Please check your connection."
+        "Error",
+        error.response?.data?.message ||
+          "Login failed. Please check your connection."
       );
     }
   };
 
   const isPasswordFilled = password.trim().length > 0;
-  const buttonColor = showPasswordField && isPasswordFilled ? DARKER_COLOR : PRIMARY_COLOR;
-  const isButtonDisabled = (showPasswordField && !isPasswordFilled) || (!showPasswordField && email.trim().length === 0);
+  const buttonColor =
+    showPasswordField && isPasswordFilled ? DARKER_COLOR : PRIMARY_COLOR;
+  const isButtonDisabled =
+    (showPasswordField && !isPasswordFilled) ||
+    (!showPasswordField && email.trim().length === 0);
 
   return (
     <View style={styles.container}>
       <View style={styles.formContainer}>
-        <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
+        <TouchableOpacity
+          style={styles.backButton}
+          onPress={() => navigation.goBack()}
+        >
           <Text style={styles.backButtonText}>← Back</Text>
         </TouchableOpacity>
 
@@ -116,7 +129,13 @@ export default function login({ navigation }) {
         )}
 
         <TouchableOpacity
-          style={[styles.loginButton, { backgroundColor: buttonColor, opacity: isButtonDisabled ? 0.6 : 1 }]}
+          style={[
+            styles.loginButton,
+            {
+              backgroundColor: buttonColor,
+              opacity: isButtonDisabled ? 0.6 : 1,
+            },
+          ]}
           onPress={() => {
             if (!showPasswordField) {
               handleNextPress();
@@ -126,7 +145,9 @@ export default function login({ navigation }) {
           }}
           disabled={isButtonDisabled}
         >
-          <Text style={styles.loginButtonText}>{showPasswordField ? "Login" : "Next"}</Text>
+          <Text style={styles.loginButtonText}>
+            {showPasswordField ? "Login" : "Next"}
+          </Text>
         </TouchableOpacity>
       </View>
     </View>

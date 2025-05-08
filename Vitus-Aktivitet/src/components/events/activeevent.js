@@ -27,9 +27,12 @@ const ActiveEvent = ({ route }) => {
   const { eventId } = route.params || {};
   const { activeEvents, pastEvents, updateEvent, deleteEvent } =
     useContext(EventContext);
+
+  // Finn eventDetails og håndter tilfeller der eventId ikke finnes
   const eventDetails =
-    activeEvents.find((event) => event.Id === eventId) || // Endret fra `id` til `Id`
-    pastEvents.find((event) => event.Id === eventId); // Endret fra `id` til `Id`
+    activeEvents.find((event) => event.Id === eventId) ||
+    pastEvents.find((event) => event.Id === eventId) ||
+    null;
 
   const [isModalVisible, setModalVisible] = useState(false);
   const [showInviteScreen, setShowInviteScreen] = useState(false);
@@ -41,8 +44,10 @@ const ActiveEvent = ({ route }) => {
   const navigation = useNavigation();
   const { theme, isDarkMode } = useTheme();
 
-  const isEventFinished =
-    eventDetails && new Date(eventDetails.end_date) < new Date();
+  // Sjekk om eventet er ferdig
+  const isEventFinished = eventDetails
+    ? new Date(eventDetails.end_date) < new Date()
+    : true;
 
   useEffect(() => {
     navigation.setOptions({
@@ -68,7 +73,16 @@ const ActiveEvent = ({ route }) => {
     // Fetch participants and teams
     const fetchParticipants = async () => {
       try {
-        const response = await apiClient.get(`/events/${eventId}/participants`);
+        if (!eventId || isNaN(Number(eventId))) {
+          console.error("Invalid eventId:", eventId);
+          return;
+        }
+
+        const response = await apiClient.get(
+          `/events/${Number(eventId)}/participants`
+        );
+        console.log("Fetched participants response:", response.data);
+
         if (response.data.success) {
           const fetchedParticipants = (response.data.participants || []).map(
             (participant) => ({
@@ -80,14 +94,32 @@ const ActiveEvent = ({ route }) => {
             })
           );
           setParticipants(fetchedParticipants);
+        } else {
+          console.error("Response did not indicate success:", response.data);
         }
       } catch (error) {
-        console.error("Error fetching participants:", error);
+        console.error(
+          "Error fetching participants:",
+          error.response?.data || error.message
+        );
       }
     };
 
-    fetchParticipants();
-  }, [navigation, eventId]);
+    if (eventDetails) {
+      fetchParticipants();
+    }
+  }, [navigation, eventId, eventDetails]);
+
+  useEffect(() => {
+    if (!eventDetails) {
+      navigation.goBack();
+      return;
+    }
+    setCurrentValue(eventDetails.currentValue || 0);
+    setProgress(
+      (eventDetails.currentValue || 0) / (eventDetails.goalValue || 1)
+    );
+  }, [eventDetails, navigation]);
 
   const toggleModal = () => setModalVisible(!isModalVisible);
 
@@ -123,24 +155,27 @@ const ActiveEvent = ({ route }) => {
 
   const submitProgress = async () => {
     const newValue = Number.parseInt(newProgress, 10);
-    if (!isNaN(newValue) && newValue >= 0 && newValue <= eventDetails.goal) {
+    if (
+      !isNaN(newValue) &&
+      newValue >= 0 &&
+      newValue <= (eventDetails.goalValue || 0)
+    ) {
       try {
         const response = await apiClient.put(`/events/${eventId}/progress`, {
           progress: newValue,
         });
         if (response.data.success) {
           setCurrentValue(newValue);
-          setProgress(newValue / eventDetails.goal);
+          setProgress(newValue / (eventDetails.goalValue || 1));
           setShowProgressModal(false);
           setNewProgress("");
 
           updateEvent({
             ...eventDetails,
             currentValue: newValue,
-            progress: newValue / eventDetails.goal,
+            progress: newValue / (eventDetails.goalValue || 1),
           });
 
-          // Oppdater deltakere etter fremgangsoppdatering
           const updatedParticipantsResponse = await apiClient.get(
             `/events/${eventId}/participants`
           );
@@ -181,7 +216,8 @@ const ActiveEvent = ({ route }) => {
     }
 
     const totalMembers = participants.length + 1; // Inkluderer verten
-    const maxMembers = eventDetails.team_count * eventDetails.members_per_team;
+    const maxMembers =
+      eventDetails.team_count * (eventDetails.members_per_team || 0);
 
     return (
       <>
@@ -214,7 +250,7 @@ const ActiveEvent = ({ route }) => {
                     { color: theme.textSecondary },
                   ]}
                 >
-                  Fremgang: {currentValue} {eventDetails.activity}
+                  Fremgang: {currentValue} {eventDetails.activity || "enheter"}
                 </Text>
               </View>
               {participants.map((participant, index) => (
@@ -234,15 +270,17 @@ const ActiveEvent = ({ route }) => {
                       { color: theme.textSecondary },
                     ]}
                   >
-                    Fremgang: {participant.individual_progress}{" "}
-                    {eventDetails.activity}
+                    Fremgang: {participant.individual_progress || 0}{" "}
+                    {eventDetails.activity || "enheter"}
                   </Text>
                 </View>
               ))}
               {Array.from(
                 {
                   length:
-                    eventDetails.members_per_team - participants.length - 1,
+                    (eventDetails.members_per_team || 0) -
+                    participants.length -
+                    1,
                 },
                 (_, i) => (
                   <TouchableOpacity
@@ -268,7 +306,7 @@ const ActiveEvent = ({ route }) => {
             {participants.length > 0 && (
               <Text style={[styles.teamProgress, { color: theme.primary }]}>
                 Lagets totale fremgang: {participants[0]?.team_progress || 0}{" "}
-                {eventDetails.activity}
+                {eventDetails.activity || "enheter"}
               </Text>
             )}
           </View>
@@ -310,7 +348,7 @@ const ActiveEvent = ({ route }) => {
                     { color: theme.textSecondary },
                   ]}
                 >
-                  Fremgang: {currentValue} {eventDetails.activity}
+                  Fremgang: {currentValue} {eventDetails.activity || "enheter"}
                 </Text>
               </View>
               {participants.map((participant, index) => (
@@ -330,8 +368,8 @@ const ActiveEvent = ({ route }) => {
                       { color: theme.textSecondary },
                     ]}
                   >
-                    Fremgang: {participant.individual_progress}{" "}
-                    {eventDetails.activity}
+                    Fremgang: {participant.individual_progress || 0}{" "}
+                    {eventDetails.activity || "enheter"}
                   </Text>
                 </View>
               ))}
@@ -359,17 +397,8 @@ const ActiveEvent = ({ route }) => {
     );
   };
 
-  useEffect(() => {
-    if (!eventDetails) {
-      navigation.goBack();
-    } else {
-      setCurrentValue(eventDetails.currentValue || 0);
-      setProgress((eventDetails.currentValue || 0) / eventDetails.goal);
-    }
-  }, [eventDetails, navigation]);
-
   if (!eventDetails) {
-    return null;
+    return null; // Returner null hvis eventDetails ikke finnes
   }
 
   const formatDate = (dateString) => {
@@ -426,7 +455,7 @@ const ActiveEvent = ({ route }) => {
           ]}
         >
           <Text style={[styles.eventTitle, { color: theme.text }]}>
-            {eventDetails.title}
+            {eventDetails.title || "Uten tittel"}
           </Text>
           <View style={styles.eventDetails}>
             <MaterialCommunityIcons
@@ -463,7 +492,7 @@ const ActiveEvent = ({ route }) => {
             <Text
               style={[styles.eventDetailText, { color: theme.textSecondary }]}
             >
-              {eventDetails.location}
+              {eventDetails.location || "Ukjent sted"}
             </Text>
           </View>
         </View>
@@ -482,7 +511,7 @@ const ActiveEvent = ({ route }) => {
                 color={theme.primary}
               />
               <Text style={[styles.progressTitle, { color: theme.text }]}>
-                {eventDetails.title}
+                {eventDetails.title || "Uten tittel"}
               </Text>
             </View>
             <Progress.Bar
@@ -499,7 +528,8 @@ const ActiveEvent = ({ route }) => {
               <Text
                 style={[styles.progressText, { color: theme.textSecondary }]}
               >
-                {currentValue} av {eventDetails.goal} {eventDetails.activity}
+                {currentValue} av {eventDetails.goalValue || 0}{" "}
+                {eventDetails.activity || "enheter"}
               </Text>
               <Text
                 style={[styles.progressPercentage, { color: theme.primary }]}
@@ -528,13 +558,11 @@ const ActiveEvent = ({ route }) => {
 
         <View style={styles.membersSection}>
           <Text style={[styles.sectionTitle, { color: theme.text }]}>
-            {eventDetails.isTeamEvent ? "Lag og Medlemmer" : "Deltakere"}{" "}
-            {/* Endret fra event_type til isTeamEvent */}
+            {eventDetails.isTeamEvent ? "Lag og Medlemmer" : "Deltakere"}
           </Text>
           {eventDetails.isTeamEvent
             ? renderTeamMembers()
-            : renderIndividualParticipants()}{" "}
-          {/* Endret fra event_type til isTeamEvent */}
+            : renderIndividualParticipants()}
         </View>
 
         <View style={styles.descriptionSection}>
@@ -544,7 +572,7 @@ const ActiveEvent = ({ route }) => {
           <Text
             style={[styles.descriptionText, { color: theme.textSecondary }]}
           >
-            {eventDetails.description}
+            {eventDetails.description || "Ingen beskrivelse tilgjengelig"}
           </Text>
         </View>
 
@@ -572,9 +600,8 @@ const ActiveEvent = ({ route }) => {
           </TouchableOpacity>
           <TouchableOpacity
             style={[styles.actionButton, { backgroundColor: theme.primary }]}
-            onPress={
-              () =>
-                navigation.navigate("Leaderboard", { eventId: eventDetails.Id }) // Endret fra `id` til `Id`
+            onPress={() =>
+              navigation.navigate("Leaderboard", { eventId: eventDetails.Id })
             }
           >
             <MaterialCommunityIcons
@@ -665,7 +692,9 @@ const ActiveEvent = ({ route }) => {
                   styles.input,
                   { color: theme.text, borderColor: theme.border },
                 ]}
-                placeholder={`Skriv inn antall ${eventDetails.activity}`}
+                placeholder={`Skriv inn antall ${
+                  eventDetails.activity || "enheter"
+                }`}
                 placeholderTextColor={theme.textSecondary}
                 keyboardType="numeric"
                 value={newProgress}
@@ -705,90 +734,49 @@ const ActiveEvent = ({ route }) => {
       <InviteMembersScreen
         visible={showInviteScreen}
         onClose={() => setShowInviteScreen(false)}
-        eventId={eventDetails.Id} // Endret fra `id` til `Id`
+        eventId={eventDetails.Id}
       />
     </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-  },
+  safeArea: { flex: 1 },
   header: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
     padding: 16,
   },
-  backButton: {
-    padding: 8,
-  },
-  title: {
-    fontSize: 20,
-    fontWeight: "bold",
-  },
-  menuButton: {
-    padding: 8,
-  },
-  eventBanner: {
-    width: "100%",
-    height: 200,
-    resizeMode: "contain",
-  },
+  backButton: { padding: 8 },
+  title: { fontSize: 20, fontWeight: "bold" },
+  menuButton: { padding: 8 },
+  eventBanner: { width: "100%", height: 200, resizeMode: "contain" },
   eventInfoContainer: {
     padding: 16,
     borderRadius: 12,
     margin: 16,
   },
-  eventTitle: {
-    fontSize: 24,
-    fontWeight: "bold",
-    marginBottom: 12,
-  },
-  eventDetails: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 8,
-  },
-  eventDetailText: {
-    fontSize: 16,
-    marginLeft: 8,
-  },
-  progressSection: {
-    padding: 16,
-  },
-  progressCard: {
-    padding: 16,
-    borderRadius: 12,
-    marginBottom: 16,
-  },
+  eventTitle: { fontSize: 24, fontWeight: "bold", marginBottom: 12 },
+  eventDetails: { flexDirection: "row", alignItems: "center", marginBottom: 8 },
+  eventDetailText: { fontSize: 16, marginLeft: 8 },
+  progressSection: { padding: 16 },
+  progressCard: { padding: 16, borderRadius: 12, marginBottom: 16 },
   progressHeader: {
     flexDirection: "row",
     alignItems: "center",
     marginBottom: 12,
   },
-  progressTitle: {
-    fontSize: 18,
-    fontWeight: "600",
-    marginLeft: 8,
-  },
-  progressBar: {
-    marginVertical: 8,
-  },
+  progressTitle: { fontSize: 18, fontWeight: "600", marginLeft: 8 },
+  progressBar: { marginVertical: 8 },
   progressInfo: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
     marginTop: 8,
   },
-  progressText: {
-    fontSize: 14,
-  },
-  progressPercentage: {
-    fontSize: 16,
-    fontWeight: "600",
-  },
+  progressText: { fontSize: 14 },
+  progressPercentage: { fontSize: 16, fontWeight: "600" },
   updateButton: {
     flexDirection: "row",
     alignItems: "center",
@@ -797,66 +785,21 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     marginTop: 8,
   },
-  updateButtonText: {
-    fontSize: 16,
-    fontWeight: "600",
-    marginLeft: 8,
-  },
-  membersSection: {
-    padding: 16,
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: "600",
-    marginBottom: 8,
-  },
-  memberCount: {
-    fontSize: 14,
-    marginBottom: 16,
-  },
-  membersList: {
-    flexDirection: "row",
-  },
-  participantsContainer: {
-    flex: 1,
-  },
-  participantsRow: {
-    flexDirection: "row",
-    gap: 16,
-  },
-  teamContainer: {
-    marginRight: 0,
-  },
-  teamTitle: {
-    fontSize: 16,
-    fontWeight: "600",
-    marginBottom: 8,
-  },
-  teamMembers: {
-    flexDirection: "row",
-  },
-  memberAvatar: {
-    alignItems: "center",
-    marginRight: 16,
-  },
-  avatarImage: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    marginBottom: 4,
-  },
-  memberName: {
-    fontSize: 12,
-  },
-  memberProgress: {
-    fontSize: 12,
-    marginTop: 4,
-  },
-  teamProgress: {
-    fontSize: 16,
-    fontWeight: "600",
-    marginTop: 16,
-  },
+  updateButtonText: { fontSize: 16, fontWeight: "600", marginLeft: 8 },
+  membersSection: { padding: 16 },
+  sectionTitle: { fontSize: 18, fontWeight: "600", marginBottom: 8 },
+  memberCount: { fontSize: 14, marginBottom: 16 },
+  membersList: { flexDirection: "row" },
+  participantsContainer: { flex: 1 },
+  participantsRow: { flexDirection: "row", gap: 16 },
+  teamContainer: { marginRight: 0 },
+  teamTitle: { fontSize: 16, fontWeight: "600", marginBottom: 8 },
+  teamMembers: { flexDirection: "row" },
+  memberAvatar: { alignItems: "center", marginRight: 16 },
+  avatarImage: { width: 60, height: 60, borderRadius: 30, marginBottom: 4 },
+  memberName: { fontSize: 12 },
+  memberProgress: { fontSize: 12, marginTop: 4 },
+  teamProgress: { fontSize: 16, fontWeight: "600", marginTop: 16 },
   emptyAvatar: {
     width: 60,
     height: 60,
@@ -865,13 +808,8 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     marginRight: 16,
   },
-  descriptionSection: {
-    padding: 16,
-  },
-  descriptionText: {
-    fontSize: 16,
-    lineHeight: 24,
-  },
+  descriptionSection: { padding: 16 },
+  descriptionText: { fontSize: 16, lineHeight: 24 },
   buttonContainer: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -888,11 +826,7 @@ const styles = StyleSheet.create({
     flex: 1,
     marginHorizontal: 8,
   },
-  actionButtonText: {
-    fontSize: 16,
-    fontWeight: "600",
-    marginLeft: 8,
-  },
+  actionButtonText: { fontSize: 16, fontWeight: "600", marginLeft: 8 },
   modalContainer: {
     flex: 1,
     justifyContent: "flex-end",
@@ -912,19 +846,9 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: "#E0E0E0",
   },
-  modalOptionText: {
-    fontSize: 16,
-    marginLeft: 16,
-  },
-  modalCloseButton: {
-    alignItems: "center",
-    paddingVertical: 16,
-    marginTop: 8,
-  },
-  modalCloseButtonText: {
-    fontSize: 16,
-    fontWeight: "600",
-  },
+  modalOptionText: { fontSize: 16, marginLeft: 16 },
+  modalCloseButton: { alignItems: "center", paddingVertical: 16, marginTop: 8 },
+  modalCloseButtonText: { fontSize: 16, fontWeight: "600" },
   modalTitle: {
     fontSize: 20,
     fontWeight: "600",
@@ -938,15 +862,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     marginBottom: 16,
   },
-  submitButton: {
-    padding: 12,
-    borderRadius: 8,
-    alignItems: "center",
-  },
-  submitButtonText: {
-    fontSize: 16,
-    fontWeight: "600",
-  },
+  submitButton: { padding: 12, borderRadius: 8, alignItems: "center" },
+  submitButtonText: { fontSize: 16, fontWeight: "600" },
 });
 
 export default ActiveEvent;
