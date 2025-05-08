@@ -16,18 +16,18 @@ export const EventProvider = ({ children }) => {
 
   // Funksjon for å oppdatere hendelsesstatus
   const updateEventStatus = (eventsList) => {
-    const now = new Date();
+    const now = new Date().toISOString(); // Bruk ISO-streng for konsistens
     return eventsList.map((event) => {
       try {
-        const start = new Date(event.start_date);
-        const end = new Date(event.end_date);
+        // Konverter start_date og end_date til UTC ISO-strenger
+        const start = new Date(event.start_date).toISOString();
+        const end = new Date(event.end_date).toISOString();
 
-        // Valider datoer
-        if (isNaN(start.getTime()) || isNaN(end.getTime())) {
+        if (isNaN(Date.parse(start)) || isNaN(Date.parse(end))) {
           console.warn(
             `Invalid dates for event ${event.Id}: Start=${event.start_date}, End=${event.end_date}`
           );
-          return { ...event, status: "past" }; // Behandle ugyldige datoer som fortid
+          return { ...event, status: "past" };
         }
 
         let status;
@@ -40,9 +40,7 @@ export const EventProvider = ({ children }) => {
         }
 
         console.log(
-          `Event ${
-            event.Id
-          } status: ${status}, Start: ${start.toISOString()}, End: ${end.toISOString()}, Now: ${now.toISOString()}`
+          `Event ${event.Id} status: ${status}, Start: ${start}, End: ${end}, Now: ${now}`
         );
         return { ...event, status };
       } catch (e) {
@@ -59,8 +57,10 @@ export const EventProvider = ({ children }) => {
       console.log("Fetched events from server:", response.data.data);
       let serverEvents = response.data.data || [];
 
-      // Hent deltakere for hver hendelse
       for (let event of serverEvents) {
+        console.log(
+          `Event ${event.Id} dates - Start: ${event.start_date}, End: ${event.end_date}`
+        );
         const participantsResponse = await apiClient.get(
           `/events/${event.Id}/participants`
         );
@@ -76,7 +76,6 @@ export const EventProvider = ({ children }) => {
         );
       }
 
-      // Oppdater status for alle hendelser
       const updatedEvents = updateEventStatus(serverEvents);
       setEvents(updatedEvents);
       await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(updatedEvents));
@@ -137,8 +136,8 @@ export const EventProvider = ({ children }) => {
         description: newEvent.description || "",
         activity: newEvent.selectedActivity?.name || "",
         goal: newEvent.goalValue || 0,
-        start_date: newEvent.start_date,
-        end_date: newEvent.end_date,
+        start_date: new Date(newEvent.start_date).toISOString(), // Konverter til UTC
+        end_date: new Date(newEvent.end_date).toISOString(), // Konverter til UTC
         location: newEvent.location || "",
         event_type: newEvent.eventType || "individual",
         total_participants: Number(newEvent.participantCount) || 0,
@@ -151,8 +150,12 @@ export const EventProvider = ({ children }) => {
         ...newEvent,
         Id: response.data.eventId || Date.now().toString(),
         participants: [],
+        start_date: serverEventData.start_date, // Bruk UTC-verdien
+        end_date: serverEventData.end_date, // Bruk UTC-verdien
         status:
-          new Date(newEvent.start_date) > new Date() ? "upcoming" : "active",
+          new Date(serverEventData.start_date) > new Date()
+            ? "upcoming"
+            : "active",
       };
 
       setEvents((prevEvents) => {
@@ -167,6 +170,8 @@ export const EventProvider = ({ children }) => {
         ...newEvent,
         Id: Date.now().toString(),
         participants: [],
+        start_date: new Date(newEvent.start_date).toISOString(),
+        end_date: new Date(newEvent.end_date).toISOString(),
         status:
           new Date(newEvent.start_date) > new Date() ? "upcoming" : "active",
       };
