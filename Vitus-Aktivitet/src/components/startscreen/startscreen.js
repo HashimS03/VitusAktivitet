@@ -90,7 +90,7 @@ export default function StartScreen({ navigation }) {
             </TouchableOpacity>
 
             <View style={styles.signupContainer}>
-              <Text style={styles.signupText}>Har ikke en konto? </Text>
+              <Text style={styles.signupText}>Har ikke en konto?</Text>
               <TouchableOpacity onPress={() => navigation.navigate("SignUp")}>
                 <Text style={styles.signupLink}>Opprett nå</Text>
               </TouchableOpacity>

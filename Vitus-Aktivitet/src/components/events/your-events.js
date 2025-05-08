@@ -64,7 +64,9 @@ const YourEvents = () => {
   };
 
   const truncateText = (text, maxLength) => {
-    return text.length > maxLength ? text.substring(0, maxLength) + "..." : text;
+    return text.length > maxLength
+      ? text.substring(0, maxLength) + "..."
+      : text;
   };
 
   const renderEvent = (event) => {
@@ -76,7 +78,9 @@ const YourEvents = () => {
         key={event.id}
         style={[styles.eventCard, { backgroundColor: theme.surface }]}
         activeOpacity={0.7}
-        onPress={() => navigation.navigate("ActiveEvent", { eventId: event.id })}
+        onPress={() =>
+          navigation.navigate("ActiveEvent", { eventId: event.Id })
+        }
       >
         <View style={styles.cardContent}>
           <Image
@@ -137,10 +141,17 @@ const YourEvents = () => {
       >
         <View style={styles.actionButtons}>
           <TouchableOpacity
-            style={[styles.createEventButton, { backgroundColor: theme.primary }]}
+            style={[
+              styles.createEventButton,
+              { backgroundColor: theme.primary },
+            ]}
             onPress={handleCreateEvent}
           >
-            <MaterialCommunityIcons name="plus" size={24} color={theme.background} />
+            <MaterialCommunityIcons
+              name="plus"
+              size={24}
+              color={theme.background}
+            />
             <Text style={[styles.createEventText, { color: theme.background }]}>
               Opprett
             </Text>
@@ -168,7 +179,10 @@ const YourEvents = () => {
 
         {activeEvents.length === 0 ? (
           <View
-            style={[styles.emptyStateContainer, { backgroundColor: theme.surface }]}
+            style={[
+              styles.emptyStateContainer,
+              { backgroundColor: theme.surface },
+            ]}
           >
             <Image
               source={selectedVitusHappyImage} // Updated to use dynamic image
@@ -178,16 +192,25 @@ const YourEvents = () => {
               Ingen aktive hendelser
             </Text>
             <Text
-              style={[styles.emptyStateSubtitle, { color: theme.textSecondary }]}
+              style={[
+                styles.emptyStateSubtitle,
+                { color: theme.textSecondary },
+              ]}
             >
               Du har ingen aktive hendelser. Opprett eller bli med for å starte.
             </Text>
             <TouchableOpacity
-              style={[styles.emptyStateButton, { backgroundColor: theme.primary }]}
+              style={[
+                styles.emptyStateButton,
+                { backgroundColor: theme.primary },
+              ]}
               onPress={handleCreateEvent}
             >
               <Text
-                style={[styles.emptyStateButtonText, { color: theme.background }]}
+                style={[
+                  styles.emptyStateButtonText,
+                  { color: theme.background },
+                ]}
               >
                 Opprett hendelse
               </Text>
@@ -206,24 +229,42 @@ const YourEvents = () => {
       >
         <View style={styles.modalContainer}>
           <View
-            style={[styles.menuContent, { backgroundColor: theme.surface, shadowColor: theme.text }]}
+            style={[
+              styles.menuContent,
+              { backgroundColor: theme.surface, shadowColor: theme.text },
+            ]}
           >
-            <TouchableOpacity style={styles.menuOption} onPress={() => handleEditEvent(selectedEvent)}>
-              <MaterialCommunityIcons name="pencil" size={24} color={theme.text} />
-              <Text style={[styles.menuOptionText, { color: theme.text }]}>Edit Event</Text>
+            <TouchableOpacity
+              style={styles.menuOption}
+              onPress={() => handleEditEvent(selectedEvent)}
+            >
+              <MaterialCommunityIcons
+                name="pencil"
+                size={24}
+                color={theme.text}
+              />
+              <Text style={[styles.menuOptionText, { color: theme.text }]}>
+                Edit Event
+              </Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={styles.menuOption}
               onPress={() => handleDeleteEvent(selectedEvent?.id)}
             >
               <MaterialCommunityIcons name="delete" size={24} color="#FF0000" />
-              <Text style={[styles.menuOptionText, { color: "#FF0000" }]}>Delete Event</Text>
+              <Text style={[styles.menuOptionText, { color: "#FF0000" }]}>
+                Delete Event
+              </Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={styles.menuCloseButton}
               onPress={() => setMenuVisible(false)}
             >
-              <Text style={[styles.menuCloseButtonText, { color: theme.primary }]}>Close</Text>
+              <Text
+                style={[styles.menuCloseButtonText, { color: theme.primary }]}
+              >
+                Close
+              </Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -281,8 +322,18 @@ const styles = StyleSheet.create({
   },
   emptyStateImage: { width: 100, height: 100, marginBottom: 16 },
   emptyStateTitle: { fontSize: 24, fontWeight: "600", marginBottom: 8 },
-  emptyStateSubtitle: { fontSize: 15, textAlign: "center", marginBottom: 24, lineHeight: 22, maxWidth: 280 },
-  emptyStateButton: { paddingVertical: 12, paddingHorizontal: 24, borderRadius: 24 },
+  emptyStateSubtitle: {
+    fontSize: 15,
+    textAlign: "center",
+    marginBottom: 24,
+    lineHeight: 22,
+    maxWidth: 280,
+  },
+  emptyStateButton: {
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    borderRadius: 24,
+  },
   emptyStateButtonText: { fontSize: 16, fontWeight: "600" },
   eventCard: {
     borderRadius: 16,
@@ -311,7 +362,11 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(0, 0, 0, 0.5)",
   },
   menuContent: { width: "80%", borderRadius: 12, padding: 16 },
-  menuOption: { flexDirection: "row", alignItems: "center", paddingVertical: 12 },
+  menuOption: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 12,
+  },
   menuOptionText: { fontSize: 16, marginLeft: 16 },
   menuCloseButton: { alignItems: "center", paddingVertical: 12, marginTop: 8 },
   menuCloseButtonText: { fontSize: 16, fontWeight: "600" },

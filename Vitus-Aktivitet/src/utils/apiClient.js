@@ -1,6 +1,6 @@
-import axios from 'axios';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { SERVER_CONFIG } from '../config/serverConfig';
+import axios from "axios";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { SERVER_CONFIG } from "../config/serverConfig";
 
 const apiClient = axios.create({
   baseURL: SERVER_CONFIG.getBaseUrl(),
@@ -11,9 +11,13 @@ const apiClient = axios.create({
 apiClient.interceptors.request.use(
   async (config) => {
     try {
-      const token = await AsyncStorage.getItem('userToken');
-      console.log("Sending request with token:", token ? "Token exists" : "No token");
-      
+      const token = await AsyncStorage.getItem("authToken"); // ← matcher login.js
+      console.log("Token retrieved from storage:", token);
+      console.log(
+        "Sending request with token:",
+        token ? "Token exists" : "No token"
+      );
+
       if (token) {
         config.headers.Authorization = `Bearer ${token}`;
       }
@@ -27,8 +31,8 @@ apiClient.interceptors.request.use(
 
 // Add response interceptor to detect 403 issues
 apiClient.interceptors.response.use(
-  response => response,
-  error => {
+  (response) => response,
+  (error) => {
     if (error.response && error.response.status === 403) {
       console.log("JWT Authentication failed - 403 Forbidden");
       // Could add logic to refresh token or redirect to login
