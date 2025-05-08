@@ -1,6 +1,4 @@
-"use client";
-
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useContext } from "react";
 import {
   View,
   Text,
@@ -11,11 +9,13 @@ import {
 } from "react-native";
 import { CameraView, useCameraPermissions } from "expo-camera";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
-import apiClient from "../../utils/apiClient"; // Assuming you have an apiClient utility
+import apiClient from "../../utils/apiClient";
+import { EventContext } from "../events/EventContext"; // Adjust the path
 
 export default function JoinEvent({ navigation }) {
   const [permission, requestPermission] = useCameraPermissions();
   const [scanned, setScanned] = useState(false);
+  const { joinEvent } = useContext(EventContext);
 
   useEffect(() => {
     if (!permission || permission.status !== "granted") {
@@ -27,13 +27,14 @@ export default function JoinEvent({ navigation }) {
     setScanned(true);
     const eventId = data.split("/event/")[1];
     try {
-      // Call the API to join the event
       const response = await apiClient.post(`/join-event/${eventId}`);
       if (response.data.success) {
+        joinEvent(); // Activate polling and immediate fetch
         Alert.alert("Suksess", "Du har blitt med i hendelsen!", [
           {
             text: "OK",
-            onPress: () => navigation.navigate("ActiveEvent", { eventId }),
+            onPress: () =>
+              navigation.navigate("EventsMain", { screen: "YourEvents" }),
           },
         ]);
       } else {
