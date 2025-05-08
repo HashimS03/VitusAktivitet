@@ -39,7 +39,7 @@ const UpcomingEvents = () => {
 
     return (
       <View
-        key={event.id}
+        key={event.Id}
         style={[styles.eventCard, { backgroundColor: theme.surface }]}
       >
         <View style={styles.cardContent}>

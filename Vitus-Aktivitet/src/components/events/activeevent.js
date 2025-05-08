@@ -403,7 +403,8 @@ const ActiveEvent = ({ route }) => {
 
   const formatDate = (dateString) => {
     const date = new Date(dateString);
-    return date.toLocaleDateString("no", {
+    return date.toLocaleDateString("no-NO", {
+      timeZone: "UTC",
       day: "numeric",
       month: "numeric",
       year: "numeric",
@@ -412,9 +413,11 @@ const ActiveEvent = ({ route }) => {
 
   const formatTime = (dateString) => {
     const date = new Date(dateString);
-    return date.toLocaleTimeString("no", {
+    return date.toLocaleTimeString("no-NO", {
+      timeZone: "UTC",
       hour: "2-digit",
       minute: "2-digit",
+      hour12: false,
     });
   };
 

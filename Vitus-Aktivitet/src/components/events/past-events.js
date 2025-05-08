@@ -67,7 +67,7 @@ const PastEvents = () => {
       endTime: oneHourLater,
       start_date: now.toISOString(),
       end_date: oneHourLater.toISOString(),
-      id: Date.now().toString(),
+      Id: Date.now().toString(),
     };
 
     navigation.navigate("NewEvent", {
@@ -86,7 +86,7 @@ const PastEvents = () => {
         {
           text: "Delete",
           style: "destructive",
-          onPress: () => deleteEvent(selectedEvent.id),
+          onPress: () => deleteEvent(selectedEvent.Id),
         },
       ]
     );
@@ -133,7 +133,7 @@ const PastEvents = () => {
     return (
       <Swipeable
         renderRightActions={(progress, dragX) =>
-          renderRightActions(progress, dragX, event.id)
+          renderRightActions(progress, dragX, event.Id)
         }
         friction={2}
         rightThreshold={40}
@@ -143,7 +143,7 @@ const PastEvents = () => {
         <TouchableOpacity
           style={[styles.eventCard, { backgroundColor: theme.surface }]}
           onPress={() =>
-            navigation.navigate("ActiveEvent", { eventId: event.id })
+            navigation.navigate("ActiveEvent", { eventId: event.Id })
           }
         >
           <View style={styles.cardContent}>
@@ -251,7 +251,7 @@ const PastEvents = () => {
           </View>
         ) : (
           pastEvents.map((event) => (
-            <React.Fragment key={event.id}>{renderEvent(event)}</React.Fragment>
+            <React.Fragment key={event.Id}>{renderEvent(event)}</React.Fragment>
           ))
         )}
       </ScrollView>

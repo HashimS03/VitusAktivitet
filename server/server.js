@@ -1060,7 +1060,7 @@ app.get("/events", authenticateJWT, async (req, res) => {
 });
 
 // 🔹 Route to Update an Event
-app.put("/events/:id", authenticateJWT, async (req, res) => {
+app.put("/events/:Id", authenticateJWT, async (req, res) => {
   serverLog("log", "Event update request received for eventId:", req.params.id);
   try {
     const eventId = req.params.id;
@@ -1146,7 +1146,7 @@ app.put("/events/:id", authenticateJWT, async (req, res) => {
 });
 
 // 🔹 Route to Delete an Event
-app.delete("/events/:id", authenticateJWT, async (req, res) => {
+app.delete("/events/:Id", authenticateJWT, async (req, res) => {
   serverLog(
     "log",
     "Event deletion request received for eventId:",
