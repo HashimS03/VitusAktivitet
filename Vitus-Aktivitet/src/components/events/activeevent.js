@@ -22,13 +22,14 @@ import { useTheme } from "../context/ThemeContext";
 import * as Progress from "react-native-progress";
 import { EventContext } from "../events/EventContext";
 import apiClient from "../../utils/apiClient";
+import { useUserContext } from "../context/UserContext";
 
 const ActiveEvent = ({ route }) => {
   const { eventId } = route.params || {};
   const { activeEvents, pastEvents, updateEvent, deleteEvent } =
     useContext(EventContext);
+  const { userAvatar } = useUserContext();
 
-  // Finn eventDetails og håndter tilfeller der eventId ikke finnes
   const eventDetails =
     activeEvents.find((event) => event.Id === eventId) ||
     pastEvents.find((event) => event.Id === eventId) ||
@@ -44,7 +45,6 @@ const ActiveEvent = ({ route }) => {
   const navigation = useNavigation();
   const { theme, isDarkMode } = useTheme();
 
-  // Sjekk om eventet er ferdig
   const isEventFinished = eventDetails
     ? new Date(eventDetails.end_date) < new Date()
     : true;
@@ -70,7 +70,6 @@ const ActiveEvent = ({ route }) => {
       }),
     });
 
-    // Fetch participants and teams
     const fetchParticipants = async () => {
       try {
         if (!eventId || isNaN(Number(eventId))) {
@@ -78,19 +77,50 @@ const ActiveEvent = ({ route }) => {
           return;
         }
 
+        let token = null;
+        try {
+          token = await storage.getItem("authToken");
+        } catch (storageError) {
+          console.warn("Failed to get token from storage:", storageError);
+          // Fallback to no token if storage fails
+        }
+
         const response = await apiClient.get(
           `/events/${Number(eventId)}/participants`
         );
-        console.log("Fetched participants response:", response.data);
-
         if (response.data.success) {
-          const fetchedParticipants = (response.data.participants || []).map(
-            (participant) => ({
-              user_id: participant.user_id,
-              name: participant.name,
-              team_id: participant.team_id,
-              individual_progress: participant.individual_progress || 0,
-              team_progress: participant.team_progress || 0,
+          const participantsData = response.data.participants || [];
+          const fetchedParticipants = await Promise.all(
+            participantsData.map(async (participant) => {
+              let avatar = null;
+              if (participant.user_id) {
+                try {
+                  const userResponse = await apiClient.get(
+                    `/user/${participant.user_id}`,
+                    {
+                      headers: token
+                        ? { Authorization: `Bearer ${token}` }
+                        : {},
+                    }
+                  );
+                  if (userResponse.data.success) {
+                    avatar = userResponse.data.user.avatar || null;
+                  }
+                } catch (userError) {
+                  console.error(
+                    `Error fetching avatar for user ${participant.user_id}:`,
+                    userError
+                  );
+                }
+              }
+              return {
+                user_id: participant.user_id,
+                name: participant.name,
+                team_id: participant.team_id,
+                individual_progress: participant.individual_progress || 0,
+                team_progress: participant.team_progress || 0,
+                avatar: avatar,
+              };
             })
           );
           setParticipants(fetchedParticipants);
@@ -104,7 +134,6 @@ const ActiveEvent = ({ route }) => {
         );
       }
     };
-
     if (eventDetails) {
       fetchParticipants();
     }
@@ -188,6 +217,7 @@ const ActiveEvent = ({ route }) => {
               team_id: participant.team_id,
               individual_progress: participant.individual_progress || 0,
               team_progress: participant.team_progress || 0,
+              avatar: participant.avatar || null,
             }));
             setParticipants(updatedParticipants);
           }
@@ -215,7 +245,7 @@ const ActiveEvent = ({ route }) => {
       );
     }
 
-    const totalMembers = participants.length + 1; // Inkluderer verten
+    const totalMembers = participants.length + 1;
     const maxMembers =
       eventDetails.team_count * (eventDetails.members_per_team || 0);
 
@@ -236,8 +266,15 @@ const ActiveEvent = ({ route }) => {
             <View style={styles.teamMembers}>
               <View style={styles.memberAvatar}>
                 <Image
-                  source={require("../../../assets/member-avatar.png")}
+                  source={
+                    userAvatar
+                      ? { uri: userAvatar }
+                      : require("../../../assets/figure/avatar1.jpg") // Fallback som i Leaderboard
+                  }
                   style={styles.avatarImage}
+                  onError={(e) => {
+                    e.target.src = require("../../../assets/figure/avatar1.jpg"); // Fallback hvis feil
+                  }}
                 />
                 <Text
                   style={[styles.memberName, { color: theme.textSecondary }]}
@@ -256,8 +293,15 @@ const ActiveEvent = ({ route }) => {
               {participants.map((participant, index) => (
                 <View key={index} style={styles.memberAvatar}>
                   <Image
-                    source={require("../../../assets/member-avatar.png")}
+                    source={
+                      participant.avatar
+                        ? { uri: participant.avatar }
+                        : require("../../../assets/figure/avatar1.jpg") // Fallback som i Leaderboard
+                    }
                     style={styles.avatarImage}
+                    onError={(e) => {
+                      e.target.src = require("../../../assets/figure/avatar1.jpg"); // Fallback hvis feil
+                    }}
                   />
                   <Text
                     style={[styles.memberName, { color: theme.textSecondary }]}
@@ -316,7 +360,7 @@ const ActiveEvent = ({ route }) => {
   };
 
   const renderIndividualParticipants = () => {
-    const filledParticipants = participants.length + 1; // Inkluderer verten
+    const filledParticipants = participants.length + 1;
     const totalParticipants = eventDetails.total_participants || 0;
     const emptySlots = Math.max(0, totalParticipants - filledParticipants);
 
@@ -334,8 +378,15 @@ const ActiveEvent = ({ route }) => {
             <View style={styles.participantsRow}>
               <View style={styles.memberAvatar}>
                 <Image
-                  source={require("../../../assets/member-avatar.png")}
+                  source={
+                    userAvatar
+                      ? { uri: userAvatar }
+                      : require("../../../assets/figure/avatar1.jpg") // Fallback som i Leaderboard
+                  }
                   style={styles.avatarImage}
+                  onError={(e) => {
+                    e.target.src = require("../../../assets/figure/avatar1.jpg"); // Fallback hvis feil
+                  }}
                 />
                 <Text
                   style={[styles.memberName, { color: theme.textSecondary }]}
@@ -354,8 +405,15 @@ const ActiveEvent = ({ route }) => {
               {participants.map((participant, index) => (
                 <View key={index} style={styles.memberAvatar}>
                   <Image
-                    source={require("../../../assets/member-avatar.png")}
+                    source={
+                      participant.avatar
+                        ? { uri: participant.avatar }
+                        : require("../../../assets/figure/avatar1.jpg") // Fallback som i Leaderboard
+                    }
                     style={styles.avatarImage}
+                    onError={(e) => {
+                      e.target.src = require("../../../assets/figure/avatar1.jpg"); // Fallback hvis feil
+                    }}
                   />
                   <Text
                     style={[styles.memberName, { color: theme.textSecondary }]}
@@ -398,7 +456,7 @@ const ActiveEvent = ({ route }) => {
   };
 
   if (!eventDetails) {
-    return null; // Returner null hvis eventDetails ikke finnes
+    return null;
   }
 
   const formatDate = (dateString) => {

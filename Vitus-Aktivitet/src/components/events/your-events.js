@@ -185,7 +185,7 @@ const YourEvents = () => {
             ]}
           >
             <Image
-              source={selectedVitusHappyImage} // Updated to use dynamic image
+              source={selectedVitusHappyImage}
               style={styles.emptyStateImage}
             />
             <Text style={[styles.emptyStateTitle, { color: theme.text }]}>
@@ -217,7 +217,7 @@ const YourEvents = () => {
             </TouchableOpacity>
           </View>
         ) : (
-          activeEvents.map((event) => renderEvent(event))
+          <>{activeEvents.map((event) => renderEvent(event))}</>
         )}
       </ScrollView>
 
