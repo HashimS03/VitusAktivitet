@@ -548,6 +548,7 @@ app.post("/join-event/:eventId", authenticateJWT, async (req, res) => {
     });
   }
 });
+
 // 🔹 Route to Update User Data
 app.put("/user", authenticateJWT, async (req, res) => {
   serverLog(
@@ -849,7 +850,7 @@ app.get("/step-activity", authenticateJWT, async (req, res) => {
 
 // 🔹 Route to Create an Event
 app.post("/events", authenticateJWT, async (req, res) => {
-  serverLog("log", "Event creation request received:", req.body);
+  serverLog("log", "Event creation request received with body:", req.body);
   try {
     const {
       title,
@@ -1060,10 +1061,19 @@ app.get("/events", authenticateJWT, async (req, res) => {
 });
 
 // 🔹 Route to Update an Event
-app.put("/events/:Id", authenticateJWT, async (req, res) => {
+app.put("/events/:id", authenticateJWT, async (req, res) => {
   serverLog("log", "Event update request received for eventId:", req.params.id);
+  serverLog("log", "Request body:", req.body);
   try {
-    const eventId = req.params.id;
+    const eventId = parseInt(req.params.id, 10);
+    if (isNaN(eventId)) {
+      serverLog("error", "Invalid eventId format:", req.params.id);
+      return res.status(400).json({
+        success: false,
+        message: "Invalid event ID format",
+      });
+    }
+
     const {
       title,
       description,
@@ -1146,17 +1156,16 @@ app.put("/events/:Id", authenticateJWT, async (req, res) => {
 });
 
 // 🔹 Route to Delete an Event
-// 🔹 Route to Delete an Event
-app.delete("/events/:Id", authenticateJWT, async (req, res) => {
+app.delete("/events/:id", authenticateJWT, async (req, res) => {
   serverLog(
     "log",
     "Event deletion request received for eventId:",
-    req.params.Id
+    req.params.id
   );
   try {
-    const eventId = parseInt(req.params.Id, 10); // Sørg for at ID er et heltall
+    const eventId = parseInt(req.params.id, 10);
     if (isNaN(eventId)) {
-      serverLog("error", "Invalid eventId format:", req.params.Id);
+      serverLog("error", "Invalid eventId format:", req.params.id);
       return res
         .status(400)
         .json({ success: false, message: "Invalid event ID format" });
@@ -1228,6 +1237,7 @@ app.delete("/events/:Id", authenticateJWT, async (req, res) => {
     });
   }
 });
+
 // 🔹 Basic Test Endpoint
 app.get("/test", (req, res) => {
   res.json({ message: "API is working!", timestamp: new Date().toISOString() });
