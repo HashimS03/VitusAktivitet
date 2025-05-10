@@ -18,26 +18,24 @@ import * as Progress from "react-native-progress";
 
 const YourEvents = () => {
   const navigation = useNavigation();
-  const { theme, accentColor } = useTheme(); // Added accentColor
+  const { theme, accentColor } = useTheme();
   const { activeEvents, deleteEvent, updateEvent } = useContext(EventContext);
   const [selectedEvent, setSelectedEvent] = useState(null);
   const [isMenuVisible, setMenuVisible] = useState(false);
 
-  // Map accent colors to the correct Vitus_Happy images
   const vitusHappyImages = {
-    "#48CAB2": require("../../../assets/Vitus_Happy.png"), // Teal
+    "#48CAB2": require("../../../assets/Vitus_Happy.png"),
     "#FF6B6B": require("../../../assets/Vitus_Happy_Red.png"),
     "#FFD93D": require("../../../assets/Vitus_Happy_Gold.png"),
     "#4C82FB": require("../../../assets/Vitus_Happy_Blue.png"),
     "#8A4FFF": require("../../../assets/Vitus_Happy_Purple.png"),
   };
 
-  // Select the appropriate Vitus_Happy image based on accentColor
   const selectedVitusHappyImage =
     vitusHappyImages[accentColor] || require("../../../assets/Vitus_Happy.png");
 
   useEffect(() => {
-    // Optional: React to changes in activeEvents
+    console.log("Active Events:", activeEvents); // For debugging
   }, [activeEvents]);
 
   const handleCreateEvent = () => {
@@ -75,7 +73,7 @@ const YourEvents = () => {
 
     return (
       <TouchableOpacity
-        key={event.id}
+        key={event.Id} // Added unique key to the root element
         style={[styles.eventCard, { backgroundColor: theme.surface }]}
         activeOpacity={0.7}
         onPress={() =>
@@ -217,7 +215,7 @@ const YourEvents = () => {
             </TouchableOpacity>
           </View>
         ) : (
-          <>{activeEvents.map((event) => renderEvent(event))}</>
+          activeEvents.map((event) => renderEvent(event))
         )}
       </ScrollView>
 
@@ -249,7 +247,7 @@ const YourEvents = () => {
             </TouchableOpacity>
             <TouchableOpacity
               style={styles.menuOption}
-              onPress={() => handleDeleteEvent(selectedEvent?.id)}
+              onPress={() => handleDeleteEvent(selectedEvent?.Id)}
             >
               <MaterialCommunityIcons name="delete" size={24} color="#FF0000" />
               <Text style={[styles.menuOptionText, { color: "#FF0000" }]}>

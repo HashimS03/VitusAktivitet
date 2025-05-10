@@ -29,7 +29,19 @@ export default function JoinEvent({ navigation }) {
     try {
       const response = await apiClient.post(`/join-event/${eventId}`);
       if (response.data.success) {
-        joinEvent(); // Activate polling and immediate fetch
+        // Hent hendelsesdetaljer fra responsen
+        const eventData = response.data.event;
+        console.log(
+          `Joined event ${eventId} with dates - Start: ${eventData.start_date}, End: ${eventData.end_date}`
+        );
+
+        // Oppdater EventContext med hendelsesdetaljer
+        joinEvent({
+          Id: eventId,
+          start_date: eventData.start_date,
+          end_date: eventData.end_date,
+        });
+
         Alert.alert("Suksess", "Du har blitt med i hendelsen!", [
           {
             text: "OK",

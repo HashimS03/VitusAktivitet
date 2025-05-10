@@ -82,7 +82,6 @@ const ActiveEvent = ({ route }) => {
           token = await storage.getItem("authToken");
         } catch (storageError) {
           console.warn("Failed to get token from storage:", storageError);
-          // Fallback to no token if storage fails
         }
 
         const response = await apiClient.get(
@@ -269,11 +268,11 @@ const ActiveEvent = ({ route }) => {
                   source={
                     userAvatar
                       ? { uri: userAvatar }
-                      : require("../../../assets/figure/avatar1.jpg") // Fallback som i Leaderboard
+                      : require("../../../assets/figure/avatar1.jpg")
                   }
                   style={styles.avatarImage}
                   onError={(e) => {
-                    e.target.src = require("../../../assets/figure/avatar1.jpg"); // Fallback hvis feil
+                    e.target.src = require("../../../assets/figure/avatar1.jpg");
                   }}
                 />
                 <Text
@@ -290,17 +289,17 @@ const ActiveEvent = ({ route }) => {
                   Fremgang: {currentValue} {eventDetails.activity || "enheter"}
                 </Text>
               </View>
-              {participants.map((participant, index) => (
-                <View key={index} style={styles.memberAvatar}>
+              {participants.map((participant) => (
+                <View key={participant.user_id} style={styles.memberAvatar}>
                   <Image
                     source={
                       participant.avatar
                         ? { uri: participant.avatar }
-                        : require("../../../assets/figure/avatar1.jpg") // Fallback som i Leaderboard
+                        : require("../../../assets/figure/avatar1.jpg")
                     }
                     style={styles.avatarImage}
                     onError={(e) => {
-                      e.target.src = require("../../../assets/figure/avatar1.jpg"); // Fallback hvis feil
+                      e.target.src = require("../../../assets/figure/avatar1.jpg");
                     }}
                   />
                   <Text
@@ -381,11 +380,11 @@ const ActiveEvent = ({ route }) => {
                   source={
                     userAvatar
                       ? { uri: userAvatar }
-                      : require("../../../assets/figure/avatar1.jpg") // Fallback som i Leaderboard
+                      : require("../../../assets/figure/avatar1.jpg")
                   }
                   style={styles.avatarImage}
                   onError={(e) => {
-                    e.target.src = require("../../../assets/figure/avatar1.jpg"); // Fallback hvis feil
+                    e.target.src = require("../../../assets/figure/avatar1.jpg");
                   }}
                 />
                 <Text
@@ -402,17 +401,17 @@ const ActiveEvent = ({ route }) => {
                   Fremgang: {currentValue} {eventDetails.activity || "enheter"}
                 </Text>
               </View>
-              {participants.map((participant, index) => (
-                <View key={index} style={styles.memberAvatar}>
+              {participants.map((participant) => (
+                <View key={participant.user_id} style={styles.memberAvatar}>
                   <Image
                     source={
                       participant.avatar
                         ? { uri: participant.avatar }
-                        : require("../../../assets/figure/avatar1.jpg") // Fallback som i Leaderboard
+                        : require("../../../assets/figure/avatar1.jpg")
                     }
                     style={styles.avatarImage}
                     onError={(e) => {
-                      e.target.src = require("../../../assets/figure/avatar1.jpg"); // Fallback hvis feil
+                      e.target.src = require("../../../assets/figure/avatar1.jpg");
                     }}
                   />
                   <Text
@@ -455,14 +454,24 @@ const ActiveEvent = ({ route }) => {
     );
   };
 
-  if (!eventDetails) {
-    return null;
+  if (!eventDetails || !eventDetails.start_date || !eventDetails.end_date) {
+    return (
+      <SafeAreaView
+        style={[styles.safeArea, { backgroundColor: theme.background }]}
+      >
+        <Text style={[styles.title, { color: theme.text }]}>
+          Ugyldig hendelse eller dato
+        </Text>
+      </SafeAreaView>
+    );
   }
 
   const formatDate = (dateString) => {
     const date = new Date(dateString);
+    if (isNaN(date.getTime())) {
+      return "Ugyldig dato";
+    }
     return date.toLocaleDateString("no-NO", {
-      timeZone: "UTC",
       day: "numeric",
       month: "numeric",
       year: "numeric",
@@ -471,8 +480,10 @@ const ActiveEvent = ({ route }) => {
 
   const formatTime = (dateString) => {
     const date = new Date(dateString);
+    if (isNaN(date.getTime())) {
+      return "Ugyldig tid";
+    }
     return date.toLocaleTimeString("no-NO", {
-      timeZone: "UTC",
       hour: "2-digit",
       minute: "2-digit",
       hour12: false,
