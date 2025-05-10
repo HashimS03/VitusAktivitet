@@ -1148,11 +1148,7 @@ app.put("/events/:Id", authenticateJWT, async (req, res) => {
 // 🔹 Route to Delete an Event
 // 🔹 Route to Delete an Event
 app.delete("/events/:Id", authenticateJWT, async (req, res) => {
-  serverLog(
-    "log",
-    "Event deletion request received for eventId:",
-    req.params.Id
-  );
+  serverLog("log", "Event deletion request received for eventId:", req.params.Id);
   try {
     const eventId = parseInt(req.params.Id, 10); // Sørg for at ID er et heltall
     if (isNaN(eventId)) {
@@ -1183,10 +1179,12 @@ app.delete("/events/:Id", authenticateJWT, async (req, res) => {
         "error",
         `User ${req.session.userId} lacks permission to delete event ${eventId}`
       );
-      return res.status(403).json({
-        success: false,
-        message: "You do not have permission to delete this event",
-      });
+      return res
+        .status(403)
+        .json({
+          success: false,
+          message: "You do not have permission to delete this event",
+        });
     }
 
     // Slett tilknyttede deltakere og lag først (hvis nødvendig)
@@ -1227,7 +1225,7 @@ app.delete("/events/:Id", authenticateJWT, async (req, res) => {
       message: `Failed to delete event: ${err.message}`,
     });
   }
-});
+}); 
 // 🔹 Basic Test Endpoint
 app.get("/test", (req, res) => {
   res.json({ message: "API is working!", timestamp: new Date().toISOString() });

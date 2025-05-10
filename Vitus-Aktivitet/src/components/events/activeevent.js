@@ -82,7 +82,6 @@ const ActiveEvent = ({ route }) => {
           token = await storage.getItem("authToken");
         } catch (storageError) {
           console.warn("Failed to get token from storage:", storageError);
-          // Fallback to no token if storage fails
         }
 
         const response = await apiClient.get(
@@ -455,14 +454,24 @@ const ActiveEvent = ({ route }) => {
     );
   };
 
-  if (!eventDetails) {
-    return null;
+  if (!eventDetails || !eventDetails.start_date || !eventDetails.end_date) {
+    return (
+      <SafeAreaView
+        style={[styles.safeArea, { backgroundColor: theme.background }]}
+      >
+        <Text style={[styles.title, { color: theme.text }]}>
+          Ugyldig hendelse eller dato
+        </Text>
+      </SafeAreaView>
+    );
   }
 
   const formatDate = (dateString) => {
     const date = new Date(dateString);
+    if (isNaN(date.getTime())) {
+      return "Ugyldig dato";
+    }
     return date.toLocaleDateString("no-NO", {
-      timeZone: "UTC",
       day: "numeric",
       month: "numeric",
       year: "numeric",
@@ -471,8 +480,10 @@ const ActiveEvent = ({ route }) => {
 
   const formatTime = (dateString) => {
     const date = new Date(dateString);
+    if (isNaN(date.getTime())) {
+      return "Ugyldig tid";
+    }
     return date.toLocaleTimeString("no-NO", {
-      timeZone: "UTC",
       hour: "2-digit",
       minute: "2-digit",
       hour12: false,
