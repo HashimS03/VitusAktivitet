@@ -1146,31 +1146,74 @@ app.put("/events/:Id", authenticateJWT, async (req, res) => {
 });
 
 // 🔹 Route to Delete an Event
+// 🔹 Route to Delete an Event
 app.delete("/events/:Id", authenticateJWT, async (req, res) => {
   serverLog(
     "log",
     "Event deletion request received for eventId:",
-    req.params.id
+    req.params.Id
   );
   try {
-    const eventId = req.params.id;
+    const eventId = parseInt(req.params.Id, 10); // Sørg for at ID er et heltall
+    if (isNaN(eventId)) {
+      serverLog("error", "Invalid eventId format:", req.params.Id);
+      return res
+        .status(400)
+        .json({ success: false, message: "Invalid event ID format" });
+    }
 
     const pool = await poolPromise;
-    const result = await pool
+
+    // Sjekk om hendelsen finnes
+    const eventCheck = await pool
       .request()
       .input("eventId", sql.Int, eventId)
-      .input("userId", sql.Int, req.session.userId)
-      .query(
-        "DELETE FROM [EVENTS] WHERE Id = @eventId AND created_by = @userId"
-      );
+      .query("SELECT Id, created_by FROM [EVENTS] WHERE Id = @eventId");
 
-    if (result.rowsAffected[0] === 0) {
-      return res.status(404).json({
+    if (eventCheck.recordset.length === 0) {
+      serverLog("error", "Event not found for eventId:", eventId);
+      return res
+        .status(404)
+        .json({ success: false, message: "Event not found" });
+    }
+
+    const event = eventCheck.recordset[0];
+    if (event.created_by !== req.session.userId) {
+      serverLog(
+        "error",
+        `User ${req.session.userId} lacks permission to delete event ${eventId}`
+      );
+      return res.status(403).json({
         success: false,
-        message: "Event not found or you lack permission",
+        message: "You do not have permission to delete this event",
       });
     }
 
+    // Slett tilknyttede deltakere og lag først (hvis nødvendig)
+    await pool
+      .request()
+      .input("eventId", sql.Int, eventId)
+      .query("DELETE FROM [EVENT_PARTICIPANTS] WHERE event_id = @eventId");
+
+    await pool
+      .request()
+      .input("eventId", sql.Int, eventId)
+      .query("DELETE FROM [TEAMS] WHERE event_id = @eventId");
+
+    // Slett hendelsen
+    const result = await pool
+      .request()
+      .input("eventId", sql.Int, eventId)
+      .query("DELETE FROM [EVENTS] WHERE Id = @eventId");
+
+    if (result.rowsAffected[0] === 0) {
+      serverLog("error", "No rows affected when deleting eventId:", eventId);
+      return res
+        .status(500)
+        .json({ success: false, message: "Failed to delete event" });
+    }
+
+    serverLog("log", `Event ${eventId} deleted successfully`);
     res.json({ success: true, message: "Event deleted successfully" });
   } catch (err) {
     serverLog("error", "Event deletion error:", err);
@@ -1185,7 +1228,6 @@ app.delete("/events/:Id", authenticateJWT, async (req, res) => {
     });
   }
 });
-
 // 🔹 Basic Test Endpoint
 app.get("/test", (req, res) => {
   res.json({ message: "API is working!", timestamp: new Date().toISOString() });

@@ -269,11 +269,11 @@ const ActiveEvent = ({ route }) => {
                   source={
                     userAvatar
                       ? { uri: userAvatar }
-                      : require("../../../assets/figure/avatar1.jpg") // Fallback som i Leaderboard
+                      : require("../../../assets/figure/avatar1.jpg")
                   }
                   style={styles.avatarImage}
                   onError={(e) => {
-                    e.target.src = require("../../../assets/figure/avatar1.jpg"); // Fallback hvis feil
+                    e.target.src = require("../../../assets/figure/avatar1.jpg");
                   }}
                 />
                 <Text
@@ -290,17 +290,17 @@ const ActiveEvent = ({ route }) => {
                   Fremgang: {currentValue} {eventDetails.activity || "enheter"}
                 </Text>
               </View>
-              {participants.map((participant, index) => (
-                <View key={index} style={styles.memberAvatar}>
+              {participants.map((participant) => (
+                <View key={participant.user_id} style={styles.memberAvatar}>
                   <Image
                     source={
                       participant.avatar
                         ? { uri: participant.avatar }
-                        : require("../../../assets/figure/avatar1.jpg") // Fallback som i Leaderboard
+                        : require("../../../assets/figure/avatar1.jpg")
                     }
                     style={styles.avatarImage}
                     onError={(e) => {
-                      e.target.src = require("../../../assets/figure/avatar1.jpg"); // Fallback hvis feil
+                      e.target.src = require("../../../assets/figure/avatar1.jpg");
                     }}
                   />
                   <Text
@@ -381,11 +381,11 @@ const ActiveEvent = ({ route }) => {
                   source={
                     userAvatar
                       ? { uri: userAvatar }
-                      : require("../../../assets/figure/avatar1.jpg") // Fallback som i Leaderboard
+                      : require("../../../assets/figure/avatar1.jpg")
                   }
                   style={styles.avatarImage}
                   onError={(e) => {
-                    e.target.src = require("../../../assets/figure/avatar1.jpg"); // Fallback hvis feil
+                    e.target.src = require("../../../assets/figure/avatar1.jpg");
                   }}
                 />
                 <Text
@@ -402,17 +402,17 @@ const ActiveEvent = ({ route }) => {
                   Fremgang: {currentValue} {eventDetails.activity || "enheter"}
                 </Text>
               </View>
-              {participants.map((participant, index) => (
-                <View key={index} style={styles.memberAvatar}>
+              {participants.map((participant) => (
+                <View key={participant.user_id} style={styles.memberAvatar}>
                   <Image
                     source={
                       participant.avatar
                         ? { uri: participant.avatar }
-                        : require("../../../assets/figure/avatar1.jpg") // Fallback som i Leaderboard
+                        : require("../../../assets/figure/avatar1.jpg")
                     }
                     style={styles.avatarImage}
                     onError={(e) => {
-                      e.target.src = require("../../../assets/figure/avatar1.jpg"); // Fallback hvis feil
+                      e.target.src = require("../../../assets/figure/avatar1.jpg");
                     }}
                   />
                   <Text

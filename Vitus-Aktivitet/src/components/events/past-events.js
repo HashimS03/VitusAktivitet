@@ -86,7 +86,15 @@ const PastEvents = () => {
         {
           text: "Delete",
           style: "destructive",
-          onPress: () => deleteEvent(selectedEvent.Id),
+          onPress: async () => {
+            try {
+              await deleteEvent(selectedEvent.Id);
+              // Slettingen var vellykket, ingen ytterligere handling nødvendig
+            } catch (error) {
+              // Feilmelding håndteres allerede i EventContext.js via Alert
+              console.error("Deletion failed for event:", selectedEvent.Id);
+            }
+          },
         },
       ]
     );
