@@ -10,12 +10,13 @@ import {
 import { CameraView, useCameraPermissions } from "expo-camera";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import apiClient from "../../utils/apiClient";
-import { EventContext } from "../events/EventContext"; // Adjust the path
+import { EventContext } from "../events/EventContext";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 export default function JoinEvent({ navigation }) {
   const [permission, requestPermission] = useCameraPermissions();
   const [scanned, setScanned] = useState(false);
-  const { joinEvent } = useContext(EventContext);
+  const { joinEvent, loadEvents } = useContext(EventContext);
 
   useEffect(() => {
     if (!permission || permission.status !== "granted") {
@@ -25,23 +26,61 @@ export default function JoinEvent({ navigation }) {
 
   const handleBarCodeScanned = async ({ data }) => {
     setScanned(true);
-    const eventId = data.split("/event/")[1];
+
+    // Validate and extract eventId
+    const eventIdMatch = data.match(/\/event\/([^\/]+)/);
+    if (!eventIdMatch || !eventIdMatch[1]) {
+      console.error("Invalid QR code URL format:", data);
+      Alert.alert("Feil", "Ugyldig QR-kode format. Forventet /event/[ID].");
+      setScanned(false);
+      return;
+    }
+
+    const eventId = eventIdMatch[1].trim();
+    console.log("Parsed eventId:", eventId);
+
     try {
-      const response = await apiClient.post(`/join-event/${eventId}`);
+      // Check authentication token
+      const token = await AsyncStorage.getItem("authToken");
+      console.log("Auth token on device:", token);
+      if (!token) {
+        Alert.alert("Feil", "Du må logge inn for å bli med i hendelsen.");
+        navigation.navigate("Login");
+        return;
+      }
+
+      // Attempt to join the event
+      const response = await apiClient.post(`/join-event/${eventId}`, {}, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      console.log("Join event response:", response.data);
+
       if (response.data.success) {
-        // Hent hendelsesdetaljer fra responsen
-        const eventData = response.data.event;
+        const eventData = response.data.event || {};
         console.log(
           `Joined event ${eventId} with dates - Start: ${eventData.start_date}, End: ${eventData.end_date}`
         );
 
-        // Oppdater EventContext med hendelsesdetaljer
-        joinEvent({
+        // Prepare full event data with normalized dates
+        const fullEventData = {
           Id: eventId,
-          start_date: eventData.start_date,
-          end_date: eventData.end_date,
-        });
+          start_date: eventData.start_date || new Date().toISOString(),
+          end_date: eventData.end_date || new Date().toISOString(),
+          title: eventData.title || "Ukjent tittel",
+          isTeamEvent: eventData.isTeamEvent || false,
+          participants: (eventData.participants || []).map((p) => ({
+            user_id: p.user_id ? String(p.user_id).trim() : null,
+            name: p.name || "Ukjent",
+            team_id: p.team_id || null,
+            individual_progress: p.individual_progress || 0,
+            team_progress: p.team_progress || 0,
+          })),
+          isLocalOnly: false,
+        };
 
+        // Update EventContext and refresh events
+        joinEvent(fullEventData);
+        await loadEvents();
         Alert.alert("Suksess", "Du har blitt med i hendelsen!", [
           {
             text: "OK",
@@ -50,6 +89,7 @@ export default function JoinEvent({ navigation }) {
           },
         ]);
       } else {
+        console.error("Join event failed:", response.data.message);
         Alert.alert(
           "Feil",
           response.data.message || "Kunne ikke bli med i hendelsen"
@@ -57,8 +97,11 @@ export default function JoinEvent({ navigation }) {
         setScanned(false);
       }
     } catch (error) {
-      console.error("Error joining event:", error);
-      Alert.alert("Feil", "Kunne ikke bli med i hendelsen. Prøv igjen.");
+      console.error("Error joining event:", error.response?.data || error.message);
+      Alert.alert(
+        "Feil",
+        error.response?.data?.message || "Kunne ikke bli med i hendelsen. Prøv igjen."
+      );
       setScanned(false);
     }
   };
@@ -94,19 +137,16 @@ export default function JoinEvent({ navigation }) {
         }}
         onBarcodeScanned={scanned ? undefined : handleBarCodeScanned}
       />
-
       <Image
         source={require("../../../assets/qr-placeholder.png")}
         style={styles.qrPlaceholder}
       />
-
       <TouchableOpacity
         style={styles.closeButton}
         onPress={() => navigation.goBack()}
       >
         <MaterialCommunityIcons name="close" size={30} color="#fff" />
       </TouchableOpacity>
-
       {scanned && (
         <TouchableOpacity
           style={styles.rescanButton}

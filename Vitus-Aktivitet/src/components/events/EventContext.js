@@ -13,39 +13,66 @@ export const EventProvider = ({ children }) => {
   const [error, setError] = useState(null);
   const [hasJoinedEvent, setHasJoinedEvent] = useState(false);
 
-  // Hjelpefunksjon for å parse datoer og håndtere manglende tid
   const parseDate = (dateString) => {
     try {
-      if (!dateString.includes("T")) {
-        // Hvis ingen tid er spesifisert, sett til midnatt lokal tid
-        return new Date(`${dateString}T00:00:00`);
+      if (!dateString) {
+        console.warn("Date string is undefined or null, returning current UTC date");
+        return new Date(Date.UTC(1970, 0, 1)); // Default to a safe past date
       }
-      return new Date(dateString);
+
+      let parsedDate;
+      if (!dateString.includes("T")) {
+        // Format like "2025-05-11"
+        parsedDate = new Date(`${dateString}T00:00:00Z`); // Normalize to UTC
+      } else if (dateString.includes(" ")) {
+        // Format like "2025-05-11 12:00:00"
+        parsedDate = new Date(dateString.replace(" ", "T") + "Z"); // Normalize to UTC
+      } else {
+        parsedDate = new Date(dateString);
+      }
+
+      if (isNaN(parsedDate.getTime())) {
+        console.warn(`Invalid date string: ${dateString}, returning default UTC date`);
+        return new Date(Date.UTC(1970, 0, 1)); // Safe fallback
+      }
+
+      // Normalize to UTC
+      const utcDate = new Date(Date.UTC(
+        parsedDate.getUTCFullYear(),
+        parsedDate.getUTCMonth(),
+        parsedDate.getUTCDate(),
+        parsedDate.getUTCHours(),
+        parsedDate.getUTCMinutes(),
+        parsedDate.getUTCSeconds()
+      ));
+      console.log(`Parsed date ${dateString} as UTC ${utcDate.toISOString()}`);
+      return utcDate;
     } catch (e) {
-      console.warn(`Invalid date string: ${dateString}`);
-      return new Date();
+      console.warn(`Error parsing date string: ${dateString}, returning default UTC date`, e);
+      return new Date(Date.UTC(1970, 0, 1)); // Safe fallback
     }
   };
 
   const updateEventStatus = (eventsList) => {
-    const now = new Date();
+    const now = new Date(); // Local time
+    const nowUTC = new Date(Date.UTC(
+      now.getUTCFullYear(),
+      now.getUTCMonth(),
+      now.getUTCDate(),
+      now.getUTCHours(),
+      now.getUTCMinutes(),
+      now.getUTCSeconds()
+    ));
+    console.log(`Current time (local): ${now.toISOString()}, UTC: ${nowUTC.toISOString()}`);
+
     return eventsList.map((event) => {
       try {
-        let start = parseDate(event.start_date);
-        let end = parseDate(event.end_date);
+        const start = parseDate(event.start_date);
+        const end = parseDate(event.end_date);
 
-        // Valider datoer
-        if (isNaN(start.getTime()) || isNaN(end.getTime())) {
-          console.warn(
-            `Invalid dates for event ${event.Id}: Start=${event.start_date}, End=${event.end_date}`
-          );
-          return { ...event, status: "past" };
-        }
-
-        // Konverter til ISO for sammenligning
         const startISO = start.toISOString();
         const endISO = end.toISOString();
-        const nowISO = now.toISOString();
+        const nowISO = nowUTC.toISOString();
 
         let status;
         if (startISO > nowISO) {
@@ -57,12 +84,12 @@ export const EventProvider = ({ children }) => {
         }
 
         console.log(
-          `Event ${event.Id} status: ${status}, Start: ${startISO}, End: ${endISO}, Now: ${nowISO}`
+          `Event ${event.Id} status: ${status}, Start: ${startISO}, End: ${endISO}, Now (UTC): ${nowISO}`
         );
         return { ...event, status };
       } catch (e) {
         console.error(`Error processing dates for event ${event.Id}:`, e);
-        return { ...event, status: "past" };
+        return { ...event, status: "upcoming" }; // Fallback to upcoming to avoid misplacement
       }
     });
   };
@@ -71,44 +98,55 @@ export const EventProvider = ({ children }) => {
     try {
       setLoading(true);
       const response = await apiClient.get("/events");
+      console.log("Load events response:", response.data);
       let serverEvents = response.data.data || [];
 
       for (let event of serverEvents) {
-        console.log(
-          `Event ${event.Id} dates - Start: ${event.start_date}, End=${event.end_date}`
-        );
-        // Parse datoer fra serveren
-        event.start_date = parseDate(event.start_date).toISOString();
-        event.end_date = parseDate(event.end_date).toISOString();
+        try {
+          event.start_date = parseDate(event.start_date).toISOString();
+          event.end_date = parseDate(event.end_date).toISOString();
 
-        const participantsResponse = await apiClient.get(
-          `/events/${event.Id}/participants`
-        );
-        event.isTeamEvent = participantsResponse.data.isTeamEvent || false;
-        event.participants = (participantsResponse.data.participants || []).map(
-          (participant) => ({
-            user_id: participant.user_id,
-            name: participant.name,
-            team_id: participant.team_id,
-            individual_progress: participant.individual_progress || 0,
-            team_progress: participant.team_progress || 0,
-          })
-        );
-        event.isLocalOnly = false;
+          const participantsResponse = await apiClient.get(`/events/${event.Id}/participants`);
+          console.log(`Participants for event ${event.Id}:`, participantsResponse.data);
+          event.isTeamEvent = participantsResponse.data.isTeamEvent || false;
+          event.participants = (participantsResponse.data.participants || []).map(
+            (participant) => {
+              const userId = participant.user_id ? String(participant.user_id).trim() : "";
+              const isValidUserId = userId && !isNaN(Number(userId)) && Number(userId) > 0;
+              const mappedParticipant = {
+                user_id: isValidUserId ? userId : null, // Null for invalid IDs (e.g., 100)
+                name: participant.name || "Ukjent",
+                team_id: participant.team_id || null,
+                individual_progress: participant.individual_progress || 0,
+                team_progress: participant.team_progress || 0,
+                isValid: isValidUserId,
+              };
+              console.log(`Participant for event ${event.Id}:`, mappedParticipant);
+              return mappedParticipant;
+            }
+          ).filter(participant => participant.isValid); // Exclude invalid participants
+          event.isLocalOnly = false;
+        } catch (participantError) {
+          console.error(`Failed to load participants for event ${event.Id}:`, participantError);
+          event.isTeamEvent = false;
+          event.participants = [];
+          event.isLocalOnly = false;
+        }
       }
 
       const updatedEvents = updateEventStatus(serverEvents);
       setEvents(updatedEvents);
       await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(updatedEvents));
+      console.log("Updated events with IDs:", updatedEvents.map(e => ({ id: e.Id, title: e.title, status: e.status })));
     } catch (serverError) {
-      console.error("Failed to load events from server:", serverError);
+      console.error("Failed to load events from server:", serverError.response?.data || serverError.message);
       try {
         const storedEvents = await AsyncStorage.getItem(STORAGE_KEY);
         if (storedEvents) {
           const parsedEvents = JSON.parse(storedEvents);
           const updatedEvents = updateEventStatus(parsedEvents);
           setEvents(updatedEvents);
-          console.log("Loaded events from storage:", updatedEvents);
+          console.log("Loaded events from storage with IDs:", updatedEvents.map(e => ({ id: e.Id, title: e.title, status: e.status })));
         } else {
           setEvents([]);
         }
@@ -129,13 +167,9 @@ export const EventProvider = ({ children }) => {
         const localEvents = JSON.parse(storedEvents);
         for (const event of localEvents) {
           if (event.isLocalOnly) {
-            console.log(
-              "Attempting to sync local event:",
-              event.Id,
-              event.title
-            );
+            console.log("Attempting to sync local event:", event.Id, event.title);
             const serverEventData = {
-              title: event.title,
+              title: event.title || "Ukjent tittel",
               description: event.description || "",
               activity: event.selectedActivity?.name || "",
               goal: event.goalValue || 0,
@@ -151,14 +185,10 @@ export const EventProvider = ({ children }) => {
             const response = await apiClient.post("/events", serverEventData);
             setEvents((prevEvents) =>
               prevEvents.map((e) =>
-                e.Id === event.Id
-                  ? { ...e, Id: response.data.eventId, isLocalOnly: false }
-                  : e
+                e.Id === event.Id ? { ...e, Id: response.data.eventId, isLocalOnly: false } : e
               )
             );
-            console.log(
-              `Synced local event ${event.Id} to server as ${response.data.eventId}`
-            );
+            console.log(`Synced local event ${event.Id} to server as ${response.data.eventId}`);
           }
         }
         await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(events));
@@ -168,45 +198,33 @@ export const EventProvider = ({ children }) => {
     }
   };
 
-  useEffect(() => {
-    loadEvents();
-    syncLocalEvents();
+  const joinEvent = (eventData) => {
+    console.log("Joining event with data:", eventData);
+    setHasJoinedEvent(true);
 
-    const statusInterval = setInterval(() => {
-      setEvents((prevEvents) => {
-        const updatedEvents = updateEventStatus(prevEvents);
-        AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(updatedEvents));
-        return updatedEvents;
-      });
-    }, 60000);
-
-    let pollingInterval;
-    if (hasJoinedEvent) {
-      pollingInterval = setInterval(() => {
-        loadEvents();
-        syncLocalEvents();
-      }, 30000);
-      console.log("Polling started for joined events");
-    }
-
-    return () => {
-      clearInterval(statusInterval);
-      if (pollingInterval) {
-        clearInterval(pollingInterval);
-        console.log("Polling stopped");
-      }
+    const start = parseDate(eventData.start_date);
+    const end = parseDate(eventData.end_date);
+    const updatedEvent = {
+      ...eventData,
+      start_date: start.toISOString(),
+      end_date: end.toISOString(),
+      status: updateEventStatus([{ ...eventData, start_date: start.toISOString(), end_date: end.toISOString() }])[0].status,
     };
-  }, [hasJoinedEvent]);
+
+    setEvents((prevEvents) => {
+      const updatedEvents = updateEventStatus([...prevEvents, updatedEvent]);
+      AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(updatedEvents));
+      console.log("Joined event IDs:", updatedEvents.map(e => ({ id: e.Id, title: e.title, status: e.status })));
+      return updatedEvents;
+    });
+
+    loadEvents();
+  };
 
   const addEvent = async (newEvent) => {
     console.log("Received newEvent:", newEvent);
 
-    if (
-      !newEvent.title ||
-      !newEvent.start_date ||
-      !newEvent.end_date ||
-      !newEvent.eventType
-    ) {
+    if (!newEvent.title || !newEvent.start_date || !newEvent.end_date || !newEvent.eventType) {
       console.error("Missing required fields:", {
         title: newEvent.title,
         start_date: newEvent.start_date,
@@ -217,23 +235,18 @@ export const EventProvider = ({ children }) => {
         "Feil",
         "Mangler obligatoriske felter: tittel, startdato, sluttdato og hendelsestype er påkrevd."
       );
-      throw new Error(
-        "Missing required fields: title, start_date, end_date, and eventType are required"
-      );
+      throw new Error("Missing required fields: title, start_date, end_date, and eventType are required");
     }
 
     const startDate = parseDate(newEvent.start_date);
     const endDate = parseDate(newEvent.end_date);
     if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
-      console.error(
-        "Invalid start_date or end_date:",
-        newEvent.start_date,
-        newEvent.end_date
-      );
+      console.error("Invalid start_date or end_date:", newEvent.start_date, newEvent.end_date);
       Alert.alert("Feil", "Ugyldig datoformat for startdato eller sluttdato.");
       throw new Error("Invalid date format for start_date or end_date");
     }
 
+    let eventWithId;
     try {
       const serverEventData = {
         title: newEvent.title,
@@ -252,41 +265,37 @@ export const EventProvider = ({ children }) => {
 
       const response = await apiClient.post("/events", serverEventData);
       console.log("Server response:", response.data);
-      const eventWithId = {
+      eventWithId = {
         ...newEvent,
         Id: response.data.eventId,
         participants: [],
         isLocalOnly: false,
         status: startDate > new Date() ? "upcoming" : "active",
       };
-
-      setEvents((prevEvents) => {
-        const updatedEvents = [...prevEvents, eventWithId];
-        AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(updatedEvents));
-        return updatedEvents;
-      });
-      return eventWithId;
     } catch (error) {
       console.error("Failed to add event to server:", error);
       await syncLocalEvents();
-      const eventWithId = {
+      eventWithId = {
         ...newEvent,
         Id: Date.now().toString(),
         participants: [],
         isLocalOnly: true,
         status: startDate > new Date() ? "upcoming" : "active",
       };
-      setEvents((prevEvents) => {
-        const updatedEvents = [...prevEvents, eventWithId];
-        AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(updatedEvents));
-        return updatedEvents;
-      });
       Alert.alert(
         "Feil ved oppretting",
         "Kunne ikke opprette hendelsen på serveren. Lagret lokalt."
       );
-      return eventWithId;
     }
+
+    setEvents((prevEvents) => {
+      const updatedEvents = [...prevEvents, eventWithId];
+      console.log("After adding event, events array:", updatedEvents.map(e => ({ id: e.Id, title: e.title, status: e.status })));
+      AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(updatedEvents));
+      return updatedEvents;
+    });
+
+    return eventWithId;
   };
 
   const updateEvent = async (updatedEvent) => {
@@ -306,9 +315,7 @@ export const EventProvider = ({ children }) => {
         console.warn("Sync failed, updating locally:", updatedEvent.Id);
         setEvents((prevEvents) =>
           prevEvents.map((e) =>
-            e.Id === updatedEvent.Id
-              ? { ...updatedEvent, isLocalOnly: true }
-              : e
+            e.Id === updatedEvent.Id ? { ...updatedEvent, isLocalOnly: true } : e
           )
         );
         return;
@@ -331,22 +338,12 @@ export const EventProvider = ({ children }) => {
         members_per_team: Number(updatedEvent.membersPerTeam) || 0,
       };
 
-      console.log(
-        "Sending update to /events/",
-        updatedEvent.Id,
-        "with data:",
-        serverEventData
-      );
+      console.log("Sending update to /events/", updatedEvent.Id, "with data:", serverEventData);
       await apiClient.put(`/events/${updatedEvent.Id}`, serverEventData);
       setEvents((prevEvents) =>
         prevEvents.map((event) =>
           event.Id === updatedEvent.Id
-            ? {
-                ...updatedEvent,
-                participants: event.participants,
-                status: event.status,
-                isLocalOnly: false,
-              }
+            ? { ...updatedEvent, participants: event.participants, status: event.status, isLocalOnly: false }
             : event
         )
       );
@@ -355,18 +352,12 @@ export const EventProvider = ({ children }) => {
       console.error("Failed to update event on server:", error);
       Alert.alert(
         "Feil ved oppdatering",
-        error.response?.data?.message ||
-          "Kunne ikke oppdatere hendelsen på serveren."
+        error.response?.data?.message || "Kunne ikke oppdatere hendelsen på serveren."
       );
       setEvents((prevEvents) =>
         prevEvents.map((event) =>
           event.Id === updatedEvent.Id
-            ? {
-                ...updatedEvent,
-                participants: event.participants,
-                status: event.status,
-                isLocalOnly: event.isLocalOnly,
-              }
+            ? { ...updatedEvent, participants: event.participants, status: event.status, isLocalOnly: event.isLocalOnly }
             : event
         )
       );
@@ -402,16 +393,10 @@ export const EventProvider = ({ children }) => {
         throw new Error(response.data.message || "Failed to delete event");
       }
     } catch (error) {
-      console.error(
-        "Failed to delete event:",
-        error.response?.data,
-        error.message
-      );
+      console.error("Failed to delete event:", error.response?.data, error.message);
       Alert.alert(
         "Feil ved sletting",
-        error.response?.data?.message ||
-          error.message ||
-          "Kunne ikke slette hendelsen."
+        error.response?.data?.message || error.message || "Kunne ikke slette hendelsen."
       );
       throw error;
     }
@@ -436,25 +421,19 @@ export const EventProvider = ({ children }) => {
           failedEvents.push({ id: eventId, message: deleteError.message });
         }
       }
-      setEvents((prevEvents) =>
-        prevEvents.filter((event) => event.status !== "past")
-      );
+      setEvents((prevEvents) => prevEvents.filter((event) => event.status !== "past"));
       await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(events));
       if (failedEvents.length > 0) {
         Alert.alert(
           "Noen slettinger mislyktes",
-          `Kunne ikke slette følgende hendelser: ${failedEvents
-            .map((e) => `ID ${e.id}: ${e.message}`)
-            .join("\n")}`
+          `Kunne ikke slette følgende hendelser: ${failedEvents.map((e) => `ID ${e.id}: ${e.message}`).join("\n")}`
         );
       } else {
         Alert.alert("Suksess", "Alle tidligere hendelser er slettet");
       }
     } catch (error) {
       console.error("Failed to clear past events:", error);
-      setEvents((prevEvents) =>
-        prevEvents.filter((event) => event.status !== "past")
-      );
+      setEvents((prevEvents) => prevEvents.filter((event) => event.status !== "past"));
       await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(events));
       Alert.alert(
         "Feil",
@@ -462,11 +441,6 @@ export const EventProvider = ({ children }) => {
       );
       throw error;
     }
-  };
-
-  const joinEvent = () => {
-    setHasJoinedEvent(true);
-    loadEvents();
   };
 
   const activeEvents = events.filter((event) => event.status === "active");
@@ -487,6 +461,7 @@ export const EventProvider = ({ children }) => {
         deleteEvent,
         clearPastEvents,
         joinEvent,
+        loadEvents,
       }}
     >
       {children}

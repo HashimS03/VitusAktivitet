@@ -35,7 +35,7 @@ const YourEvents = () => {
     vitusHappyImages[accentColor] || require("../../../assets/Vitus_Happy.png");
 
   useEffect(() => {
-    console.log("Active Events:", activeEvents); // For debugging
+    console.log("Active Events in YourEvents:", activeEvents.map(e => ({ id: e.Id, title: e.title, status: e.status })));
   }, [activeEvents]);
 
   const handleCreateEvent = () => {
@@ -73,7 +73,7 @@ const YourEvents = () => {
 
     return (
       <TouchableOpacity
-        key={event.Id} // Added unique key to the root element
+        key={event.Id}
         style={[styles.eventCard, { backgroundColor: theme.surface }]}
         activeOpacity={0.7}
         onPress={() =>
