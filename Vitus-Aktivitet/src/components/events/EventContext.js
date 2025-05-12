@@ -16,6 +16,10 @@ export const EventProvider = ({ children }) => {
   // Hjelpefunksjon for å parse datoer og håndtere manglende tid
   const parseDate = (dateString) => {
     try {
+      if (!dateString) {
+        console.warn("Date string is undefined or null");
+        return new Date();
+      }
       if (!dateString.includes("T")) {
         // Hvis ingen tid er spesifisert, sett til midnatt lokal tid
         return new Date(`${dateString}T00:00:00`);
@@ -71,6 +75,9 @@ export const EventProvider = ({ children }) => {
     try {
       setLoading(true);
       const response = await apiClient.get("/events");
+      if (!response.data.success) {
+        throw new Error(response.data.message || "Failed to fetch events");
+      }
       let serverEvents = response.data.data || [];
 
       for (let event of serverEvents) {
@@ -81,19 +88,40 @@ export const EventProvider = ({ children }) => {
         event.start_date = parseDate(event.start_date).toISOString();
         event.end_date = parseDate(event.end_date).toISOString();
 
-        const participantsResponse = await apiClient.get(
-          `/events/${event.Id}/participants`
-        );
-        event.isTeamEvent = participantsResponse.data.isTeamEvent || false;
-        event.participants = (participantsResponse.data.participants || []).map(
-          (participant) => ({
-            user_id: participant.user_id,
-            name: participant.name,
-            team_id: participant.team_id,
-            individual_progress: participant.individual_progress || 0,
-            team_progress: participant.team_progress || 0,
-          })
-        );
+        try {
+          const participantsResponse = await apiClient.get(
+            `/events/${event.Id}/participants`
+          );
+          if (!participantsResponse.data.success) {
+            console.error(`Failed to load participants for event ${event.Id}:`, participantsResponse.data.message);
+            event.isTeamEvent = false;
+            event.participants = [];
+            event.team_count = 0;
+            event.members_per_team = 0;
+            event.total_participants = 0;
+          } else {
+            event.isTeamEvent = participantsResponse.data.isTeamEvent || false;
+            event.team_count = participantsResponse.data.team_count || 0;
+            event.members_per_team = participantsResponse.data.members_per_team || 0;
+            event.total_participants = participantsResponse.data.total_participants || 0;
+            event.participants = (participantsResponse.data.participants || []).map(
+              (participant) => ({
+                user_id: participant.user_id,
+                name: participant.name,
+                team_id: participant.team_id,
+                individual_progress: participant.individual_progress || 0,
+                team_progress: participant.team_progress || 0,
+              })
+            );
+          }
+        } catch (participantError) {
+          console.error(`Error fetching participants for event ${event.Id}:`, participantError);
+          event.isTeamEvent = false;
+          event.participants = [];
+          event.team_count = 0;
+          event.members_per_team = 0;
+          event.total_participants = 0;
+        }
         event.isLocalOnly = false;
       }
 
@@ -101,7 +129,11 @@ export const EventProvider = ({ children }) => {
       setEvents(updatedEvents);
       await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(updatedEvents));
     } catch (serverError) {
-      console.error("Failed to load events from server:", serverError);
+      console.error("Failed to load events from server:", {
+        message: serverError.message,
+        response: serverError.response ? serverError.response.data : null,
+        status: serverError.response ? serverError.response.status : null,
+      });
       try {
         const storedEvents = await AsyncStorage.getItem(STORAGE_KEY);
         if (storedEvents) {
