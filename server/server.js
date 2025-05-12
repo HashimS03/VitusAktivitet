@@ -144,11 +144,14 @@ app.post("/register", async (req, res) => {
         avatar ? Buffer.from(avatar.split(",")[1], "base64") : null
       )
       .input("phone", sql.NVarChar, phone || null)
-      .input("address", sql.NVarChar, address || null).query(`
-        INSERT INTO [USER] ([name], [email], [password], [avatar], [created_at], [last_login], [phone], [address])
-        OUTPUT INSERTED.Id
-        VALUES (@name, @email, @password, @avatar, GETDATE(), NULL, @phone, @address)
-      `);
+      .input("address", sql.NVarChar, address || null).query({
+        query: `
+          INSERT INTO [USER] ([name], [email], [password], [avatar], [created_at], [last_login], [phone], [address])
+          OUTPUT INSERTED.Id
+          VALUES (@name, @email, @password, @avatar, GETDATE(), NULL, @phone, @address)
+        `,
+        timeout: 5000
+      });
 
     const newUserId = userResult.recordset[0].Id;
 
@@ -156,10 +159,13 @@ app.post("/register", async (req, res) => {
       .request()
       .input("userId", sql.Int, newUserId)
       .input("steps", sql.Int, 0)
-      .input("timestamp", sql.DateTime, new Date()).query(`
-        INSERT INTO [LEADERBOARD] (user_id, steps, timestamp)
-        VALUES (@userId, @steps, @timestamp)
-      `);
+      .input("timestamp", sql.DateTime, new Date()).query({
+        query: `
+          INSERT INTO [LEADERBOARD] (user_id, steps, timestamp)
+          VALUES (@userId, @steps, @timestamp)
+        `,
+        timeout: 5000
+      });
 
     serverLog("log", "User registered successfully:", { name, email });
     res
@@ -202,7 +208,10 @@ app.post("/login", async (req, res) => {
     const result = await pool
       .request()
       .input("email", sql.NVarChar, email)
-      .query("SELECT [Id], [password] FROM [USER] WHERE [email] = @email");
+      .query({
+        query: "SELECT [Id], [password] FROM [USER] WHERE [email] = @email",
+        timeout: 5000
+      });
 
     if (result.recordset.length === 0) {
       return res
@@ -217,7 +226,10 @@ app.post("/login", async (req, res) => {
       await pool
         .request()
         .input("id", sql.Int, user.Id)
-        .query("UPDATE [USER] SET [last_login] = GETDATE() WHERE [Id] = @id");
+        .query({
+          query: "UPDATE [USER] SET [last_login] = GETDATE() WHERE [Id] = @id",
+          timeout: 5000
+        });
 
       const token = jwt.sign({ id: user.Id, email }, JWT_SECRET, {
         expiresIn: "7d",
@@ -256,17 +268,20 @@ app.get("/leaderboard", async (req, res) => {
   serverLog("log", "Leaderboard request received");
   try {
     const pool = await poolPromise;
-    const result = await pool.request().query(`
-      SELECT 
-        u.Id AS userId,
-        u.name,
-        u.avatar,
-        l.steps,
-        l.timestamp
-      FROM [USER] u
-      LEFT JOIN [LEADERBOARD] l ON u.Id = l.user_id
-      ORDER BY l.steps DESC
-    `);
+    const result = await pool.request().query({
+      query: `
+        SELECT 
+          u.Id AS userId,
+          u.name,
+          u.avatar,
+          l.steps,
+          l.timestamp
+        FROM [USER] u
+        LEFT JOIN [LEADERBOARD] l ON u.Id = l.user_id
+        ORDER BY l.steps DESC
+      `,
+      timeout: 5000
+    });
 
     const leaderboardData = result.recordset.map((row) => ({
       id: row.userId.toString(),
@@ -319,11 +334,14 @@ app.get("/user", authenticateJWT, async (req, res) => {
   try {
     const pool = await poolPromise;
     const result = await pool.request().input("id", sql.Int, req.session.userId)
-      .query(`
-        SELECT [Id], [name], [email], [avatar], [created_at], [last_login], [phone], [address]
-        FROM [USER]
-        WHERE [Id] = @id
-      `);
+      .query({
+        query: `
+          SELECT [Id], [name], [email], [avatar], [created_at], [last_login], [phone], [address]
+          FROM [USER]
+          WHERE [Id] = @id
+        `,
+        timeout: 5000
+      });
 
     if (result.recordset.length === 0) {
       return res
@@ -364,9 +382,10 @@ app.get("/user-statistics", authenticateJWT, async (req, res) => {
     const result = await pool
       .request()
       .input("userId", sql.Int, req.session.userId)
-      .query(
-        "SELECT total_steps FROM [USER_STATISTICS] WHERE userId = @userId"
-      );
+      .query({
+        query: "SELECT total_steps FROM [USER_STATISTICS] WHERE userId = @userId",
+        timeout: 5000
+      });
 
     if (result.recordset.length === 0) {
       return res.json({ success: true, data: { total_steps: 0 } });
@@ -410,12 +429,15 @@ app.get("/events/:eventId/participants", authenticateJWT, async (req, res) => {
     const eventCheck = await pool
       .request()
       .input("eventId", sql.Int, eventId)
-      .input("userId", sql.Int, userId).query(`
-        SELECT e.Id, e.event_type, e.team_count, e.members_per_team, e.total_participants
-        FROM [EVENTS] e
-        LEFT JOIN [EVENT_PARTICIPANTS] ep ON e.Id = ep.event_id
-        WHERE e.Id = @eventId AND (e.created_by = @userId OR ep.user_id = @userId)
-      `);
+      .input("userId", sql.Int, userId).query({
+        query: `
+          SELECT e.Id, e.event_type, e.team_count, e.members_per_team, e.total_participants
+          FROM [EVENTS] e
+          LEFT JOIN [EVENT_PARTICIPANTS] ep ON e.Id = ep.event_id
+          WHERE e.Id = @eventId AND (e.created_by = @userId OR ep.user_id = @userId)
+        `,
+        timeout: 5000
+      });
     if (eventCheck.recordset.length === 0) {
       serverLog("error", "Event not found or user lacks permission for eventId:", eventId);
       return res.status(403).json({
@@ -429,18 +451,21 @@ app.get("/events/:eventId/participants", authenticateJWT, async (req, res) => {
 
     // Fetch participants with team info, handling NULL values
     const participantsResult = await pool.request().input("eventId", sql.Int, eventId)
-      .query(`
-        SELECT 
-          ep.user_id, 
-          ep.team_id, 
-          COALESCE(ep.progress, 0) AS individual_progress,
-          COALESCE(t.progress, 0) AS team_progress,
-          u.name
-        FROM [EVENT_PARTICIPANTS] ep
-        LEFT JOIN [USER] u ON ep.user_id = u.Id
-        LEFT JOIN [TEAMS] t ON ep.team_id = t.Id
-        WHERE ep.event_id = @eventId
-      `);
+      .query({
+        query: `
+          SELECT 
+            ep.user_id, 
+            ep.team_id, 
+            COALESCE(ep.progress, 0) AS individual_progress,
+            COALESCE(t.progress, 0) AS team_progress,
+            u.name
+          FROM [EVENT_PARTICIPANTS] ep
+          LEFT JOIN [USER] u ON ep.user_id = u.Id
+          LEFT JOIN [TEAMS] t ON ep.team_id = t.Id
+          WHERE ep.event_id = @eventId
+        `,
+        timeout: 5000
+      });
 
     // Check if the query executed but returned no data
     if (!participantsResult || !participantsResult.recordset) {
@@ -513,7 +538,10 @@ app.post("/join-event/:eventId", authenticateJWT, async (req, res) => {
     const eventCheck = await pool
       .request()
       .input("eventId", sql.Int, eventId)
-      .query("SELECT Id, created_by FROM [EVENTS] WHERE Id = @eventId");
+      .query({
+        query: "SELECT Id, created_by FROM [EVENTS] WHERE Id = @eventId",
+        timeout: 5000
+      });
     if (eventCheck.recordset.length === 0) {
       return res
         .status(404)
@@ -535,9 +563,10 @@ app.post("/join-event/:eventId", authenticateJWT, async (req, res) => {
       .request()
       .input("eventId", sql.Int, eventId)
       .input("userId", sql.Int, userId)
-      .query(
-        "SELECT Id FROM [EVENT_PARTICIPANTS] WHERE event_id = @eventId AND user_id = @userId"
-      );
+      .query({
+        query: "SELECT Id FROM [EVENT_PARTICIPANTS] WHERE event_id = @eventId AND user_id = @userId",
+        timeout: 5000
+      });
     if (participantCheck.recordset.length > 0) {
       return res.status(400).json({
         success: false,
@@ -550,7 +579,10 @@ app.post("/join-event/:eventId", authenticateJWT, async (req, res) => {
     const teamCheck = await pool
       .request()
       .input("eventId", sql.Int, eventId)
-      .query("SELECT Id FROM [TEAMS] WHERE event_id = @eventId");
+      .query({
+        query: "SELECT Id FROM [TEAMS] WHERE event_id = @eventId",
+        timeout: 5000
+      });
     if (teamCheck.recordset.length > 0) {
       teamId = teamCheck.recordset[0].Id; // Simplified: Assign to the first team for now
     }
@@ -563,10 +595,13 @@ app.post("/join-event/:eventId", authenticateJWT, async (req, res) => {
       .input("teamId", sql.Int, teamId)
       .input("joinedAt", sql.DateTime, new Date())
       .input("progress", sql.Int, 0) // Set initial progress
-      .query(`
-        INSERT INTO [EVENT_PARTICIPANTS] (user_id, event_id, team_id, joined_at, progress)
-        VALUES (@userId, @eventId, @teamId, @joinedAt, @progress)
-      `);
+      .query({
+        query: `
+          INSERT INTO [EVENT_PARTICIPANTS] (user_id, event_id, team_id, joined_at, progress)
+          VALUES (@userId, @eventId, @teamId, @joinedAt, @progress)
+        `,
+        timeout: 5000
+      });
 
     res
       .status(201)
@@ -606,7 +641,10 @@ app.put("/user", authenticateJWT, async (req, res) => {
     const userCheck = await pool
       .request()
       .input("id", sql.Int, req.session.userId)
-      .query("SELECT Id FROM [USER] WHERE Id = @id");
+      .query({
+        query: "SELECT Id FROM [USER] WHERE Id = @id",
+        timeout: 5000
+      });
     if (userCheck.recordset.length === 0) {
       return res
         .status(404)
@@ -619,7 +657,10 @@ app.put("/user", authenticateJWT, async (req, res) => {
         .request()
         .input("email", sql.NVarChar, email)
         .input("id", sql.Int, req.session.userId)
-        .query("SELECT Id FROM [USER] WHERE email = @email AND Id != @id");
+        .query({
+          query: "SELECT Id FROM [USER] WHERE email = @email AND Id != @id",
+          timeout: 5000
+        });
       if (emailCheck.recordset.length > 0) {
         return res.status(400).json({
           success: false,
@@ -651,24 +692,27 @@ app.put("/user", authenticateJWT, async (req, res) => {
       .input("email", sql.NVarChar, email || null)
       .input("phone", sql.NVarChar, phone || null)
       .input("address", sql.NVarChar, address || null)
-      .input("avatar", sql.VarBinary(sql.MAX), avatarBuffer || null).query(`
-        UPDATE [USER]
-        SET name = COALESCE(@name, name),
-            email = COALESCE(@email, email),
-            phone = CASE 
-                      WHEN @phone IS NOT NULL THEN @phone 
-                      ELSE phone 
-                    END,
-            address = CASE 
+      .input("avatar", sql.VarBinary(sql.MAX), avatarBuffer || null).query({
+        query: `
+          UPDATE [USER]
+          SET name = COALESCE(@name, name),
+              email = COALESCE(@email, email),
+              phone = CASE 
+                        WHEN @phone IS NOT NULL THEN @phone 
+                        ELSE phone 
+                      END,
+              address = CASE 
                         WHEN @address IS NOT NULL THEN @address 
                         ELSE address 
                       END,
-            avatar = CASE 
-                      WHEN @avatar IS NOT NULL THEN @avatar 
-                      ELSE avatar 
-                     END
-        WHERE Id = @id
-      `);
+              avatar = CASE 
+                        WHEN @avatar IS NOT NULL THEN @avatar 
+                        ELSE avatar 
+                       END
+          WHERE Id = @id
+        `,
+        timeout: 5000
+      });
 
     serverLog(
       "log",
@@ -718,7 +762,10 @@ app.post("/step-activity", authenticateJWT, async (req, res) => {
     const userCheck = await pool
       .request()
       .input("userId", sql.Int, userId)
-      .query("SELECT Id FROM [USER] WHERE Id = @userId");
+      .query({
+        query: "SELECT Id FROM [USER] WHERE Id = @userId",
+        timeout: 5000
+      });
     if (userCheck.recordset.length === 0) {
       return res.status(400).json({
         success: false,
@@ -735,12 +782,15 @@ app.post("/step-activity", authenticateJWT, async (req, res) => {
     const todayRecord = await pool
       .request()
       .input("userId", sql.Int, userId)
-      .input("currentDate", sql.NVarChar, currentDate).query(`
-        SELECT Id, step_count
-        FROM [STEPACTIVITY]
-        WHERE userId = @userId
-        AND CAST(timestamp AS DATE) = @currentDate
-      `);
+      .input("currentDate", sql.NVarChar, currentDate).query({
+        query: `
+          SELECT Id, step_count
+          FROM [STEPACTIVITY]
+          WHERE userId = @userId
+          AND CAST(timestamp AS DATE) = @currentDate
+        `,
+        timeout: 5000
+      });
 
     // Begin transaction for atomic updates
     const transaction = pool.transaction();
@@ -756,11 +806,14 @@ app.post("/step-activity", authenticateJWT, async (req, res) => {
           .input("id", sql.Int, recordId)
           .input("stepCount", sql.Int, stepCount)
           .input("distance", sql.Float, distance || null)
-          .input("timestamp", sql.DateTime, timestamp || new Date()).query(`
-            UPDATE [STEPACTIVITY]
-            SET step_count = @stepCount, distance = @distance, timestamp = @timestamp
-            WHERE Id = @id
-          `);
+          .input("timestamp", sql.DateTime, timestamp || new Date()).query({
+            query: `
+              UPDATE [STEPACTIVITY]
+              SET step_count = @stepCount, distance = @distance, timestamp = @timestamp
+              WHERE Id = @id
+            `,
+            timeout: 5000
+          });
 
         // Update total_steps in USER_STATISTICS
         const stepDifference = stepCount - previousSteps;
@@ -768,12 +821,15 @@ app.post("/step-activity", authenticateJWT, async (req, res) => {
           await transaction
             .request()
             .input("userId", sql.Int, userId)
-            .input("stepDifference", sql.BigInt, stepDifference).query(`
-              UPDATE [USER_STATISTICS]
-              SET total_steps = total_steps + @stepDifference,
-                  last_updated = GETDATE()
-              WHERE userId = @userId
-            `);
+            .input("stepDifference", sql.BigInt, stepDifference).query({
+              query: `
+                UPDATE [USER_STATISTICS]
+                SET total_steps = total_steps + @stepDifference,
+                    last_updated = GETDATE()
+                WHERE userId = @userId
+              `,
+              timeout: 5000
+            });
         }
       } else {
         // Insert new record for today
@@ -782,53 +838,68 @@ app.post("/step-activity", authenticateJWT, async (req, res) => {
           .input("userId", sql.Int, userId)
           .input("stepCount", sql.Int, stepCount)
           .input("distance", sql.Float, distance || null)
-          .input("timestamp", sql.DateTime, timestamp || new Date()).query(`
-            INSERT INTO [STEPACTIVITY] (userId, step_count, distance, timestamp)
-            VALUES (@userId, @stepCount, @distance, @timestamp)
-          `);
+          .input("timestamp", sql.DateTime, timestamp || new Date()).query({
+            query: `
+              INSERT INTO [STEPACTIVITY] (userId, step_count, distance, timestamp)
+              VALUES (@userId, @stepCount, @distance, @timestamp)
+            `,
+            timeout: 5000
+          });
 
         // Update total_steps in USER_STATISTICS
         await transaction
           .request()
           .input("userId", sql.Int, userId)
-          .input("stepCount", sql.BigInt, stepCount).query(`
-            MERGE INTO [USER_STATISTICS] AS target
-            USING (SELECT @userId AS userId, @stepCount AS stepCount) AS source
-            ON target.userId = source.userId
-            WHEN MATCHED THEN
-              UPDATE SET total_steps = total_steps + @stepCount,
-                         last_updated = GETDATE()
-            WHEN NOT MATCHED THEN
-              INSERT (userId, total_steps, last_updated)
-              VALUES (@userId, @stepCount, GETDATE());
-          `);
+          .input("stepCount", sql.BigInt, stepCount).query({
+            query: `
+              MERGE INTO [USER_STATISTICS] AS target
+              USING (SELECT @userId AS userId, @stepCount AS stepCount) AS source
+              ON target.userId = source.userId
+              WHEN MATCHED THEN
+                UPDATE SET total_steps = total_steps + @stepCount,
+                           last_updated = GETDATE()
+              WHEN NOT MATCHED THEN
+                INSERT (userId, total_steps, last_updated)
+                VALUES (@userId, @stepCount, GETDATE());
+            `,
+            timeout: 5000
+          });
       }
 
       // Update LEADERBOARD
       const existingLeaderboard = await transaction
         .request()
         .input("userId", sql.Int, userId)
-        .query("SELECT user_id FROM [LEADERBOARD] WHERE user_id = @userId");
+        .query({
+          query: "SELECT user_id FROM [LEADERBOARD] WHERE user_id = @userId",
+          timeout: 5000
+        });
 
       if (existingLeaderboard.recordset.length > 0) {
         await transaction
           .request()
           .input("userId", sql.Int, userId)
           .input("steps", sql.Int, stepCount)
-          .input("timestamp", sql.DateTime, timestamp || new Date()).query(`
-            UPDATE [LEADERBOARD]
-            SET steps = @steps, timestamp = @timestamp
-            WHERE user_id = @userId
-          `);
+          .input("timestamp", sql.DateTime, timestamp || new Date()).query({
+            query: `
+              UPDATE [LEADERBOARD]
+              SET steps = @steps, timestamp = @timestamp
+              WHERE user_id = @userId
+            `,
+            timeout: 5000
+          });
       } else {
         await transaction
           .request()
           .input("userId", sql.Int, userId)
           .input("steps", sql.Int, stepCount)
-          .input("timestamp", sql.DateTime, timestamp || new Date()).query(`
-            INSERT INTO [LEADERBOARD] (user_id, steps, timestamp)
-            VALUES (@userId, @steps, @timestamp)
-          `);
+          .input("timestamp", sql.DateTime, timestamp || new Date()).query({
+            query: `
+              INSERT INTO [LEADERBOARD] (user_id, steps, timestamp)
+              VALUES (@userId, @steps, @timestamp)
+            `,
+            timeout: 5000
+          });
       }
 
       await transaction.commit();
@@ -860,9 +931,10 @@ app.get("/step-activity", authenticateJWT, async (req, res) => {
     const result = await pool
       .request()
       .input("userId", sql.Int, req.session.userId)
-      .query(
-        "SELECT * FROM [STEPACTIVITY] WHERE userId = @userId ORDER BY [timestamp] DESC"
-      );
+      .query({
+        query: "SELECT * FROM [STEPACTIVITY] WHERE userId = @userId ORDER BY [timestamp] DESC",
+        timeout: 5000
+      });
 
     res.json({ success: true, data: result.recordset });
   } catch (err) {
@@ -908,7 +980,10 @@ app.post("/events", authenticateJWT, async (req, res) => {
     const userCheck = await pool
       .request()
       .input("userId", sql.Int, req.session.userId)
-      .query("SELECT Id FROM [USER] WHERE Id = @userId");
+      .query({
+        query: "SELECT Id FROM [USER] WHERE Id = @userId",
+        timeout: 5000
+      });
     if (userCheck.recordset.length === 0) {
       return res.status(400).json({
         success: false,
@@ -929,13 +1004,16 @@ app.post("/events", authenticateJWT, async (req, res) => {
       .input("total_participants", sql.Int, total_participants || 0) // Default to 0
       .input("team_count", sql.Int, team_count || 0) // Default to 0
       .input("members_per_team", sql.Int, members_per_team || 0) // Default to 0
-      .input("created_by", sql.Int, req.session.userId).query(`
-        INSERT INTO [EVENTS] 
-        (title, description, activity, goal, start_date, end_date, location, event_type, total_participants, team_count, members_per_team, created_by)
-        OUTPUT INSERTED.Id
-        VALUES 
-        (@title, @description, @activity, @goal, @start_date, @end_date, @location, @event_type, @total_participants, @team_count, @members_per_team, @created_by)
-      `);
+      .input("created_by", sql.Int, req.session.userId).query({
+        query: `
+          INSERT INTO [EVENTS] 
+          (title, description, activity, goal, start_date, end_date, location, event_type, total_participants, team_count, members_per_team, created_by)
+          OUTPUT INSERTED.Id
+          VALUES 
+          (@title, @description, @activity, @goal, @start_date, @end_date, @location, @event_type, @total_participants, @team_count, @members_per_team, @created_by)
+        `,
+        timeout: 5000
+      });
 
     const eventId = result.recordset[0].Id;
 
@@ -984,9 +1062,10 @@ app.put("/events/:eventId/progress", authenticateJWT, async (req, res) => {
     const eventCheck = await pool
       .request()
       .input("eventId", sql.Int, eventId)
-      .query(
-        "SELECT Id, created_by, event_type FROM [EVENTS] WHERE Id = @eventId"
-      );
+      .query({
+        query: "SELECT Id, created_by, event_type FROM [EVENTS] WHERE Id = @eventId",
+        timeout: 5000
+      });
     if (eventCheck.recordset.length === 0) {
       return res
         .status(404)
@@ -1001,9 +1080,10 @@ app.put("/events/:eventId/progress", authenticateJWT, async (req, res) => {
       .request()
       .input("eventId", sql.Int, eventId)
       .input("userId", sql.Int, userId)
-      .query(
-        "SELECT Id, team_id FROM [EVENT_PARTICIPANTS] WHERE event_id = @eventId AND user_id = @userId"
-      );
+      .query({
+        query: "SELECT Id, team_id FROM [EVENT_PARTICIPANTS] WHERE event_id = @eventId AND user_id = @userId",
+        timeout: 5000
+      });
 
     if (!isHost && participantCheck.recordset.length === 0) {
       return res
@@ -1016,11 +1096,14 @@ app.put("/events/:eventId/progress", authenticateJWT, async (req, res) => {
       .request()
       .input("eventId", sql.Int, eventId)
       .input("userId", sql.Int, userId)
-      .input("progress", sql.Int, progress).query(`
-        UPDATE [EVENT_PARTICIPANTS]
-        SET progress = @progress
-        WHERE event_id = @eventId AND user_id = @userId
-      `);
+      .input("progress", sql.Int, progress).query({
+        query: `
+          UPDATE [EVENT_PARTICIPANTS]
+          SET progress = @progress
+          WHERE event_id = @eventId AND user_id = @userId
+        `,
+        timeout: 5000
+      });
 
     // If it's a team event, update the team's overall progress in TEAMS
     if (event.event_type === "team") {
@@ -1033,11 +1116,14 @@ app.put("/events/:eventId/progress", authenticateJWT, async (req, res) => {
 
       // Calculate the average progress of all participants in the team
       const teamProgress = await pool.request().input("teamId", sql.Int, teamId)
-        .query(`
-          SELECT AVG(CAST(progress AS FLOAT)) as avgProgress
-          FROM [EVENT_PARTICIPANTS]
-          WHERE team_id = @teamId AND event_id = @eventId
-        `);
+        .query({
+          query: `
+            SELECT AVG(CAST(progress AS FLOAT)) as avgProgress
+            FROM [EVENT_PARTICIPANTS]
+            WHERE team_id = @teamId AND event_id = @eventId
+          `,
+          timeout: 5000
+        });
 
       const avgProgress = Math.round(
         teamProgress.recordset[0].avgProgress || 0
@@ -1045,11 +1131,14 @@ app.put("/events/:eventId/progress", authenticateJWT, async (req, res) => {
       await pool
         .request()
         .input("teamId", sql.Int, teamId)
-        .input("progress", sql.Int, avgProgress).query(`
-          UPDATE [TEAMS]
-          SET progress = @progress
-          WHERE Id = @teamId
-        `);
+        .input("progress", sql.Int, avgProgress).query({
+          query: `
+            UPDATE [TEAMS]
+            SET progress = @progress
+            WHERE Id = @teamId
+          `,
+          timeout: 5000
+        });
     }
 
     res.json({ success: true, message: "Progress updated successfully" });
@@ -1069,13 +1158,20 @@ app.get("/events", authenticateJWT, async (req, res) => {
     const pool = await poolPromise;
     const result = await pool
       .request()
-      .input("userId", sql.Int, req.session.userId).query(`
-        SELECT e.*
-        FROM [EVENTS] e
-        LEFT JOIN [EVENT_PARTICIPANTS] ep ON e.Id = ep.event_id
-        WHERE e.created_by = @userId OR ep.user_id = @userId
-      `);
+      .input("userId", sql.Int, req.session.userId).query({
+        query: `
+          SELECT e.*
+          FROM [EVENTS] e
+          LEFT JOIN [EVENT_PARTICIPANTS] ep ON e.Id = ep.event_id
+          WHERE e.created_by = @userId OR ep.user_id = @userId
+        `,
+        timeout: 5000
+      });
 
+    if (result.recordset.length === 0) {
+      serverLog("warn", "No events found for userId:", req.session.userId);
+      return res.json({ success: true, data: [] });
+    }
     if (!result || !result.recordset) {
       serverLog("error", "No events data returned for userId:", req.session.userId);
       return res.status(500).json({
@@ -1136,9 +1232,10 @@ app.put("/events/:Id", authenticateJWT, async (req, res) => {
       .request()
       .input("eventId", sql.Int, eventId)
       .input("userId", sql.Int, req.session.userId)
-      .query(
-        "SELECT Id FROM [EVENTS] WHERE Id = @eventId AND created_by = @userId"
-      );
+      .query({
+        query: "SELECT Id FROM [EVENTS] WHERE Id = @eventId AND created_by = @userId",
+        timeout: 5000
+      });
 
     if (result.recordset.length === 0) {
       return res.status(404).json({
@@ -1161,21 +1258,24 @@ app.put("/events/:Id", authenticateJWT, async (req, res) => {
       .input("total_participants", sql.Int, total_participants || 0) // Default to 0
       .input("team_count", sql.Int, team_count || 0) // Default to 0
       .input("members_per_team", sql.Int, members_per_team || 0) // Default to 0
-      .query(`
-        UPDATE [EVENTS]
-        SET title = @title,
-            description = @description,
-            activity = @activity,
-            goal = @goal,
-            start_date = @start_date,
-            end_date = @end_date,
-            location = @location,
-            event_type = @event_type,
-            total_participants = @total_participants,
-            team_count = @team_count,
-            members_per_team = @members_per_team
-        WHERE Id = @eventId
-      `);
+      .query({
+        query: `
+          UPDATE [EVENTS]
+          SET title = @title,
+              description = @description,
+              activity = @activity,
+              goal = @goal,
+              start_date = @start_date,
+              end_date = @end_date,
+              location = @location,
+              event_type = @event_type,
+              total_participants = @total_participants,
+              team_count = @team_count,
+              members_per_team = @members_per_team
+          WHERE Id = @eventId
+        `,
+        timeout: 5000
+      });
 
     res.json({ success: true, message: "Event updated successfully" });
   } catch (err) {
@@ -1210,7 +1310,10 @@ app.delete("/events/:Id", authenticateJWT, async (req, res) => {
     const eventCheck = await pool
       .request()
       .input("eventId", sql.Int, eventId)
-      .query("SELECT Id, created_by FROM [EVENTS] WHERE Id = @eventId");
+      .query({
+        query: "SELECT Id, created_by FROM [EVENTS] WHERE Id = @eventId",
+        timeout: 5000
+      });
 
     if (eventCheck.recordset.length === 0) {
       serverLog("error", "Event not found for eventId:", eventId);
@@ -1237,18 +1340,27 @@ app.delete("/events/:Id", authenticateJWT, async (req, res) => {
     await pool
       .request()
       .input("eventId", sql.Int, eventId)
-      .query("DELETE FROM [EVENT_PARTICIPANTS] WHERE event_id = @eventId");
+      .query({
+        query: "DELETE FROM [EVENT_PARTICIPANTS] WHERE event_id = @eventId",
+        timeout: 5000
+      });
 
     await pool
       .request()
       .input("eventId", sql.Int, eventId)
-      .query("DELETE FROM [TEAMS] WHERE event_id = @eventId");
+      .query({
+        query: "DELETE FROM [TEAMS] WHERE event_id = @eventId",
+        timeout: 5000
+      });
 
     // Delete the event
     const result = await pool
       .request()
       .input("eventId", sql.Int, eventId)
-      .query("DELETE FROM [EVENTS] WHERE Id = @eventId");
+      .query({
+        query: "DELETE FROM [EVENTS] WHERE Id = @eventId",
+        timeout: 5000
+      });
 
     if (result.rowsAffected[0] === 0) {
       serverLog("error", "No rows affected when deleting eventId:", eventId);
@@ -1287,7 +1399,10 @@ app.get("/health", async (req, res) => {
 
     try {
       const pool = await poolPromise;
-      const result = await pool.request().query("SELECT 1 as test");
+      const result = await pool.request().query({
+        query: "SELECT 1 as test",
+        timeout: 5000
+      });
       dbStatus = result.recordset[0].test === 1 ? "connected" : "error";
     } catch (err) {
       dbStatus = "error";
