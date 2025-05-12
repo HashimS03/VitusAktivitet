@@ -548,6 +548,7 @@ app.post("/join-event/:eventId", authenticateJWT, async (req, res) => {
     });
   }
 });
+
 // 🔹 Route to Update User Data
 app.put("/user", authenticateJWT, async (req, res) => {
   serverLog(
@@ -890,8 +891,8 @@ app.post("/events", authenticateJWT, async (req, res) => {
       .input("description", sql.NVarChar, description || null)
       .input("activity", sql.NVarChar, activity || null)
       .input("goal", sql.Int, goal || null)
-      .input("start_date", sql.Date, new Date(start_date))
-      .input("end_date", sql.Date, new Date(end_date))
+      .input("start_date", sql.DateTime, new Date(start_date)) // Changed to sql.DateTime
+      .input("end_date", sql.DateTime, new Date(end_date))     // Changed to sql.DateTime
       .input("location", sql.NVarChar, location || null)
       .input("event_type", sql.NVarChar, event_type || null)
       .input("total_participants", sql.Int, total_participants || null)
@@ -1061,9 +1062,15 @@ app.get("/events", authenticateJWT, async (req, res) => {
 
 // 🔹 Route to Update an Event
 app.put("/events/:Id", authenticateJWT, async (req, res) => {
-  serverLog("log", "Event update request received for eventId:", req.params.id);
+  serverLog("log", "Event update request received for eventId:", req.params.Id);
   try {
-    const eventId = req.params.id;
+    const eventId = parseInt(req.params.Id, 10);
+    if (isNaN(eventId)) {
+      return res
+        .status(400)
+        .json({ success: false, message: "Invalid event ID" });
+    }
+
     const {
       title,
       description,
@@ -1108,8 +1115,8 @@ app.put("/events/:Id", authenticateJWT, async (req, res) => {
       .input("description", sql.NVarChar, description || null)
       .input("activity", sql.NVarChar, activity || null)
       .input("goal", sql.Int, goal || null)
-      .input("start_date", sql.Date, new Date(start_date))
-      .input("end_date", sql.Date, new Date(end_date))
+      .input("start_date", sql.DateTime, new Date(start_date)) // Changed to sql.DateTime
+      .input("end_date", sql.DateTime, new Date(end_date))     // Changed to sql.DateTime
       .input("location", sql.NVarChar, location || null)
       .input("event_type", sql.NVarChar, event_type || null)
       .input("total_participants", sql.Int, total_participants || null)
@@ -1145,7 +1152,6 @@ app.put("/events/:Id", authenticateJWT, async (req, res) => {
   }
 });
 
-// 🔹 Route to Delete an Event
 // 🔹 Route to Delete an Event
 app.delete("/events/:Id", authenticateJWT, async (req, res) => {
   serverLog("log", "Event deletion request received for eventId:", req.params.Id);
@@ -1226,6 +1232,7 @@ app.delete("/events/:Id", authenticateJWT, async (req, res) => {
     });
   }
 }); 
+
 // 🔹 Basic Test Endpoint
 app.get("/test", (req, res) => {
   res.json({ message: "API is working!", timestamp: new Date().toISOString() });
