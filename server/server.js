@@ -406,7 +406,7 @@ app.get("/events/:eventId/participants", authenticateJWT, async (req, res) => {
 
     const pool = await poolPromise;
 
-    // Check if the event exists and the user is authorized (host or participant)
+    // Check if the event exists and the user is authorized
     const eventCheck = await pool
       .request()
       .input("eventId", sql.Int, eventId)
@@ -427,26 +427,31 @@ app.get("/events/:eventId/participants", authenticateJWT, async (req, res) => {
     const event = eventCheck.recordset[0];
     const isTeamEvent = event.event_type === "team";
 
-    // Fetch participants with team info
+    // Fetch participants with team info, handling NULL values
     const participantsResult = await pool.request().input("eventId", sql.Int, eventId)
       .query(`
         SELECT 
           ep.user_id, 
           ep.team_id, 
-          ep.progress AS individual_progress,
-          t.progress AS team_progress,
+          COALESCE(ep.progress, 0) AS individual_progress,
+          COALESCE(t.progress, 0) AS team_progress,
           u.name
         FROM [EVENT_PARTICIPANTS] ep
-        JOIN [USER] u ON ep.user_id = u.Id
+        LEFT JOIN [USER] u ON ep.user_id = u.Id
         LEFT JOIN [TEAMS] t ON ep.team_id = t.Id
         WHERE ep.event_id = @eventId
       `);
 
+    // Check if the query executed but returned no data
     if (!participantsResult || !participantsResult.recordset) {
-      serverLog("error", "No participants data returned for eventId:", eventId);
-      return res.status(500).json({
-        success: false,
-        message: "Failed to fetch participants data",
+      serverLog("warn", "No participants data returned for eventId:", eventId);
+      return res.json({
+        success: true,
+        isTeamEvent,
+        team_count: event.team_count || 0,
+        members_per_team: event.members_per_team || 0,
+        total_participants: event.total_participants || 0,
+        participants: [],
       });
     }
 
@@ -465,6 +470,14 @@ app.get("/events/:eventId/participants", authenticateJWT, async (req, res) => {
       code: err.code,
       number: err.number,
     });
+
+    // Specific SQL error handling
+    if (err.number === 207 || err.number === 208) { // Invalid column name or object
+      return res.status(500).json({
+        success: false,
+        message: "Database schema error, please check server configuration",
+      });
+    }
     res.status(500).json({
       success: false,
       message: `Failed to fetch participants: ${err.message}`,
