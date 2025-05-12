@@ -11,13 +11,12 @@ import { CameraView, useCameraPermissions } from "expo-camera";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import apiClient from "../../utils/apiClient";
 import { EventContext } from "../events/EventContext";
-import { useUserContext } from "../context/UserContext";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 export default function JoinEvent({ navigation }) {
   const [permission, requestPermission] = useCameraPermissions();
   const [scanned, setScanned] = useState(false);
   const { joinEvent, loadEvents } = useContext(EventContext);
-  const { token } = useUserContext(); // Get token from UserContext
 
   useEffect(() => {
     if (!permission || permission.status !== "granted") {
@@ -42,6 +41,8 @@ export default function JoinEvent({ navigation }) {
 
     try {
       // Check authentication token
+      const token = await AsyncStorage.getItem("authToken");
+      console.log("Auth token on device:", token);
       if (!token) {
         Alert.alert("Feil", "Du må logge inn for å bli med i hendelsen.");
         navigation.navigate("Login");
@@ -60,14 +61,13 @@ export default function JoinEvent({ navigation }) {
           `Joined event ${eventId} with dates - Start: ${eventData.start_date}, End: ${eventData.end_date}`
         );
 
-        // Prepare full event data with normalized dates and goalValue
+        // Prepare full event data with normalized dates
         const fullEventData = {
           Id: eventId,
           start_date: eventData.start_date || new Date().toISOString(),
           end_date: eventData.end_date || new Date().toISOString(),
           title: eventData.title || "Ukjent tittel",
           isTeamEvent: eventData.isTeamEvent || false,
-          goalValue: eventData.goal || 0, // Include goalValue from server response
           participants: (eventData.participants || []).map((p) => ({
             user_id: p.user_id ? String(p.user_id).trim() : null,
             name: p.name || "Ukjent",

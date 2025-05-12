@@ -28,7 +28,7 @@ const ActiveEvent = ({ route }) => {
   const { eventId } = route.params || {};
   const { activeEvents, pastEvents, updateEvent, deleteEvent } =
     useContext(EventContext);
-  const { userAvatar, token } = useUserContext(); // Assuming token is provided via UserContext
+  const { userAvatar } = useUserContext();
 
   const eventDetails =
     activeEvents.find((event) => event.Id === eventId) ||
@@ -77,9 +77,16 @@ const ActiveEvent = ({ route }) => {
           return;
         }
 
-        const response = await apiClient.get(`/events/${Number(eventId)}/participants`, {
-          headers: token ? { Authorization: `Bearer ${token}` } : {},
-        });
+        let token = null;
+        try {
+          token = await storage.getItem("authToken");
+        } catch (storageError) {
+          console.warn("Failed to get token from storage:", storageError);
+        }
+
+        const response = await apiClient.get(
+          `/events/${Number(eventId)}/participants`
+        );
         if (response.data.success) {
           const participantsData = response.data.participants || [];
           const fetchedParticipants = await Promise.all(
@@ -87,19 +94,22 @@ const ActiveEvent = ({ route }) => {
               let avatar = null;
               if (participant.user_id) {
                 try {
-                  const userResponse = await apiClient.get(`/user/${participant.user_id}`, {
-                    headers: token ? { Authorization: `Bearer ${token}` } : {},
-                  });
+                  const userResponse = await apiClient.get(
+                    `/user/${participant.user_id}`,
+                    {
+                      headers: token
+                        ? { Authorization: `Bearer ${token}` }
+                        : {},
+                    }
+                  );
                   if (userResponse.data.success) {
                     avatar = userResponse.data.user.avatar || null;
                   }
                 } catch (userError) {
-                  if (userError.response?.status === 404) {
-                    console.warn(`User ${participant.user_id} not found, using default avatar.`);
-                    avatar = null; // Fallback handled in rendering
-                  } else {
-                    console.error(`Error fetching avatar for user ${participant.user_id}:`, userError);
-                  }
+                  console.error(
+                    `Error fetching avatar for user ${participant.user_id}:`,
+                    userError
+                  );
                 }
               }
               return {
@@ -117,14 +127,16 @@ const ActiveEvent = ({ route }) => {
           console.error("Response did not indicate success:", response.data);
         }
       } catch (error) {
-        console.error("Error fetching participants:", error.response?.data || error.message);
+        console.error(
+          "Error fetching participants:",
+          error.response?.data || error.message
+        );
       }
     };
-
     if (eventDetails) {
       fetchParticipants();
     }
-  }, [navigation, eventId, eventDetails, token]);
+  }, [navigation, eventId, eventDetails]);
 
   useEffect(() => {
     if (!eventDetails) {
@@ -132,7 +144,9 @@ const ActiveEvent = ({ route }) => {
       return;
     }
     setCurrentValue(eventDetails.currentValue || 0);
-    setProgress((eventDetails.currentValue || 0) / (eventDetails.goalValue || 1));
+    setProgress(
+      (eventDetails.currentValue || 0) / (eventDetails.goalValue || 1)
+    );
   }, [eventDetails, navigation]);
 
   const toggleModal = () => setModalVisible(!isModalVisible);
@@ -177,8 +191,6 @@ const ActiveEvent = ({ route }) => {
       try {
         const response = await apiClient.put(`/events/${eventId}/progress`, {
           progress: newValue,
-        }, {
-          headers: token ? { Authorization: `Bearer ${token}` } : {},
         });
         if (response.data.success) {
           setCurrentValue(newValue);
@@ -192,11 +204,13 @@ const ActiveEvent = ({ route }) => {
             progress: newValue / (eventDetails.goalValue || 1),
           });
 
-          const updatedParticipantsResponse = await apiClient.get(`/events/${eventId}/participants`, {
-            headers: token ? { Authorization: `Bearer ${token}` } : {},
-          });
+          const updatedParticipantsResponse = await apiClient.get(
+            `/events/${eventId}/participants`
+          );
           if (updatedParticipantsResponse.data.success) {
-            const updatedParticipants = (updatedParticipantsResponse.data.participants || []).map((participant) => ({
+            const updatedParticipants = (
+              updatedParticipantsResponse.data.participants || []
+            ).map((participant) => ({
               user_id: participant.user_id,
               name: participant.name,
               team_id: participant.team_id,
@@ -231,7 +245,8 @@ const ActiveEvent = ({ route }) => {
     }
 
     const totalMembers = participants.length + 1;
-    const maxMembers = eventDetails.team_count * (eventDetails.members_per_team || 0);
+    const maxMembers =
+      eventDetails.team_count * (eventDetails.members_per_team || 0);
 
     return (
       <>
