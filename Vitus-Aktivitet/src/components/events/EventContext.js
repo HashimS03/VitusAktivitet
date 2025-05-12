@@ -1,7 +1,8 @@
-import React, { createContext, useState, useEffect } from "react";
+import React, { createContext, useState, useEffect, useContext } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import apiClient from "../../utils/apiClient";
 import { Alert } from "react-native";
+import { useUserContext } from "../context/UserContext";
 
 const STORAGE_KEY = "events";
 
@@ -12,6 +13,7 @@ export const EventProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [hasJoinedEvent, setHasJoinedEvent] = useState(false);
+  const { token } = useUserContext(); // Get token from UserContext
 
   const parseDate = (dateString) => {
     try {
@@ -97,7 +99,9 @@ export const EventProvider = ({ children }) => {
   const loadEvents = async () => {
     try {
       setLoading(true);
-      const response = await apiClient.get("/events");
+      const response = await apiClient.get("/events", {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
       console.log("Load events response:", response.data);
       let serverEvents = response.data.data || [];
 
@@ -105,30 +109,38 @@ export const EventProvider = ({ children }) => {
         try {
           event.start_date = parseDate(event.start_date).toISOString();
           event.end_date = parseDate(event.end_date).toISOString();
+          event.goalValue = event.goal || 0; // Ensure goalValue is set
+          event.currentValue = event.current_progress || 0; // Ensure currentValue is set
 
-          const participantsResponse = await apiClient.get(`/events/${event.Id}/participants`);
+          const participantsResponse = await apiClient.get(`/events/${event.Id}/participants`, {
+            headers: token ? { Authorization: `Bearer ${token}` } : {},
+          });
           console.log(`Participants for event ${event.Id}:`, participantsResponse.data);
           event.isTeamEvent = participantsResponse.data.isTeamEvent || false;
+          event.team_count = participantsResponse.data.team_count || 0;
+          event.members_per_team = participantsResponse.data.members_per_team || 0;
+          event.total_participants = participantsResponse.data.total_participants || 0;
+          event.activity = event.activity || "enheter"; // Default activity unit
           event.participants = (participantsResponse.data.participants || []).map(
             (participant) => {
-              const userId = participant.user_id ? String(participant.user_id).trim() : "";
-              const isValidUserId = userId && !isNaN(Number(userId)) && Number(userId) > 0;
-              const mappedParticipant = {
-                user_id: isValidUserId ? userId : null, // Null for invalid IDs (e.g., 100)
+              const userId = participant.user_id ? String(participant.user_id).trim() : null;
+              return {
+                user_id: userId,
                 name: participant.name || "Ukjent",
                 team_id: participant.team_id || null,
                 individual_progress: participant.individual_progress || 0,
                 team_progress: participant.team_progress || 0,
-                isValid: isValidUserId,
               };
-              console.log(`Participant for event ${event.Id}:`, mappedParticipant);
-              return mappedParticipant;
             }
-          ).filter(participant => participant.isValid); // Exclude invalid participants
+          );
           event.isLocalOnly = false;
         } catch (participantError) {
           console.error(`Failed to load participants for event ${event.Id}:`, participantError);
           event.isTeamEvent = false;
+          event.team_count = 0;
+          event.members_per_team = 0;
+          event.total_participants = 0;
+          event.activity = "enheter";
           event.participants = [];
           event.isLocalOnly = false;
         }
@@ -171,18 +183,20 @@ export const EventProvider = ({ children }) => {
             const serverEventData = {
               title: event.title || "Ukjent tittel",
               description: event.description || "",
-              activity: event.selectedActivity?.name || "",
+              activity: event.activity || "enheter",
               goal: event.goalValue || 0,
               start_date: event.start_date,
               end_date: event.end_date,
               location: event.location || "",
-              event_type: event.eventType || "individual",
-              total_participants: Number(event.participantCount) || 0,
-              team_count: Number(event.teamCount) || 0,
-              members_per_team: Number(event.membersPerTeam) || 0,
+              event_type: event.isTeamEvent ? "team" : "individual",
+              total_participants: Number(event.total_participants) || 0,
+              team_count: Number(event.team_count) || 0,
+              members_per_team: Number(event.members_per_team) || 0,
             };
 
-            const response = await apiClient.post("/events", serverEventData);
+            const response = await apiClient.post("/events", serverEventData, {
+              headers: token ? { Authorization: `Bearer ${token}` } : {},
+            });
             setEvents((prevEvents) =>
               prevEvents.map((e) =>
                 e.Id === event.Id ? { ...e, Id: response.data.eventId, isLocalOnly: false } : e
@@ -208,6 +222,9 @@ export const EventProvider = ({ children }) => {
       ...eventData,
       start_date: start.toISOString(),
       end_date: end.toISOString(),
+      goalValue: eventData.goalValue || 0, // Ensure goalValue is set
+      currentValue: eventData.currentValue || 0, // Ensure currentValue is set
+      activity: eventData.activity || "enheter", // Default activity unit
       status: updateEventStatus([{ ...eventData, start_date: start.toISOString(), end_date: end.toISOString() }])[0].status,
     };
 
@@ -251,23 +268,28 @@ export const EventProvider = ({ children }) => {
       const serverEventData = {
         title: newEvent.title,
         description: newEvent.description || "",
-        activity: newEvent.selectedActivity?.name || "",
+        activity: newEvent.activity || "enheter",
         goal: newEvent.goalValue || 0,
         start_date: startDate.toISOString(),
         end_date: endDate.toISOString(),
         location: newEvent.location || "",
         event_type: newEvent.eventType || "individual",
-        total_participants: Number(newEvent.participantCount) || 0,
-        team_count: Number(newEvent.teamCount) || 0,
-        members_per_team: Number(newEvent.membersPerTeam) || 0,
+        total_participants: Number(newEvent.total_participants) || 0,
+        team_count: Number(newEvent.team_count) || 0,
+        members_per_team: Number(newEvent.members_per_team) || 0,
       };
       console.log("Sending to server:", serverEventData);
 
-      const response = await apiClient.post("/events", serverEventData);
+      const response = await apiClient.post("/events", serverEventData, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
       console.log("Server response:", response.data);
       eventWithId = {
         ...newEvent,
         Id: response.data.eventId,
+        goalValue: newEvent.goalValue || 0,
+        currentValue: 0,
+        activity: newEvent.activity || "enheter",
         participants: [],
         isLocalOnly: false,
         status: startDate > new Date() ? "upcoming" : "active",
@@ -278,6 +300,9 @@ export const EventProvider = ({ children }) => {
       eventWithId = {
         ...newEvent,
         Id: Date.now().toString(),
+        goalValue: newEvent.goalValue || 0,
+        currentValue: 0,
+        activity: newEvent.activity || "enheter",
         participants: [],
         isLocalOnly: true,
         status: startDate > new Date() ? "upcoming" : "active",
@@ -323,23 +348,27 @@ export const EventProvider = ({ children }) => {
     }
 
     try {
-      await apiClient.get(`/events/${updatedEvent.Id}`);
+      await apiClient.get(`/events/${updatedEvent.Id}`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
       const serverEventData = {
         title: updatedEvent.title,
         description: updatedEvent.description || "",
-        activity: updatedEvent.selectedActivity?.name || "",
+        activity: updatedEvent.activity || "enheter",
         goal: updatedEvent.goalValue || 0,
         start_date: parseDate(updatedEvent.start_date).toISOString(),
         end_date: parseDate(updatedEvent.end_date).toISOString(),
         location: updatedEvent.location || "",
-        event_type: updatedEvent.eventType || "individual",
-        total_participants: Number(updatedEvent.participantCount) || 0,
-        team_count: Number(updatedEvent.teamCount) || 0,
-        members_per_team: Number(updatedEvent.membersPerTeam) || 0,
+        event_type: updatedEvent.isTeamEvent ? "team" : "individual",
+        total_participants: Number(updatedEvent.total_participants) || 0,
+        team_count: Number(updatedEvent.team_count) || 0,
+        members_per_team: Number(updatedEvent.members_per_team) || 0,
       };
 
       console.log("Sending update to /events/", updatedEvent.Id, "with data:", serverEventData);
-      await apiClient.put(`/events/${updatedEvent.Id}`, serverEventData);
+      await apiClient.put(`/events/${updatedEvent.Id}`, serverEventData, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
       setEvents((prevEvents) =>
         prevEvents.map((event) =>
           event.Id === updatedEvent.Id
@@ -381,7 +410,9 @@ export const EventProvider = ({ children }) => {
         return;
       }
 
-      const response = await apiClient.delete(`/events/${eventId}`);
+      const response = await apiClient.delete(`/events/${eventId}`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
       if (response.data.success) {
         setEvents((prevEvents) => {
           const filteredEvents = prevEvents.filter((e) => e.Id !== eventId);
@@ -412,7 +443,9 @@ export const EventProvider = ({ children }) => {
       const failedEvents = [];
       for (const eventId of pastEventIds) {
         try {
-          const response = await apiClient.delete(`/events/${eventId}`);
+          const response = await apiClient.delete(`/events/${eventId}`, {
+            headers: token ? { Authorization: `Bearer ${token}` } : {},
+          });
           if (!response.data.success) {
             failedEvents.push({ id: eventId, message: response.data.message });
           }

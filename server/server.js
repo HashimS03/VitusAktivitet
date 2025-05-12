@@ -29,14 +29,6 @@ app.use(
   })
 );
 
-// Middleware to check if user is authenticated
-const authenticateUser = (req, res, next) => {
-  if (!req.session.userId) {
-    return res.status(401).json({ success: false, message: "Unauthorized" });
-  }
-  next();
-};
-
 // In-memory logging
 const recentLogs = [];
 const MAX_LOGS = 100;
@@ -61,6 +53,14 @@ function serverLog(type, message, details = null) {
 
   console[type](message, details || "");
 }
+
+// Middleware to check if user is authenticated
+const authenticateUser = (req, res, next) => {
+  if (!req.session.userId) {
+    return res.status(401).json({ success: false, message: "Unauthorized" });
+  }
+  next();
+};
 
 // JWT authentication middleware
 const authenticateJWT = (req, res, next) => {
@@ -352,6 +352,7 @@ app.get("/user", authenticateJWT, async (req, res) => {
   }
 });
 
+// 🔹 Route to Fetch User Statistics
 app.get("/user-statistics", authenticateJWT, async (req, res) => {
   serverLog(
     "log",
@@ -410,7 +411,7 @@ app.get("/events/:eventId/participants", authenticateJWT, async (req, res) => {
       .request()
       .input("eventId", sql.Int, eventId)
       .input("userId", sql.Int, userId).query(`
-        SELECT e.Id, e.event_type
+        SELECT e.Id, e.event_type, e.team_count, e.members_per_team, e.total_participants
         FROM [EVENTS] e
         LEFT JOIN [EVENT_PARTICIPANTS] ep ON e.Id = ep.event_id
         WHERE e.Id = @eventId AND (e.created_by = @userId OR ep.user_id = @userId)
@@ -426,7 +427,7 @@ app.get("/events/:eventId/participants", authenticateJWT, async (req, res) => {
     const isTeamEvent = event.event_type === "team";
 
     // Fetch participants with team info
-    const participants = await pool.request().input("eventId", sql.Int, eventId)
+    const participantsResult = await pool.request().input("eventId", sql.Int, eventId)
       .query(`
         SELECT 
           ep.user_id, 
@@ -443,7 +444,10 @@ app.get("/events/:eventId/participants", authenticateJWT, async (req, res) => {
     res.json({
       success: true,
       isTeamEvent,
-      participants: participants.recordset,
+      team_count: event.team_count || 0,
+      members_per_team: event.members_per_team || 0,
+      total_participants: event.total_participants || 0,
+      participants: participantsResult.recordset,
     });
   } catch (err) {
     serverLog("error", "Participants fetch error:", err);
@@ -482,7 +486,11 @@ app.post("/join-event/:eventId", authenticateJWT, async (req, res) => {
     const eventCheck = await pool
       .request()
       .input("eventId", sql.Int, eventId)
-      .query("SELECT Id, created_by FROM [EVENTS] WHERE Id = @eventId");
+      .query(`
+        SELECT Id, created_by, title, start_date, end_date, event_type, goal, activity, total_participants, team_count, members_per_team
+        FROM [EVENTS]
+        WHERE Id = @eventId
+      `);
     if (eventCheck.recordset.length === 0) {
       return res
         .status(404)
@@ -537,9 +545,38 @@ app.post("/join-event/:eventId", authenticateJWT, async (req, res) => {
         VALUES (@userId, @eventId, @teamId, @joinedAt, @progress)
       `);
 
-    res
-      .status(201)
-      .json({ success: true, message: "Joined event successfully" });
+    // Fetch participants for the event
+    const participantsResult = await pool.request().input("eventId", sql.Int, eventId)
+      .query(`
+        SELECT 
+          ep.user_id, 
+          ep.team_id, 
+          ep.progress AS individual_progress,
+          t.progress AS team_progress,
+          u.name
+        FROM [EVENT_PARTICIPANTS] ep
+        JOIN [USER] u ON ep.user_id = u.Id
+        LEFT JOIN [TEAMS] t ON ep.team_id = t.Id
+        WHERE ep.event_id = @eventId
+      `);
+
+    res.status(201).json({
+      success: true,
+      message: "Joined event successfully",
+      event: {
+        Id: event.Id,
+        title: event.title,
+        start_date: event.start_date,
+        end_date: event.end_date,
+        isTeamEvent: event.event_type === "team",
+        goal: event.goal || 0,
+        activity: event.activity || "enheter",
+        total_participants: event.total_participants || 0,
+        team_count: event.team_count || 0,
+        members_per_team: event.members_per_team || 0,
+        participants: participantsResult.recordset,
+      },
+    });
   } catch (err) {
     serverLog("error", "Join event error:", err);
     res.status(500).json({
@@ -889,15 +926,15 @@ app.post("/events", authenticateJWT, async (req, res) => {
       .request()
       .input("title", sql.NVarChar, title)
       .input("description", sql.NVarChar, description || null)
-      .input("activity", sql.NVarChar, activity || null)
-      .input("goal", sql.Int, goal || null)
-      .input("start_date", sql.DateTime, new Date(start_date)) // Changed to sql.DateTime
-      .input("end_date", sql.DateTime, new Date(end_date))     // Changed to sql.DateTime
+      .input("activity", sql.NVarChar, activity || "enheter")
+      .input("goal", sql.Int, goal || 0)
+      .input("start_date", sql.DateTime, new Date(start_date))
+      .input("end_date", sql.DateTime, new Date(end_date))
       .input("location", sql.NVarChar, location || null)
-      .input("event_type", sql.NVarChar, event_type || null)
-      .input("total_participants", sql.Int, total_participants || null)
-      .input("team_count", sql.Int, team_count || null)
-      .input("members_per_team", sql.Int, members_per_team || null)
+      .input("event_type", sql.NVarChar, event_type || "individual")
+      .input("total_participants", sql.Int, total_participants || 0)
+      .input("team_count", sql.Int, team_count || 0)
+      .input("members_per_team", sql.Int, members_per_team || 0)
       .input("created_by", sql.Int, req.session.userId).query(`
         INSERT INTO [EVENTS] 
         (title, description, activity, goal, start_date, end_date, location, event_type, total_participants, team_count, members_per_team, created_by)
@@ -1031,6 +1068,51 @@ app.put("/events/:eventId/progress", authenticateJWT, async (req, res) => {
   }
 });
 
+// 🔹 Route to Fetch a Single Event
+app.get("/events/:eventId", authenticateJWT, async (req, res) => {
+  serverLog("log", "Event fetch request for eventId:", req.params.eventId);
+  try {
+    const eventId = parseInt(req.params.eventId, 10);
+    if (isNaN(eventId)) {
+      return res
+        .status(400)
+        .json({ success: false, message: "Invalid event ID" });
+    }
+
+    const userId = req.session.userId;
+    const pool = await poolPromise;
+    const result = await pool
+      .request()
+      .input("eventId", sql.Int, eventId)
+      .input("userId", sql.Int, userId).query(`
+        SELECT e.*
+        FROM [EVENTS] e
+        LEFT JOIN [EVENT_PARTICIPANTS] ep ON e.Id = ep.event_id
+        WHERE e.Id = @eventId AND (e.created_by = @userId OR ep.user_id = @userId)
+      `);
+
+    if (result.recordset.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: "Event not found or you lack permission",
+      });
+    }
+
+    res.json({ success: true, event: result.recordset[0] });
+  } catch (err) {
+    serverLog("error", "Event fetch error:", err);
+    const errorDetails = {
+      message: err.message,
+      stack: process.env.NODE_ENV !== "production" ? err.stack : undefined,
+    };
+    serverLog("error", "Error details:", errorDetails);
+    res.status(500).json({
+      success: false,
+      message: `Failed to fetch event: ${err.message}`,
+    });
+  }
+});
+
 // 🔹 Route to Fetch All Events for a User (Host or Participant)
 app.get("/events", authenticateJWT, async (req, res) => {
   serverLog("log", "Events fetch request for userId:", req.session.userId);
@@ -1113,15 +1195,15 @@ app.put("/events/:Id", authenticateJWT, async (req, res) => {
       .input("eventId", sql.Int, eventId)
       .input("title", sql.NVarChar, title)
       .input("description", sql.NVarChar, description || null)
-      .input("activity", sql.NVarChar, activity || null)
-      .input("goal", sql.Int, goal || null)
-      .input("start_date", sql.DateTime, new Date(start_date)) // Changed to sql.DateTime
-      .input("end_date", sql.DateTime, new Date(end_date))     // Changed to sql.DateTime
+      .input("activity", sql.NVarChar, activity || "enheter")
+      .input("goal", sql.Int, goal || 0)
+      .input("start_date", sql.DateTime, new Date(start_date))
+      .input("end_date", sql.DateTime, new Date(end_date))
       .input("location", sql.NVarChar, location || null)
-      .input("event_type", sql.NVarChar, event_type || null)
-      .input("total_participants", sql.Int, total_participants || null)
-      .input("team_count", sql.Int, team_count || null)
-      .input("members_per_team", sql.Int, members_per_team || null).query(`
+      .input("event_type", sql.NVarChar, event_type || "individual")
+      .input("total_participants", sql.Int, total_participants || 0)
+      .input("team_count", sql.Int, team_count || 0)
+      .input("members_per_team", sql.Int, members_per_team || 0).query(`
         UPDATE [EVENTS]
         SET title = @title,
             description = @description,
@@ -1156,7 +1238,7 @@ app.put("/events/:Id", authenticateJWT, async (req, res) => {
 app.delete("/events/:Id", authenticateJWT, async (req, res) => {
   serverLog("log", "Event deletion request received for eventId:", req.params.Id);
   try {
-    const eventId = parseInt(req.params.Id, 10); // Sørg for at ID er et heltall
+    const eventId = parseInt(req.params.Id, 10);
     if (isNaN(eventId)) {
       serverLog("error", "Invalid eventId format:", req.params.Id);
       return res
@@ -1166,7 +1248,7 @@ app.delete("/events/:Id", authenticateJWT, async (req, res) => {
 
     const pool = await poolPromise;
 
-    // Sjekk om hendelsen finnes
+    // Check if the event exists
     const eventCheck = await pool
       .request()
       .input("eventId", sql.Int, eventId)
@@ -1193,7 +1275,7 @@ app.delete("/events/:Id", authenticateJWT, async (req, res) => {
         });
     }
 
-    // Slett tilknyttede deltakere og lag først (hvis nødvendig)
+    // Delete associated participants and teams first
     await pool
       .request()
       .input("eventId", sql.Int, eventId)
@@ -1204,7 +1286,7 @@ app.delete("/events/:Id", authenticateJWT, async (req, res) => {
       .input("eventId", sql.Int, eventId)
       .query("DELETE FROM [TEAMS] WHERE event_id = @eventId");
 
-    // Slett hendelsen
+    // Delete the event
     const result = await pool
       .request()
       .input("eventId", sql.Int, eventId)
@@ -1231,7 +1313,7 @@ app.delete("/events/:Id", authenticateJWT, async (req, res) => {
       message: `Failed to delete event: ${err.message}`,
     });
   }
-}); 
+});
 
 // 🔹 Basic Test Endpoint
 app.get("/test", (req, res) => {
