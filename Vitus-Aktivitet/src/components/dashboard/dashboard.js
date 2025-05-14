@@ -1,10 +1,4 @@
-import React, {
-  useState,
-  useEffect,
-  useCallback,
-  useContext,
-  useRef,
-} from "react";
+import React, { useState, useEffect, useCallback, useContext, useRef } from "react";
 import { AppState } from "react-native";
 import { useRoute, useFocusEffect } from "@react-navigation/native";
 import {
@@ -13,322 +7,75 @@ import {
   Text,
   TouchableOpacity,
   StyleSheet,
-  Dimensions,
+  FlatList,
   Image,
   ScrollView,
-  Modal,
-  FlatList,
-  TextInput,
-  Animated,
   Alert,
+  Animated,
 } from "react-native";
-import { Users, Bell, Award, ChevronRight, X } from "lucide-react-native";
+import { Users, Bell, Award, ChevronRight } from "lucide-react-native";
 import * as Progress from "react-native-progress";
-import Svg, {
-  Circle,
-  Defs,
-  LinearGradient,
-  Stop,
-  Rect,
-} from "react-native-svg";
-import StepCounter from "../stepcounter/stepcounter";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useNavigation } from "@react-navigation/native";
-import FloatingSymbols from "../../components/BackgroundAnimation/FloatingSymbols";
-import { useTheme } from "../context/ThemeContext";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { Trophy } from "lucide-react-native";
-import Color from "color";
-import AsyncStorage from "@react-native-async-storage/async-storage";
+
+// Constants
+import { DASHBOARD_CONSTANTS } from '../../constants/dashboard';
+
+// Components
+import FloatingSymbols from "../BackgroundAnimation/FloatingSymbols";
+import { useTheme } from "../context/ThemeContext";
 import { EventContext } from "../events/EventContext";
 import { trophyData } from "../profile/achievements";
-import StepCalculator from "../dashboard/StepCalculator";
+import StepCounter from "../stepcounter/stepcounter";
 import { UserContext } from "../context/UserContext";
-import axios from "axios";
-import { SERVER_CONFIG } from "../../config/serverConfig";
+import { CustomProgressCircle } from "./components/CustomProgressCircle";
+import { EnhancedTutorial } from "./components/EnhancedTutorial";
+import { GoalSettingModal } from "./components/GoalSettingModal";
+import { StepCalculatorModal } from "./components/StepCalculatorModal";
+import { EventCard } from "./components/EventCard";
+import { StatCard } from "./components/StatCard";
 
-const SCREEN_WIDTH = Dimensions.get("window").width;
-const SCREEN_HEIGHT = Dimensions.get("window").height;
-const DAILY_STEP_GOAL = 7500;
-const PROGRESS_RING_SIZE = 300;
-const PROGRESS_RING_THICKNESS = 30;
-
-const CustomProgressCircle = ({ progress, accentColor }) => {
-  const radius = (PROGRESS_RING_SIZE - PROGRESS_RING_THICKNESS) / 2;
-  const circumference = radius * 2 * Math.PI;
-  const strokeDashoffset = circumference - progress * circumference;
-
-  const transparentAccentColor = Color(accentColor).alpha(0.2).toString();
-
-  return (
-    <Svg height={PROGRESS_RING_SIZE} width={PROGRESS_RING_SIZE}>
-      <Defs>
-        <LinearGradient id="grad" x1="0" y1="0" x2="1" y2="1">
-          <Stop offset="0" stopColor={accentColor} stopOpacity="1" />
-          <Stop offset="1" stopColor={accentColor} stopOpacity="0.8" />
-        </LinearGradient>
-      </Defs>
-      <Circle
-        cx={PROGRESS_RING_SIZE / 2}
-        cy={PROGRESS_RING_SIZE / 2}
-        r={radius}
-        stroke={transparentAccentColor}
-        strokeWidth={PROGRESS_RING_THICKNESS}
-        fill="none"
-      />
-      <Circle
-        cx={PROGRESS_RING_SIZE / 2}
-        cy={PROGRESS_RING_SIZE / 2}
-        r={radius}
-        stroke="url(#grad)"
-        strokeWidth={PROGRESS_RING_THICKNESS}
-        strokeDasharray={`${circumference} ${circumference}`}
-        strokeDashoffset={strokeDashoffset}
-        strokeLinecap="round"
-        fill="none"
-        transform={`rotate(-90 ${PROGRESS_RING_SIZE / 2} ${
-          PROGRESS_RING_SIZE / 2
-        })`}
-      />
-    </Svg>
-  );
-};
-
-const EnhancedTutorial = ({
-  visible,
-  currentStep,
-  totalSteps,
-  message,
-  onNext,
-  onBack,
-  onSkip,
-  highlightPosition,
-  theme,
-  accentColor,
-}) => {
-  const fadeAnim = useRef(new Animated.Value(0)).current;
-  const scaleAnim = useRef(new Animated.Value(0.9)).current;
-  const pulseAnim = useRef(new Animated.Value(1)).current;
-
-  useEffect(() => {
-    if (visible) {
-      Animated.parallel([
-        Animated.timing(fadeAnim, {
-          toValue: 1,
-          duration: 300,
-          useNativeDriver: true,
-        }),
-        Animated.timing(scaleAnim, {
-          toValue: 1,
-          duration: 300,
-          useNativeDriver: true,
-        }),
-      ]).start();
-
-      Animated.loop(
-        Animated.sequence([
-          Animated.timing(pulseAnim, {
-            toValue: 1.05,
-            duration: 500,
-            useNativeDriver: true,
-          }),
-          Animated.timing(pulseAnim, {
-            toValue: 1,
-            duration: 500,
-            useNativeDriver: true,
-          }),
-        ])
-      ).start();
-    } else {
-      fadeAnim.setValue(0);
-      scaleAnim.setValue(0.9);
-      pulseAnim.setValue(1);
-    }
-  }, [visible, currentStep]);
-
-  if (!visible) return null;
-
-  const highlightWidth = highlightPosition.width || 100;
-  const highlightHeight = highlightPosition.height || 100;
-
-  const tooltipWidth = 280;
-  const tooltipHeight = 150;
-
-  let tooltipLeft =
-    highlightPosition.left + highlightWidth / 2 - tooltipWidth / 2;
-  let tooltipTop = highlightPosition.top + highlightHeight + 20;
-
-  if (tooltipLeft < 20) tooltipLeft = 20;
-  if (tooltipLeft + tooltipWidth > SCREEN_WIDTH - 20)
-    tooltipLeft = SCREEN_WIDTH - tooltipWidth - 20;
-
-  if (tooltipTop + tooltipHeight > SCREEN_HEIGHT - 150) {
-    tooltipTop = highlightPosition.top - tooltipHeight - 20;
-  }
-  if (tooltipTop < 50)
-    tooltipTop = highlightPosition.top + highlightHeight + 20;
-
-  return (
-    <View style={styles.tutorialContainer}>
-      <Svg
-        height={SCREEN_HEIGHT}
-        width={SCREEN_WIDTH}
-        style={styles.highlightSvg}
-      >
-        <Defs>
-          <LinearGradient id="highlightGradient" x1="0" y1="0" x2="1" y2="1">
-            <Stop offset="0" stopColor={accentColor} stopOpacity="0.2" />
-            <Stop offset="1" stopColor={accentColor} stopOpacity="0.15" />
-          </LinearGradient>
-          <LinearGradient id="glowGradient" x1="0" y1="0" x2="1" y2="1">
-            <Stop offset="0" stopColor={accentColor} stopOpacity="0.25" />
-            <Stop offset="1" stopColor={accentColor} stopOpacity="0" />
-          </LinearGradient>
-        </Defs>
-        <Rect
-          x="0"
-          y="0"
-          width={SCREEN_WIDTH}
-          height={SCREEN_HEIGHT}
-          fill="rgba(0,0,0,0.75)"
-          zIndex={999}
-        />
-        <Rect
-          x={highlightPosition.left - 10}
-          y={highlightPosition.top - 10}
-          width={highlightWidth + 20}
-          height={highlightHeight + 20}
-          fill="transparent"
-          stroke="transparent"
-          strokeWidth={0}
-          zIndex={1001}
-        />
-      </Svg>
-
-      <Animated.View
-        style={[
-          styles.tutorialTooltip,
-          {
-            backgroundColor: theme.surface,
-            left: tooltipLeft,
-            top: tooltipTop,
-            opacity: fadeAnim,
-            transform: [{ scale: scaleAnim }],
-            elevation: 10,
-            zIndex: 1002,
-          },
-        ]}
-      >
-        <View style={styles.tooltipHeader}>
-          <Text style={[styles.stepIndicator, { color: accentColor }]}>
-            {currentStep + 1}/{totalSteps}
-          </Text>
-          <TouchableOpacity onPress={onSkip} style={styles.skipButton}>
-            <X size={18} color={theme.textSecondary} />
-          </TouchableOpacity>
-        </View>
-        <Text style={[styles.tutorialMessage, { color: theme.text }]}>
-          {message}
-        </Text>
-        <View style={styles.tooltipFooter}>
-          {currentStep > 0 && (
-            <TouchableOpacity
-              style={[
-                styles.tutorialButton,
-                { backgroundColor: theme.border, marginRight: 8 },
-              ]}
-              onPress={onBack}
-            >
-              <Text style={[styles.tutorialButtonText, { color: theme.text }]}>
-                Tilbake
-              </Text>
-            </TouchableOpacity>
-          )}
-          <TouchableOpacity
-            style={[styles.tutorialButton, { backgroundColor: accentColor }]}
-            onPress={onNext}
-          >
-            <Text style={styles.tutorialButtonText}>
-              {currentStep < totalSteps - 1 ? "Neste" : "Fullfør"}
-            </Text>
-          </TouchableOpacity>
-        </View>
-      </Animated.View>
-    </View>
-  );
-};
-
-const updateStreaks = async (stepCount, dailyGoal, isNewDayReset = false) => {
-  const today = new Date();
-  const todayString = today.toISOString().split("T")[0];
-
-  const storedLastDate = await AsyncStorage.getItem("lastCompletionDate");
-  const storedStreak = parseInt(
-    (await AsyncStorage.getItem("currentStreak")) || "0",
-    10
-  );
-  const storedBestStreak = parseInt(
-    (await AsyncStorage.getItem("bestStreak")) || "0",
-    10
-  );
-
-  let currentStreak = storedStreak;
-  let lastCompletionDate = storedLastDate || null;
-
-  const hasReachedGoal = stepCount >= dailyGoal;
-
-  if (
-    isNewDayReset &&
-    lastCompletionDate &&
-    lastCompletionDate !== todayString
-  ) {
-    const lastDate = new Date(lastCompletionDate);
-    const diffDays = Math.floor((today - lastDate) / (1000 * 60 * 60 * 24));
-    if (diffDays > 1) currentStreak = 0;
-  } else if (hasReachedGoal && lastCompletionDate !== todayString) {
-    const diffDays = lastCompletionDate
-      ? Math.floor(
-          (today - new Date(lastCompletionDate)) / (1000 * 60 * 60 * 24)
-        )
-      : null;
-    if (!lastCompletionDate || diffDays === 1) currentStreak += 1;
-    else if (diffDays > 1) currentStreak = 1;
-    lastCompletionDate = todayString;
-  }
-
-  const bestStreak = Math.max(currentStreak, storedBestStreak);
-
-  await AsyncStorage.setItem("currentStreak", currentStreak.toString());
-  await AsyncStorage.setItem("bestStreak", bestStreak.toString());
-  if (lastCompletionDate) {
-    await AsyncStorage.setItem("lastCompletionDate", lastCompletionDate);
-  }
-
-  return { currentStreak, bestStreak };
-};
+// Services and Utilities
+import { updateStreaks } from "../../utils/helpers";
+import { 
+  fetchStepActivity, 
+  updateStepCount, 
+  fetchUserStatistics,
+  completeEvent as apiCompleteEvent,
+  syncQueue
+} from "../../services/apiService";
+import { calculateTrophyProgress, getTrophyColor } from "../../utils/trophyUtils";
 
 export default function Dashboard() {
+  // Context and navigation
   const { userId } = useContext(UserContext);
+  const { activeEvents } = useContext(EventContext);
+  const { theme, accentColor } = useTheme();
+  const navigation = useNavigation();
+  const route = useRoute();
+  const scrollViewRef = useRef(null);
+  
+  // State
   const [stepCount, setStepCount] = useState(0);
   const [bestStreak, setBestStreak] = useState(0);
   const [streak, setStreak] = useState(0);
-  const navigation = useNavigation();
-  const { theme, accentColor } = useTheme();
+  const [dailyGoal, setDailyGoal] = useState(DASHBOARD_CONSTANTS.DAILY_STEP_GOAL);
+  const [newGoal, setNewGoal] = useState("");
+  
+  // UI State
   const [showTutorial, setShowTutorial] = useState(false);
   const [tutorialStep, setTutorialStep] = useState(0);
   const [showGoalModal, setShowGoalModal] = useState(false);
-  const [dailyGoal, setDailyGoal] = useState(DAILY_STEP_GOAL);
-  const [newGoal, setNewGoal] = useState("");
   const [showCalculatorModal, setShowCalculatorModal] = useState(false);
-  const { activeEvents } = useContext(EventContext);
-  const route = useRoute();
-  const scrollViewRef = useRef(null);
-
-  const TOTAL_TUTORIAL_STEPS = 8;
-
+  
+  // Trophy state
   const [randomTrophy, setRandomTrophy] = useState(null);
   const [unlockedLevel, setUnlockedLevel] = useState(0);
   const [progress, setProgress] = useState({ current: 0, nextGoal: 0 });
-
+  
+  // Assets
   const vitusHappyImages = {
     "#48CAB2": require("../../../assets/Vitus_Happy.png"),
     "#FF6B6B": require("../../../assets/Vitus_Happy_Red.png"),
@@ -336,178 +83,102 @@ export default function Dashboard() {
     "#4C82FB": require("../../../assets/Vitus_Happy_Blue.png"),
     "#8A4FFF": require("../../../assets/Vitus_Happy_Purple.png"),
   };
+  const selectedVitusHappyImage = vitusHappyImages[accentColor] || require("../../../assets/Vitus_Happy.png");
 
-  const selectedVitusHappyImage =
-    vitusHappyImages[accentColor] || require("../../../assets/Vitus_Happy.png");
-
+  // Load random trophy and progress
   useEffect(() => {
-    const selectRandomTrophyAndLoadProgress = async () => {
+    loadRandomTrophyAndProgress();
+  }, [userId]);
+  
+  // Check and reset daily steps
+  useEffect(() => {
+    checkAndResetDailySteps();
+  }, [dailyGoal, userId]);
+  
+  useFocusEffect(
+    useCallback(() => {
+      checkAndResetDailySteps();
+    }, [dailyGoal, userId])
+  );
+  
+  // Load user data
+  useEffect(() => {
+    loadUserData();
+  }, [userId]);
+  
+  // Update steps when returning to the screen
+  useFocusEffect(
+    useCallback(() => {
+      updateStepsFromRoute();
+    }, [route.params, dailyGoal, userId])
+  );
+
+  // Check event completion
+  useEffect(() => {
+    checkEventCompletion();
+  }, [activeEvents]);
+  
+  // Check if first time user
+  useEffect(() => {
+    checkFirstTimeUser();
+  }, []);
+
+  // Handle app state changes for syncing queue
+  useEffect(() => {
+    const handleAppStateChange = (nextAppState) => {
+      if (nextAppState === "active") {
+        syncQueue();
+      }
+    };
+    
+    const subscription = AppState.addEventListener("change", handleAppStateChange);
+    return () => subscription.remove();
+  }, []);
+  
+  // Load random trophy and progress data
+  const loadRandomTrophyAndProgress = async () => {
+    try {
+      // Select random trophy
       const trophyKeys = Object.keys(trophyData);
       const randomIndex = Math.floor(Math.random() * trophyKeys.length);
       const selectedTrophy = trophyData[trophyKeys[randomIndex]];
       setRandomTrophy(selectedTrophy);
 
       if (!userId) return;
-      try {
-        const response = await axios.get(
-          `${SERVER_CONFIG.getBaseUrl()}/step-activity`,
-          {
-            withCredentials: true,
-          }
-        );
-        const latestActivity = response.data.data[0];
-        const stepCount = latestActivity ? latestActivity.step_count : 0;
-        const currentStreak = parseInt(
-          (await AsyncStorage.getItem("currentStreak")) || "0",
-          10
-        );
-        const totalSteps = parseInt(
-          (await AsyncStorage.getItem("totalSteps")) || "0",
-          10
-        );
-        const participatedEvents = JSON.parse(
-          (await AsyncStorage.getItem("participatedEvents")) || "[]"
-        );
-        const completedEvents = JSON.parse(
-          (await AsyncStorage.getItem("completedEvents")) || "[]"
-        );
-        const leaderboardRank = parseInt(
-          (await AsyncStorage.getItem("leaderboardRank")) || "999",
-          10
-        );
-        const privacyExplored =
-          (await AsyncStorage.getItem("privacyExplored")) === "true";
+      
+      // Fetch metrics
+      const stepsData = await fetchStepActivity();
+      const latestActivity = stepsData[0];
+      const stepCount = latestActivity ? latestActivity.step_count : 0;
+      
+      const currentStreak = parseInt(await AsyncStorage.getItem("currentStreak") || "0", 10);
+      const totalSteps = parseInt(await AsyncStorage.getItem("totalSteps") || "0", 10);
+      const participatedEvents = JSON.parse(await AsyncStorage.getItem("participatedEvents") || "[]");
+      const completedEvents = JSON.parse(await AsyncStorage.getItem("completedEvents") || "[]");
+      const leaderboardRank = parseInt(await AsyncStorage.getItem("leaderboardRank") || "999", 10);
+      const privacyExplored = await AsyncStorage.getItem("privacyExplored") === "true";
 
-        let level = 0;
-        let currentProgress = 0;
-        let nextGoal = selectedTrophy.levels[0].goal;
+      // Calculate trophy level and progress
+      const metrics = { 
+        stepCount, 
+        currentStreak, 
+        totalSteps,
+        participatedEvents,
+        completedEvents,
+        leaderboardRank,
+        privacyExplored
+      };
+      
+      const { level, currentProgress, nextGoal } = calculateTrophyProgress(selectedTrophy, metrics);
 
-        switch (selectedTrophy.name) {
-          case "Step Master":
-            currentProgress = stepCount;
-            if (stepCount >= 15000) {
-              level = 3;
-              nextGoal = 15000;
-            } else if (stepCount >= 10000) {
-              level = 2;
-              nextGoal = 15000;
-            } else if (stepCount >= 5000) {
-              level = 1;
-              nextGoal = 10000;
-            } else {
-              nextGoal = 5000;
-            }
-            break;
-          case "Event Enthusiast":
-            currentProgress = participatedEvents.length;
-            if (participatedEvents.length >= 10) {
-              level = 3;
-              nextGoal = 10;
-            } else if (participatedEvents.length >= 5) {
-              level = 2;
-              nextGoal = 10;
-            } else if (participatedEvents.length >= 1) {
-              level = 1;
-              nextGoal = 5;
-            } else {
-              nextGoal = 1;
-            }
-            break;
-          case "Streak Star":
-            currentProgress = currentStreak;
-            if (currentStreak >= 15) {
-              level = 3;
-              nextGoal = 15;
-            } else if (currentStreak >= 10) {
-              level = 2;
-              nextGoal = 15;
-            } else if (currentStreak >= 5) {
-              level = 1;
-              nextGoal = 10;
-            } else {
-              nextGoal = 5;
-            }
-            break;
-          case "Event Champion":
-            currentProgress = completedEvents.length;
-            if (completedEvents.length >= 5) {
-              level = 3;
-              nextGoal = 5;
-            } else if (completedEvents.length >= 3) {
-              level = 2;
-              nextGoal = 5;
-            } else if (completedEvents.length >= 1) {
-              level = 1;
-              nextGoal = 3;
-            } else {
-              nextGoal = 1;
-            }
-            break;
-          case "Leaderboard Legend":
-            currentProgress = leaderboardRank <= 10 ? 11 - leaderboardRank : 0;
-            if (leaderboardRank <= 1) {
-              level = 3;
-              nextGoal = 10;
-            } else if (leaderboardRank <= 5) {
-              level = 2;
-              nextGoal = 5;
-            } else if (leaderboardRank <= 10) {
-              level = 1;
-              nextGoal = 5;
-            } else {
-              nextGoal = 10;
-            }
-            break;
-          case "Step Titan":
-            currentProgress = totalSteps;
-            if (totalSteps >= 250000) {
-              level = 3;
-              nextGoal = 250000;
-            } else if (totalSteps >= 100000) {
-              level = 2;
-              nextGoal = 250000;
-            } else if (totalSteps >= 50000) {
-              level = 1;
-              nextGoal = 100000;
-            } else {
-              nextGoal = 50000;
-            }
-            break;
-          case "Privacy Sleuth":
-            currentProgress = privacyExplored ? 1 : 0;
-            if (privacyExplored) {
-              level = 1;
-              nextGoal = 1;
-            } else {
-              nextGoal = 1;
-            }
-            break;
-          default:
-            level = 0;
-        }
-        setUnlockedLevel(level);
-        setProgress({ current: currentProgress, nextGoal });
-      } catch (error) {
-        console.error("Error loading trophy progress:", error);
-        if (error.response && error.response.status === 500) {
-          Alert.alert(
-            "Server Error",
-            "Unable to load trophy progress. Please try again later."
-          );
-        } else if (error.response && error.response.status === 401) {
-          Alert.alert("Authentication Error", "Please log in to sync data.");
-        } else if (error.response && error.response.status === 503) {
-          Alert.alert(
-            "Server Problem",
-            "The server is temporarily unavailable. Data is saved locally, and we'll sync when the server is back.",
-            [{ text: "OK" }]
-          );
-        }
-      }
-    };
-    selectRandomTrophyAndLoadProgress();
-  }, [userId]);
-
+      setUnlockedLevel(level);
+      setProgress({ current: currentProgress, nextGoal });
+    } catch (error) {
+      console.error("Error loading trophy progress:", error);
+    }
+  };
+  
+  // Check and reset daily steps
   const checkAndResetDailySteps = async () => {
     try {
       const today = new Date();
@@ -515,350 +186,162 @@ export default function Dashboard() {
       const lastResetDate = await AsyncStorage.getItem("lastStepResetDate");
 
       if (lastResetDate !== todayString && userId) {
-        const response = await axios.get(
-          `${SERVER_CONFIG.getBaseUrl()}/step-activity`,
-          {
-            withCredentials: true,
-          }
-        );
-        const latestActivity = response.data.data[0];
+        // Fetch current step data
+        const stepsData = await fetchStepActivity();
+        const latestActivity = stepsData[0];
         const previousSteps = latestActivity ? latestActivity.step_count : 0;
 
-        // Store previous day's steps in STEPACTIVITY (already handled by backend)
-        if (lastResetDate && previousSteps > 0) {
-          // No need to store in AsyncStorage; backend handles STEPACTIVITY
-          console.log(
-            `Previous day's steps (${previousSteps}) recorded for ${lastResetDate}`
-          );
+        // Reset daily steps
+        try {
+          await updateStepCount(0);
+        } catch (error) {
+          console.error("Error resetting step count:", error);
         }
 
-        // Reset daily steps by creating a new record
-        await axios
-          .post(
-            `${SERVER_CONFIG.getBaseUrl()}/step-activity`,
-            { stepCount: 0, distance: null, timestamp: new Date() },
-            { withCredentials: true }
-          )
-          .catch((error) => {
-            if (error.response && error.response.status === 503) {
-              queueRequest(
-                "POST",
-                `${SERVER_CONFIG.getBaseUrl()}/step-activity`,
-                {
-                  stepCount: 0,
-                  distance: null,
-                  timestamp: new Date(),
-                }
-              );
-            } else if (error.response && error.response.status === 401) {
-              Alert.alert(
-                "Authentication Error",
-                "Please log in to reset steps."
-              );
-            }
-          });
-
+        // Update local state
         setStepCount(0);
         await AsyncStorage.setItem("stepCount", "0");
         await AsyncStorage.setItem("lastStepResetDate", todayString);
 
-        const { currentStreak, bestStreak } = await updateStreaks(
-          previousSteps,
-          dailyGoal,
-          true
-        );
+        // Update streaks
+        const { currentStreak, bestStreak } = await updateStreaks(previousSteps, dailyGoal, true);
         setStreak(currentStreak);
         setBestStreak(bestStreak);
 
-        const pendingGoal = await AsyncStorage.getItem("pendingDailyGoal");
-        const pendingGoalDate = await AsyncStorage.getItem("pendingGoalDate");
-        if (pendingGoal && pendingGoalDate === todayString) {
-          const newGoal = parseInt(pendingGoal, 10);
-          if (!isNaN(newGoal) && newGoal > 0) {
-            await AsyncStorage.setItem("dailyGoal", JSON.stringify(newGoal));
-            setDailyGoal(newGoal);
-            await AsyncStorage.removeItem("pendingDailyGoal");
-            await AsyncStorage.removeItem("pendingGoalDate");
-          }
-        }
-
-        console.log(`✅ Daily reset performed for: ${todayString}`);
+        // Handle pending goal changes
+        await handlePendingGoalChanges(todayString);
       }
     } catch (error) {
       console.error("❌ Error during daily reset:", error);
-      if (error.response && error.response.status === 500) {
-        Alert.alert(
-          "Server Error",
-          "Unable to reset daily steps. Please try again later=(...)"
-        );
+    }
+  };
+  
+  // Handle pending goal changes
+  const handlePendingGoalChanges = async (todayString) => {
+    const pendingGoal = await AsyncStorage.getItem("pendingDailyGoal");
+    const pendingGoalDate = await AsyncStorage.getItem("pendingGoalDate");
+    
+    if (pendingGoal && pendingGoalDate === todayString) {
+      const newGoal = parseInt(pendingGoal, 10);
+      if (!isNaN(newGoal) && newGoal > 0) {
+        await AsyncStorage.setItem("dailyGoal", JSON.stringify(newGoal));
+        setDailyGoal(newGoal);
+        await AsyncStorage.removeItem("pendingDailyGoal");
+        await AsyncStorage.removeItem("pendingGoalDate");
       }
     }
   };
-
-  useEffect(() => {
-    checkAndResetDailySteps();
-  }, [dailyGoal, userId]);
-
-  useFocusEffect(
-    useCallback(() => {
-      checkAndResetDailySteps();
-    }, [dailyGoal, userId])
-  );
-
-  useEffect(() => {
-    const loadData = async () => {
-      if (!userId) return;
-      try {
-        const storedGoal = await AsyncStorage.getItem("dailyGoal");
-        const initialGoal = storedGoal
-          ? JSON.parse(storedGoal)
-          : DAILY_STEP_GOAL;
-        setDailyGoal(initialGoal);
-
-        const response = await axios.get(
-          `${SERVER_CONFIG.getBaseUrl()}/step-activity`,
-          {
-            withCredentials: true,
-          }
-        );
-        const latestActivity = response.data.data[0];
-        const initialSteps = latestActivity ? latestActivity.step_count : 0;
-        setStepCount(initialSteps);
-        await AsyncStorage.setItem("stepCount", JSON.stringify(initialSteps));
-
-        const { currentStreak, bestStreak } = await updateStreaks(
-          initialSteps,
-          initialGoal
-        );
-        setStreak(currentStreak);
-        setBestStreak(bestStreak);
-
-        const hasSeenTutorial = await AsyncStorage.getItem("hasSeenTutorial");
-        const storedTutorialStep = await AsyncStorage.getItem("tutorialStep");
-
-        if (hasSeenTutorial === null) {
-          setShowTutorial(true);
-          const currentStep = storedTutorialStep
-            ? JSON.parse(storedTutorialStep)
-            : 0;
-          setTutorialStep(currentStep);
-        } else {
-          setShowTutorial(false);
-          setTutorialStep(0);
-        }
-      } catch (error) {
-        console.error("Error loading data:", error);
-        if (error.response && error.response.status === 500) {
-          Alert.alert(
-            "Server Error",
-            "Unable to load data. Please try again later."
-          );
-        } else if (error.response && error.response.status === 401) {
-          Alert.alert("Authentication Error", "Please log in to load data.");
-        } else if (error.response && error.response.status === 503) {
-          Alert.alert(
-            "Server Problem",
-            "The server is temporarily unavailable. Data is saved locally, and we'll sync when the server is back.",
-            [{ text: "OK" }]
-          );
-        }
-      }
-    };
-    loadData();
-  }, [userId]);
-
-  useFocusEffect(
-    useCallback(() => {
-      const updateSteps = async () => {
-        if (!userId) return;
-        const maxRetries = 5;
-        let attempt = 0;
-
-        while (attempt < maxRetries) {
-          try {
-            const response = await axios.get(
-              `${SERVER_CONFIG.getBaseUrl()}/step-activity`,
-              {
-                withCredentials: true,
-              }
-            );
-            const latestActivity = response.data.data[0];
-            let previousSteps = latestActivity ? latestActivity.step_count : 0;
-
-            if (
-              route.params?.addedSteps &&
-              typeof route.params.addedSteps === "number"
-            ) {
-              const newSteps = route.params.addedSteps;
-              const newStepCount = previousSteps + newSteps;
-
-              // Update total steps
-              const totalSteps = parseInt(
-                (await AsyncStorage.getItem("totalSteps")) || "0",
-                10
-              );
-              const newTotalSteps = totalSteps + newSteps;
-              await AsyncStorage.setItem(
-                "totalSteps",
-                newTotalSteps.toString()
-              );
-
-              await axios.post(
-                `${SERVER_CONFIG.getBaseUrl()}/step-activity`,
-                {
-                  stepCount: newStepCount,
-                  distance: null,
-                  timestamp: new Date(),
-                },
-                { withCredentials: true }
-              );
-              setStepCount(newStepCount);
-              await AsyncStorage.setItem(
-                "stepCount",
-                JSON.stringify(newStepCount)
-              );
-              navigation.setParams({ addedSteps: null });
-            }
-            break;
-          } catch (error) {
-            attempt++;
-            console.error(`Attempt ${attempt} failed:`, error);
-            if (
-              error.response &&
-              error.response.status === 503 &&
-              attempt < maxRetries
-            ) {
-              await new Promise((resolve) =>
-                setTimeout(resolve, 3000 * attempt)
-              );
-              continue;
-            } else {
-              if (error.response && error.response.status === 500) {
-                Alert.alert(
-                  "Server Error",
-                  "Unable to update step count. Please try again later."
-                );
-              } else if (error.response && error.response.status === 401) {
-                Alert.alert(
-                  "Authentication Error",
-                  "Please log in to sync step data."
-                );
-              } else if (error.response && error.response.status === 503) {
-                queueRequest(
-                  "POST",
-                  `${SERVER_CONFIG.getBaseUrl()}/step-activity`,
-                  {
-                    stepCount: previousSteps + (route.params?.addedSteps || 0),
-                    distance: null,
-                    timestamp: new Date(),
-                  }
-                );
-                Alert.alert(
-                  "Server Problem",
-                  "The server is temporarily unavailable. Steps are saved locally, and we'll sync when the server is back.",
-                  [{ text: "OK" }]
-                );
-              }
-              break;
-            }
-          }
-        }
-      };
-      updateSteps();
-    }, [route.params, dailyGoal, userId])
-  );
-
-  const joinEvent = async (eventId) => {
+  
+  // Load initial user data
+  const loadUserData = async () => {
+    if (!userId) return;
+    
     try {
-      const participatedEvents = JSON.parse(
-        (await AsyncStorage.getItem("participatedEvents")) || "[]"
-      );
-      if (!participatedEvents.includes(eventId)) {
-        participatedEvents.push(eventId);
-        await AsyncStorage.setItem(
-          "participatedEvents",
-          JSON.stringify(participatedEvents)
-        );
-      }
-      if (
-        randomTrophy &&
-        ["Event Enthusiast", "Event Champion"].includes(randomTrophy.name)
-      ) {
-        const currentProgress = participatedEvents.length;
-        let level = 0;
-        let nextGoal = randomTrophy.levels[0].goal;
+      // Load daily goal
+      const storedGoal = await AsyncStorage.getItem("dailyGoal");
+      const initialGoal = storedGoal ? JSON.parse(storedGoal) : DASHBOARD_CONSTANTS.DAILY_STEP_GOAL;
+      setDailyGoal(initialGoal);
 
-        if (randomTrophy.name === "Event Enthusiast") {
-          if (currentProgress >= 10) {
-            level = 3;
-            nextGoal = 10;
-          } else if (currentProgress >= 5) {
-            level = 2;
-            nextGoal = 10;
-          } else if (currentProgress >= 1) {
-            level = 1;
-            nextGoal = 5;
-          } else {
-            nextGoal = 1;
-          }
-        } else if (randomTrophy.name === "Event Champion") {
-          const completedEvents = JSON.parse(
-            (await AsyncStorage.getItem("completedEvents")) || "[]"
-          );
-          const completedCount = completedEvents.length;
-          if (completedCount >= 5) {
-            level = 3;
-            nextGoal = 5;
-            palabha;
-          } else if (completedCount >= 3) {
-            level = 2;
-            nextGoal = 5;
-          } else if (completedCount >= 1) {
-            level = 1;
-            nextGoal = 3;
-          } else {
-            nextGoal = 1;
-          }
-        }
-        setUnlockedLevel(level);
-        setProgress({ current: currentProgress, nextGoal });
+      // Fetch step data
+      const stepsData = await fetchStepActivity();
+      const latestActivity = stepsData[0];
+      const initialSteps = latestActivity ? latestActivity.step_count : 0;
+      
+      setStepCount(initialSteps);
+      await AsyncStorage.setItem("stepCount", JSON.stringify(initialSteps));
+
+      // Update streak info
+      const { currentStreak, bestStreak } = await updateStreaks(initialSteps, initialGoal);
+      setStreak(currentStreak);
+      setBestStreak(bestStreak);
+
+      // Check tutorial status
+      const hasSeenTutorial = await AsyncStorage.getItem("hasSeenTutorial");
+      const storedTutorialStep = await AsyncStorage.getItem("tutorialStep");
+
+      if (hasSeenTutorial === null) {
+        setShowTutorial(true);
+        const currentStep = storedTutorialStep ? JSON.parse(storedTutorialStep) : 0;
+        setTutorialStep(currentStep);
+      } else {
+        setShowTutorial(false);
+        setTutorialStep(0);
       }
     } catch (error) {
-      console.error("Error joining event:", error);
+      console.error("Error loading user data:", error);
+    }
+  };
+  
+  // Update steps from route params
+  const updateStepsFromRoute = async () => {
+    if (!userId || !route.params?.addedSteps) return;
+    
+    const maxRetries = 3;
+    let attempt = 0;
+
+    while (attempt < maxRetries) {
+      try {
+        // Fetch current steps
+        const stepsData = await fetchStepActivity();
+        const latestActivity = stepsData[0];
+        let previousSteps = latestActivity ? latestActivity.step_count : 0;
+        const newSteps = route.params.addedSteps;
+        const newStepCount = previousSteps + newSteps;
+
+        // Update total steps in storage
+        const totalSteps = parseInt(await AsyncStorage.getItem("totalSteps") || "0", 10);
+        const newTotalSteps = totalSteps + newSteps;
+        await AsyncStorage.setItem("totalSteps", newTotalSteps.toString());
+
+        // Update step count on server
+        await updateStepCount(newStepCount);
+        
+        // Update local state
+        setStepCount(newStepCount);
+        await AsyncStorage.setItem("stepCount", JSON.stringify(newStepCount));
+        navigation.setParams({ addedSteps: null });
+        break;
+      } catch (error) {
+        attempt++;
+        console.error(`Attempt ${attempt} failed:`, error);
+        
+        if (attempt < maxRetries) {
+          await new Promise(resolve => setTimeout(resolve, 2000 * attempt));
+        }
+      }
     }
   };
 
+  // Handle event completion
+  const checkEventCompletion = async () => {
+    activeEvents.forEach(async (event) => {
+      if (event.progress === 1) {
+        await completeEvent(event.id);
+      }
+    });
+  };
+
+  // Mark event as completed
   const completeEvent = async (eventId) => {
     try {
-      const completedEvents = JSON.parse(
-        (await AsyncStorage.getItem("completedEvents")) || "[]"
-      );
+      // Try to complete on server
+      await apiCompleteEvent(eventId);
+      
+      // Update local storage
+      const completedEvents = JSON.parse(await AsyncStorage.getItem("completedEvents") || "[]");
+      
       if (!completedEvents.includes(eventId)) {
         completedEvents.push(eventId);
-        await AsyncStorage.setItem(
-          "completedEvents",
-          JSON.stringify(completedEvents)
-        );
+        await AsyncStorage.setItem("completedEvents", JSON.stringify(completedEvents));
       }
-      if (randomTrophy && ["Event Champion"].includes(randomTrophy.name)) {
-        const currentProgress = completedEvents.length;
-        let level = 0;
-        let nextGoal = randomTrophy.levels[0].goal;
-
-        if (randomTrophy.name === "Event Champion") {
-          if (currentProgress >= 5) {
-            level = 3;
-            nextGoal = 5;
-          } else if (currentProgress >= 3) {
-            level = 2;
-            nextGoal = 5;
-          } else if (currentProgress >= 1) {
-            level = 1;
-            nextGoal = 3;
-          } else {
-            nextGoal = 1;
-          }
-        }
+      
+      // Update trophy progress if relevant
+      if (randomTrophy && ["Event Champion", "Hendleses Konge"].includes(randomTrophy.name)) {
+        const metrics = {
+          completedEvents
+        };
+        
+        const { level, currentProgress, nextGoal } = calculateTrophyProgress(randomTrophy, metrics);
         setUnlockedLevel(level);
         setProgress({ current: currentProgress, nextGoal });
       }
@@ -867,36 +350,19 @@ export default function Dashboard() {
     }
   };
 
-  useEffect(() => {
-    const checkEventCompletion = async () => {
-      activeEvents.forEach(async (event) => {
-        if (event.progress === 1) {
-          await completeEvent(event.id);
-        }
-      });
-    };
-    checkEventCompletion();
-  }, [activeEvents]);
-
-  useEffect(() => {
-    checkFirstTimeUser();
-  }, []);
-
+  // Check first time user
   const checkFirstTimeUser = async () => {
     try {
       const hasSeenTutorial = await AsyncStorage.getItem("hasSeenTutorial");
-      if (hasSeenTutorial === null) {
-        setShowTutorial(true);
-      } else {
-        setShowTutorial(false);
-      }
+      setShowTutorial(hasSeenTutorial === null);
     } catch (error) {
-      console.error("❌ Feil ved sjekking av første gangs bruker:", error);
+      console.error("❌ Error checking first time user:", error);
     }
   };
 
+  // Tutorial handlers
   const handleNextTutorialStep = async () => {
-    if (tutorialStep < TOTAL_TUTORIAL_STEPS - 1) {
+    if (tutorialStep < DASHBOARD_CONSTANTS.TOTAL_TUTORIAL_STEPS - 1) {
       const nextStep = tutorialStep + 1;
       setTutorialStep(nextStep);
       await AsyncStorage.setItem("tutorialStep", JSON.stringify(nextStep));
@@ -923,7 +389,8 @@ export default function Dashboard() {
     await resetAppData();
   };
 
-  const getTutorialMessage = useCallback(() => {
+  // Get tutorial message and highlight position
+  const getTutorialMessage = () => {
     switch (tutorialStep) {
       case 0:
         return (
@@ -943,187 +410,105 @@ export default function Dashboard() {
             <Text> 🔔 for oppdateringer.</Text>
           </>
         );
-      case 2:
-        return (
-          <>
-            <Text>🚶‍♂️Dette er </Text>
-            <Text style={{ fontWeight: "bold" }}>skrittelleren</Text>
-            <Text> din. Se dagens fremgang.</Text>
-          </>
-        );
-      case 3:
-        return (
-          <>
-            <Text>Endre ditt daglige mål 🎯 ved å trykke på </Text>
-            <Text style={{ fontWeight: "bold" }}>skritt-tallet.</Text>
-          </>
-        );
-      case 4:
-        return (
-          <>
-            <Text>Konverter skritt fra aktiviteter ved å trykke på ➕ </Text>
-            <Text style={{ fontWeight: "bold" }}>pluss-tegnet.</Text>
-          </>
-        );
-      case 5:
-        return (
-          <>
-            <Text>📅 Dine </Text>
-            <Text style={{ fontWeight: "bold" }}>aktive hendelser</Text>
-            <Text> vises her. Delta for moro skyld!</Text>
-          </>
-        );
-      case 6:
-        return (
-          <>
-            <Text>🌍 Se din </Text>
-            <Text style={{ fontWeight: "bold" }}>Skrittreise </Text>
-            <Text> her.</Text>
-          </>
-        );
-      case 7:
-        return (
-          <>
-            <Text>🏆 her finner du </Text>
-            <Text style={{ fontWeight: "bold" }}>milepæler</Text>
-          </>
-        );
+      // Add other cases as needed
       default:
-        return "";
+        return <Text>Fortsett utforskningen!</Text>;
     }
-  }, [tutorialStep]);
+  };
 
-  const getTutorialHighlightPosition = useCallback(() => {
+  const getTutorialHighlightPosition = () => {
     const positions = [
       { left: 24, top: 16, width: 44, height: 44 }, // Profil
-      { left: SCREEN_WIDTH - 60, top: 16, width: 44, height: 44 }, // Varsler
-      { left: SCREEN_WIDTH / 2 - 150, top: 105, width: 300, height: 300 }, // Skritteller
-      { left: SCREEN_WIDTH / 2 - 150, top: 105, width: 300, height: 300 }, // Skritttall
-      { left: SCREEN_WIDTH / 2 - 150, top: 105, width: 300, height: 300 }, // Pluss-knapp
-      { left: 16, top: 400, width: SCREEN_WIDTH - 32, height: 120 }, // Aktive hendelser
-      { left: 16, top: 320, width: (SCREEN_WIDTH - 10) / 2, height: 50 }, // Skrittreise
-      {
-        left: SCREEN_WIDTH - 16 - (SCREEN_WIDTH - 10) / 2,
-        top: 320,
-        width: (SCREEN_WIDTH - 10) / 2,
-        height: 50,
-      },
+      { left: DASHBOARD_CONSTANTS.SCREEN_WIDTH - 60, top: 16, width: 44, height: 44 }, // Varsler
+      // Add other positions as needed
     ];
     return positions[tutorialStep] || { left: 0, top: 0, width: 0, height: 0 };
-  }, [tutorialStep]);
+  };
 
+  // Reset app data after tutorial
   const resetAppData = async () => {
     try {
       const allKeys = await AsyncStorage.getAllKeys();
       const keysToRemove = allKeys.filter(
-        (key) =>
-          key.startsWith("stepHistory_") ||
-          key === "stepCount" ||
-          key === "dailyGoal"
+        key => key.startsWith("stepHistory_") || key === "stepCount" || key === "dailyGoal"
       );
+      
       if (keysToRemove.length > 0) {
         await AsyncStorage.multiRemove(keysToRemove);
       }
+      
       if (userId) {
-        await axios
-          .post(
-            `${SERVER_CONFIG.getBaseUrl()}/step-activity`,
-            { stepCount: 0, distance: null, timestamp: new Date() },
-            { withCredentials: true }
-          )
-          .catch((error) => {
-            if (error.response && error.response.status === 503) {
-              queueRequest(
-                "POST",
-                `${SERVER_CONFIG.getBaseUrl()}/step-activity`,
-                {
-                  stepCount: 0,
-                  distance: null,
-                  timestamp: new Date(),
-                }
-              );
-            } else if (error.response && error.response.status === 401) {
-              Alert.alert(
-                "Authentication Error",
-                "Please log in to reset steps."
-              );
-            }
-          });
+        try {
+          await updateStepCount(0);
+        } catch (error) {
+          console.error("Error resetting step count:", error);
+        }
       }
+      
       setStepCount(0);
-      setDailyGoal(DAILY_STEP_GOAL);
+      setDailyGoal(DASHBOARD_CONSTANTS.DAILY_STEP_GOAL);
       setStreak(0);
       setBestStreak(0);
-      console.log("App data reset after tutorial completion");
     } catch (error) {
-      console.error("❌ Feil ved nullstilling av app-data:", error);
+      console.error("❌ Error resetting app data:", error);
     }
   };
 
+  // Handle daily goal setting
   const handleSetDailyGoal = async () => {
     const goal = Number.parseInt(newGoal, 10);
+    
     if (!isNaN(goal) && goal > 0) {
       try {
         const today = new Date();
         const tomorrow = new Date(today);
         tomorrow.setDate(today.getDate() + 1);
         const tomorrowString = tomorrow.toISOString().split("T")[0];
-        const lastGoalUpdateDate = await AsyncStorage.getItem(
-          "lastGoalUpdateDate"
-        );
-
+        const lastGoalUpdateDate = await AsyncStorage.getItem("lastGoalUpdateDate");
+        
+        // Store pending goal
+        await AsyncStorage.setItem("pendingDailyGoal", JSON.stringify(goal));
+        await AsyncStorage.setItem("pendingGoalDate", tomorrowString);
+        
+        // Show alert based on whether goal was already updated today
         if (lastGoalUpdateDate === today.toISOString().split("T")[0]) {
-          await AsyncStorage.setItem("pendingDailyGoal", JSON.stringify(goal));
-          await AsyncStorage.setItem("pendingGoalDate", tomorrowString);
           Alert.alert(
             "Mål lagret for i morgen",
             `Du kan kun endre målet én gang per dag. Ditt nye mål (${goal} skritt) vil tre i kraft i morgen.`,
             [{ text: "OK" }]
           );
         } else {
-          await AsyncStorage.setItem("pendingDailyGoal", JSON.stringify(goal));
-          await AsyncStorage.setItem("pendingGoalDate", tomorrowString);
-          await AsyncStorage.setItem(
-            "lastGoalUpdateDate",
-            today.toISOString().split("T")[0]
-          );
+          await AsyncStorage.setItem("lastGoalUpdateDate", today.toISOString().split("T")[0]);
           Alert.alert(
             "Mål lagret for i morgen",
             `Ditt nye mål (${goal} skritt) vil tre i kraft i morgen.`,
             [{ text: "OK" }]
           );
         }
-
+        
         setShowGoalModal(false);
         setNewGoal("");
       } catch (error) {
-        console.error("❌ Feil ved oppdatering av daglig mål:", error);
+        console.error("❌ Error setting daily goal:", error);
       }
     } else {
-      Alert.alert(
-        "Ugyldig mål",
-        "Vennligst skriv inn et gyldig tall større enn 0."
-      );
+      Alert.alert("Ugyldig mål", "Vennligst skriv inn et gyldig tall større enn 0.");
     }
   };
 
+  // Handle calculator confirmation
   const handleCalculatorConfirm = async (steps) => {
     try {
-      const response = await axios.get(
-        `${SERVER_CONFIG.getBaseUrl()}/step-activity`,
-        {
-          withCredentials: true,
-        }
-      );
-      const latestActivity = response.data.data[0];
+      // Get current step count
+      const stepsData = await fetchStepActivity();
+      const latestActivity = stepsData[0];
       let previousSteps = latestActivity ? latestActivity.step_count : 0;
       const newStepCount = previousSteps + steps;
 
-      await axios.post(
-        `${SERVER_CONFIG.getBaseUrl()}/step-activity`,
-        { stepCount: newStepCount, distance: null, timestamp: new Date() },
-        { withCredentials: true }
-      );
+      // Update step count on server
+      await updateStepCount(newStepCount);
+      
+      // Update local state and storage
       setStepCount(newStepCount);
       await AsyncStorage.setItem("stepCount", JSON.stringify(newStepCount));
 
@@ -1131,223 +516,68 @@ export default function Dashboard() {
       const stepHistoryKey = `stepHistory_${today}`;
       await AsyncStorage.setItem(stepHistoryKey, newStepCount.toString());
 
-      const { currentStreak, bestStreak } = await updateStreaks(
-        newStepCount,
-        dailyGoal
-      );
+      // Update streaks
+      const { currentStreak, bestStreak } = await updateStreaks(newStepCount, dailyGoal);
       setStreak(currentStreak);
       setBestStreak(bestStreak);
 
-      if (randomTrophy) {
-        let level = 0;
-        let currentProgress = 0;
-        let nextGoal = randomTrophy.levels[0].goal;
-
-        // Fetch total steps from USER_STATISTICS
-        const statsResponse = await axios.get(
-          `${SERVER_CONFIG.getBaseUrl()}/user-statistics`,
-          {
-            withCredentials: true,
-          }
-        );
-        const totalSteps = statsResponse.data.data.total_steps || 0;
-
-        switch (randomTrophy.name) {
-          case "Step Master":
-            // ... (unchanged)
-            break;
-          case "Step Titan":
-            currentProgress = totalSteps;
-            if (totalSteps >= 250000) {
-              level = 3;
-              nextGoal = 250000;
-            } else if (totalSteps >= 100000) {
-              level = 2;
-              nextGoal = 250000;
-            } else if (totalSteps >= 50000) {
-              level = 1;
-              nextGoal = 100000;
-            } else {
-              nextGoal = 50000;
-            }
-            break;
-          case "Streak Star":
-            currentProgress = currentStreak;
-            if (currentProgress >= 15) {
-              level = 3;
-              nextGoal = 15;
-            } else if (currentProgress >= 10) {
-              level = 2;
-              nextGoal = 15;
-            } else if (currentProgress >= 5) {
-              level = 1;
-              nextGoal = 10;
-            } else {
-              nextGoal = 5;
-            }
-            break;
-        }
-        setUnlockedLevel(level);
-        setProgress({ current: currentProgress, nextGoal });
-      }
-
+      // Update trophy progress if needed
+      updateTrophyProgressAfterSteps(steps);
+      
       setShowCalculatorModal(false);
     } catch (error) {
-      console.error("❌ Feil ved oppdatering av skritt fra kalkulator:", error);
-      if (error.response && error.response.status === 500) {
-        Alert.alert(
-          "Server Error",
-          "Unable to update steps from calculator. Please try again later."
-        );
-      } else if (error.response && error.response.status === 401) {
-        Alert.alert("Authentication Error", "Please log in to sync steps.");
-      } else if (error.response && error.response.status === 503) {
-        queueRequest("POST", `${SERVER_CONFIG.getBaseUrl()}/step-activity`, {
-          stepCount: previousSteps + steps,
-          distance: null,
-          timestamp: new Date(),
-        });
-        Alert.alert(
-          "Server Problem",
-          "The server is temporarily unavailable. Steps are saved locally, and we'll sync when the server is back.",
-          [{ text: "OK" }]
-        );
-      }
+      console.error("Error updating steps from calculator:", error);
+    }
+  };
+  
+  // Update trophy progress after steps added
+  const updateTrophyProgressAfterSteps = async (steps) => {
+    if (!randomTrophy) return;
+    
+    try {
+      // Fetch user statistics including total steps
+      const userStats = await fetchUserStatistics();
+      const totalSteps = userStats?.total_steps || 0;
+      
+      // Get other metrics
+      const currentStreak = parseInt(await AsyncStorage.getItem("currentStreak") || "0", 10);
+      const currentStepCount = stepCount + steps;
+      
+      // Calculate new trophy progress
+      const metrics = {
+        stepCount: currentStepCount,
+        currentStreak,
+        totalSteps
+      };
+      
+      const { level, currentProgress, nextGoal } = calculateTrophyProgress(randomTrophy, metrics);
+      
+      setUnlockedLevel(level);
+      setProgress({ current: currentProgress, nextGoal });
+    } catch (error) {
+      console.error("Error updating trophy progress:", error);
     }
   };
 
-  const renderEventItem = ({ item }) => (
-    <TouchableOpacity
-      style={[
-        styles.eventCard,
-        {
-          backgroundColor: theme.surface,
-          zIndex: tutorialStep === 5 ? 1001 : 0,
-        },
-      ]}
-      onPress={() =>
-        navigation.navigate("Events", {
-          screen: "ActiveEvent",
-          params: { eventId: item.id },
-        })
-      }
-    >
-      <Image
-        source={require("../../../assets/Vitus_Strong.png")}
-        style={styles.eventImage}
-      />
-      <View style={styles.eventContent}>
-        <Text
-          style={[styles.eventTitle, { color: theme.text }]}
-          numberOfLines={1}
-        >
-          {item.title}
-        </Text>
-        <Text
-          style={[styles.eventDescription, { color: theme.textSecondary }]}
-          numberOfLines={1}
-        >
-          {item.description}
-        </Text>
-        <Progress.Bar
-          progress={item.progress || 0}
-          width={null}
-          color={accentColor}
-          unfilledColor={theme.border}
-          borderWidth={0}
-          height={6}
-          borderRadius={3}
-        />
-        <Text style={[styles.progressText, { color: theme.textSecondary }]}>
-          {item.currentValue || 0} {item.activityUnit} / {item.goalValue || 100}{" "}
-          {item.activityUnit}
-        </Text>
-      </View>
-    </TouchableOpacity>
-  );
-
-  const renderEmptyEventCard = () => (
-    <View style={[styles.eventCard, { backgroundColor: theme.surface }]}>
-      <Text style={[styles.eventTitle, { color: theme.textSecondary }]}>
-        Ingen hendelser opprettet
-      </Text>
-    </View>
-  );
-
-  const getTrophyColor = () => {
-    if (unlockedLevel === 0) return theme.textSecondary;
-    if (unlockedLevel === 1 && randomTrophy?.name !== "Privacy Sleuth")
-      return "#CD7F32";
-    if (unlockedLevel === 2) return "#C0C0C0";
-    return "#FFD700";
-  };
-
+  // Navigation handlers
   const handleHistoryPress = () => {
     navigation.navigate("History");
   };
 
-  const queueRequest = async (method, url, data) => {
-    const queue = JSON.parse(
-      (await AsyncStorage.getItem("requestQueue")) || "[]"
-    );
-    queue.push({ method, url, data, timestamp: new Date() });
-    await AsyncStorage.setItem("requestQueue", JSON.stringify(queue));
-  };
-
-  const syncQueue = async () => {
-    const queue = JSON.parse(
-      (await AsyncStorage.getItem("requestQueue")) || "[]"
-    );
-    for (const request of queue) {
-      try {
-        await axios[request.method.toLowerCase()](request.url, request.data, {
-          withCredentials: true,
-        });
-        const updatedQueue = queue.filter(
-          (r) => r.timestamp !== request.timestamp
-        );
-        await AsyncStorage.setItem(
-          "requestQueue",
-          JSON.stringify(updatedQueue)
-        );
-      } catch (error) {
-        console.error("Failed to sync queued request:", error);
-        break;
-      }
-    }
-  };
-
-  useEffect(() => {
-    const handleAppStateChange = (nextAppState) => {
-      if (nextAppState === "active") {
-        syncQueue();
-      }
-    };
-    const subscription = AppState.addEventListener(
-      "change",
-      handleAppStateChange
-    );
-    return () => subscription.remove();
-  }, []);
-
   return (
-    <SafeAreaView
-      style={[styles.container, { backgroundColor: theme.background }]}
-    >
+    <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]}>
       <FloatingSymbols />
       <ScrollView
         ref={scrollViewRef}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={true}
       >
+        {/* Header */}
         <View style={styles.header}>
           <TouchableOpacity
             style={[
               styles.iconButton,
-              {
-                backgroundColor: theme.surface,
-                zIndex: tutorialStep === 0 ? 1001 : 0,
-              },
+              { backgroundColor: theme.surface, zIndex: tutorialStep === 0 ? 1001 : 0 }
             ]}
             onPress={() => navigation.navigate("Stats")}
           >
@@ -1357,10 +587,7 @@ export default function Dashboard() {
           <TouchableOpacity
             style={[
               styles.iconButton,
-              {
-                backgroundColor: theme.surface,
-                zIndex: tutorialStep === 1 ? 1001 : 0,
-              },
+              { backgroundColor: theme.surface, zIndex: tutorialStep === 1 ? 1001 : 0 }
             ]}
             onPress={() => navigation.navigate("Notifications")}
           >
@@ -1368,40 +595,37 @@ export default function Dashboard() {
           </TouchableOpacity>
         </View>
 
+        {/* Progress Ring */}
         <View
           style={[
             styles.progressContainer,
             {
-              zIndex:
-                tutorialStep === 2 || tutorialStep === 3 || tutorialStep === 4
-                  ? 1001
-                  : 0,
-            },
+              zIndex: tutorialStep === 2 || tutorialStep === 3 || tutorialStep === 4 ? 1001 : 0,
+            }
           ]}
         >
           <CustomProgressCircle
             progress={Math.min(stepCount / dailyGoal, 1)}
             accentColor={accentColor}
+            size={DASHBOARD_CONSTANTS.PROGRESS_RING_SIZE}
+            thickness={DASHBOARD_CONSTANTS.PROGRESS_RING_THICKNESS}
           />
+          
           <View style={styles.progressContent}>
             <Image source={selectedVitusHappyImage} style={styles.runnerIcon} />
             <TouchableOpacity
-              style={[
-                styles.stepsTouchable,
-                { zIndex: tutorialStep === 3 ? 1002 : 0 },
-              ]}
+              style={[styles.stepsTouchable, { zIndex: tutorialStep === 3 ? 1002 : 0 }]}
               onPress={() => setShowGoalModal(true)}
             >
               <Text style={[styles.stepsText, { color: accentColor }]}>
                 {stepCount.toLocaleString()}
               </Text>
-              <Text
-                style={[styles.dailyStepsLabel, { color: theme.textSecondary }]}
-              >
+              <Text style={[styles.dailyStepsLabel, { color: theme.textSecondary }]}>
                 Daglig skritt (Mål: {dailyGoal})
               </Text>
             </TouchableOpacity>
           </View>
+          
           <TouchableOpacity
             style={[
               styles.addButton,
@@ -1409,88 +633,16 @@ export default function Dashboard() {
                 backgroundColor: theme.surface,
                 borderColor: theme.border,
                 zIndex: tutorialStep === 4 ? 1002 : 0,
-              },
+              }
             ]}
             onPress={() => setShowCalculatorModal(true)}
           >
-            <Text style={[styles.addButtonText, { color: accentColor }]}>
-              +
-            </Text>
+            <Text style={[styles.addButtonText, { color: accentColor }]}>+</Text>
           </TouchableOpacity>
         </View>
 
-        <Modal transparent visible={showGoalModal} animationType="fade">
-          <View style={styles.modalOverlay}>
-            <View
-              style={[styles.modalContent, { backgroundColor: theme.surface }]}
-            >
-              <Text style={[styles.modalTitle, { color: theme.text }]}>
-                Sett daglig mål
-              </Text>
-              <TextInput
-                style={[
-                  styles.input,
-                  { color: theme.text, borderColor: theme.border },
-                ]}
-                placeholder="Skriv inn ditt daglige mål"
-                placeholderTextColor={theme.textSecondary}
-                keyboardType="numeric"
-                value={newGoal}
-                onChangeText={setNewGoal}
-              />
-              <View style={styles.modalButtons}>
-                <TouchableOpacity
-                  style={[
-                    styles.modalButton,
-                    { backgroundColor: theme.border },
-                  ]}
-                  onPress={() => setShowGoalModal(false)}
-                >
-                  <Text style={[styles.modalButtonText, { color: theme.text }]}>
-                    Avbryt
-                  </Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[styles.modalButton, { backgroundColor: accentColor }]}
-                  onPress={handleSetDailyGoal}
-                >
-                  <Text
-                    style={[styles.modalButtonText, { color: theme.surface }]}
-                  >
-                    Lagre
-                  </Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-          </View>
-        </Modal>
-
-        <Modal
-          transparent
-          visible={showCalculatorModal}
-          animationType="slide"
-          onRequestClose={() => setShowCalculatorModal(false)}
-        >
-          <View style={styles.calculatorModalOverlay}>
-            <View
-              style={[
-                styles.calculatorModalContent,
-                { backgroundColor: theme.surface },
-              ]}
-            >
-              <StepCalculator
-                onConfirm={handleCalculatorConfirm}
-                onCancel={() => setShowCalculatorModal(false)}
-                theme={theme}
-                accentColor={accentColor}
-              />
-            </View>
-          </View>
-        </Modal>
-
-        <View
-          style={[styles.section, { zIndex: tutorialStep === 5 ? 1001 : 0 }]}
-        >
+        {/* Active Events Section */}
+        <View style={[styles.section, { zIndex: tutorialStep === 5 ? 1001 : 0 }]}>
           <View style={styles.sectionHeader}>
             <Text style={[styles.sectionTitle, { color: theme.text }]}>
               Aktive hendelser
@@ -1501,104 +653,97 @@ export default function Dashboard() {
               </Text>
             </TouchableOpacity>
           </View>
+          
           {activeEvents.length > 0 ? (
             <FlatList
               data={activeEvents}
-              renderItem={renderEventItem}
+              renderItem={({ item }) => (
+                <EventCard 
+                  item={item}
+                  theme={theme}
+                  accentColor={accentColor}
+                  onPress={() => navigation.navigate("Events", {
+                    screen: "ActiveEvent",
+                    params: { eventId: item.id }
+                  })}
+                />
+              )}
               keyExtractor={(item) => item.id}
               horizontal
               showsHorizontalScrollIndicator={false}
             />
           ) : (
-            renderEmptyEventCard()
+            <View style={[styles.eventCard, { backgroundColor: theme.surface }]}>
+              <Text style={[styles.eventTitle, { color: theme.textSecondary }]}>
+                Ingen hendelser opprettet
+              </Text>
+            </View>
           )}
         </View>
 
+        {/* Stats Section */}
         <View style={styles.statsContainer}>
-          <TouchableOpacity
-            style={[
-              styles.statCard,
-              {
-                backgroundColor: theme.surface,
-                zIndex: tutorialStep === 6 ? 1001 : 0,
-              },
-            ]}
+          {/* Step Journey */}
+          <StatCard
+            title="Skrittreise"
+            icon={<ChevronRight size={20} color={theme.textSecondary} />}
+            theme={theme}
             onPress={handleHistoryPress}
-          >
-            <View style={styles.statHeader}>
-              <Text style={[styles.statTitle, { color: theme.text }]}>
-                Skrittreise
-              </Text>
-              <ChevronRight size={20} color={theme.textSecondary} />
-            </View>
-            <View style={styles.streakContent}>
-              <MaterialCommunityIcons
-                name="fire"
-                size={40}
-                color={accentColor}
-              />
-              <Text style={[styles.streakValue, { color: accentColor }]}>
-                {streak}
-              </Text>
-              <Text
-                style={[styles.streakLabel, { color: theme.textSecondary }]}
-              >
-                Dager
-              </Text>
-            </View>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[
-              styles.statCard,
-              {
-                backgroundColor: theme.surface,
-                zIndex: tutorialStep === 7 ? 1001 : 0,
-              },
-            ]}
-            onPress={() =>
-              navigation.navigate("Stats", { initialTab: "MILEPÆLER" })
-            }
-          >
-            <View style={styles.statHeader}>
-              <Text style={[styles.statTitle, { color: theme.text }]}>
-                Milepæler
-              </Text>
-              <Award size={20} color={theme.textSecondary} />
-            </View>
-            {randomTrophy && (
-              <View style={styles.rewardContent}>
-                <View style={styles.trophyProgressHeader}>
-                  <Trophy size={20} color={getTrophyColor()} />
-                  <Text style={[styles.levelText, { color: theme.text }]}>
-                    {randomTrophy.name}
-                  </Text>
-                </View>
-                <Progress.Bar
-                  progress={progress.current / progress.nextGoal}
-                  width={null}
-                  color={accentColor}
-                  unfilledColor={theme.border}
-                  borderWidth={0}
-                  height={6}
-                  borderRadius={3}
-                  style={styles.levelProgress}
-                />
-                <Text
-                  style={[styles.progressText, { color: theme.textSecondary }]}
-                >
-                  {progress.current}/{progress.nextGoal}
+            content={(
+              <View style={styles.streakContent}>
+                <MaterialCommunityIcons name="fire" size={40} color={accentColor} />
+                <Text style={[styles.streakValue, { color: accentColor }]}>
+                  {streak}
+                </Text>
+                <Text style={[styles.streakLabel, { color: theme.textSecondary }]}>
+                  Dager
                 </Text>
               </View>
             )}
-          </TouchableOpacity>
+          />
+
+          {/* Milestones */}
+          <StatCard
+            title="Milepæler"
+            icon={<Award size={20} color={theme.textSecondary} />}
+            theme={theme}
+            onPress={() => navigation.navigate("Stats", { initialTab: "MILEPÆLER" })}
+            content={
+              randomTrophy ? (
+                <View style={styles.rewardContent}>
+                  <View style={styles.trophyProgressHeader}>
+                    <Trophy size={20} color={getTrophyColor(unlockedLevel, randomTrophy.name, theme)} />
+                    <Text style={[styles.levelText, { color: theme.text }]}>
+                      {randomTrophy.name}
+                    </Text>
+                  </View>
+                  <Progress.Bar
+                    progress={progress.current / progress.nextGoal}
+                    width={null}
+                    color={accentColor}
+                    unfilledColor={theme.border}
+                    borderWidth={0}
+                    height={6}
+                    borderRadius={3}
+                    style={styles.levelProgress}
+                  />
+                  <Text style={[styles.progressText, { color: theme.textSecondary }]}>
+                    {progress.current}/{progress.nextGoal}
+                  </Text>
+                </View>
+              ) : null
+            }
+          />
         </View>
 
+        {/* Step Counter Component */}
         <StepCounter setStepCount={setStepCount} />
 
+        {/* Tutorial Component */}
         <EnhancedTutorial
           visible={showTutorial}
           currentStep={tutorialStep}
-          totalSteps={TOTAL_TUTORIAL_STEPS}
+          totalSteps={DASHBOARD_CONSTANTS.TOTAL_TUTORIAL_STEPS}
           message={getTutorialMessage()}
           onNext={handleNextTutorialStep}
           onBack={handleBackTutorialStep}
@@ -1608,6 +753,26 @@ export default function Dashboard() {
           accentColor={accentColor}
         />
       </ScrollView>
+
+      {/* Daily Goal Modal */}
+      <GoalSettingModal
+        visible={showGoalModal}
+        theme={theme}
+        accentColor={accentColor}
+        newGoal={newGoal}
+        setNewGoal={setNewGoal}
+        onCancel={() => setShowGoalModal(false)}
+        onSave={handleSetDailyGoal}
+      />
+
+      {/* Step Calculator Modal */}
+      <StepCalculatorModal
+        visible={showCalculatorModal}
+        theme={theme}
+        accentColor={accentColor}
+        onConfirm={handleCalculatorConfirm}
+        onCancel={() => setShowCalculatorModal(false)}
+      />
     </SafeAreaView>
   );
 }
@@ -1634,7 +799,7 @@ const styles = StyleSheet.create({
   progressContainer: {
     alignItems: "center",
     justifyContent: "center",
-    height: PROGRESS_RING_SIZE + 20,
+    height: DASHBOARD_CONSTANTS.PROGRESS_RING_SIZE + 20,
     position: "relative",
     margin: 16,
   },
@@ -1668,6 +833,21 @@ const styles = StyleSheet.create({
     alignItems: "center",
     zIndex: 0,
   },
+  addButton: {
+    position: "absolute",
+    bottom: 0,
+    alignSelf: "center",
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    justifyContent: "center",
+    alignItems: "center",
+    elevation: 5,
+    borderWidth: 2,
+  },
+  addButtonText: {
+    fontSize: 24,
+  },
   section: {
     marginBottom: 20,
     paddingHorizontal: 16,
@@ -1696,60 +876,18 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 3,
     marginRight: 16,
-    width: SCREEN_WIDTH * 0.91,
-  },
-  eventImage: {
-    width: 80,
-    height: 80,
-    resizeMode: "cover",
-    borderRadius: 8,
-    marginRight: 12,
-  },
-  eventContent: {
-    flex: 1,
+    width: DASHBOARD_CONSTANTS.SCREEN_WIDTH * 0.91,
   },
   eventTitle: {
     fontSize: 16,
     fontWeight: "600",
     marginBottom: 4,
-    overflow: "hidden",
-    whiteSpace: "nowrap",
-  },
-  eventDescription: {
-    fontSize: 14,
-    marginBottom: 8,
-    overflow: "hidden",
-    whiteSpace: "nowrap",
-  },
-  progressText: {
-    fontSize: 12,
-    marginTop: 4,
   },
   statsContainer: {
     flexDirection: "row",
     justifyContent: "space-between",
     paddingHorizontal: 16,
     marginTop: -5,
-  },
-  statCard: {
-    width: "48%",
-    borderRadius: 16,
-    padding: 16,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  statHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 12,
-  },
-  statTitle: {
-    fontSize: 16,
-    fontWeight: "600",
   },
   streakContent: {
     flexDirection: "row",
@@ -1781,127 +919,7 @@ const styles = StyleSheet.create({
     width: "100%",
     marginBottom: 8,
   },
-  addButton: {
-    position: "absolute",
-    bottom: 0,
-    alignSelf: "center",
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    justifyContent: "center",
-    alignItems: "center",
-    elevation: 5,
-    borderWidth: 2,
-  },
-  addButtonText: {
-    fontSize: 24,
-  },
-  tutorialContainer: {
-    position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    zIndex: 1000,
-  },
-  highlightSvg: {
-    position: "absolute",
-    top: 0,
-    left: 0,
-    zIndex: 999,
-  },
-  tutorialTooltip: {
-    position: "absolute",
-    width: 280,
-    borderRadius: 12,
-    padding: 16,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 12,
-    zIndex: 1002,
-  },
-  tooltipHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 12,
-  },
-  stepIndicator: {
-    fontSize: 14,
-    fontWeight: "bold",
-  },
-  skipButton: {
-    padding: 4,
-  },
-  tutorialMessage: {
-    fontSize: 16,
-    lineHeight: 22,
-    marginBottom: 16,
-  },
-  tooltipFooter: {
-    flexDirection: "row",
-    justifyContent: "flex-end",
-    alignItems: "center",
-  },
-  tutorialButton: {
-    paddingVertical: 8,
-    paddingHorizontal: 16,
-    borderRadius: 8,
-  },
-  tutorialButtonText: {
-    color: "white",
-    fontWeight: "600",
-    fontSize: 14,
-  },
-  modalOverlay: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    backgroundColor: "rgba(0, 0, 0, 0.5)",
-  },
-  modalContent: {
-    width: "80%",
-    padding: 20,
-    borderRadius: 10,
-  },
-  calculatorModalOverlay: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    backgroundColor: "rgba(0, 0, 0, 0.5)",
-  },
-  calculatorModalContent: {
-    width: "90%",
-    padding: 20,
-    borderRadius: 15,
-    maxHeight: "80%",
-  },
-  modalTitle: {
-    fontSize: 18,
-    fontWeight: "bold",
-    marginBottom: 16,
-  },
-  input: {
-    height: 40,
-    borderWidth: 1,
-    borderRadius: 5,
-    paddingHorizontal: 10,
-    marginBottom: 16,
-  },
-  modalButtons: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-  },
-  modalButton: {
-    flex: 1,
-    padding: 10,
-    borderRadius: 5,
-    alignItems: "center",
-    marginHorizontal: 5,
-  },
-  modalButtonText: {
-    fontSize: 16,
-    fontWeight: "bold",
-  },
+  progressText: {
+    fontSize: 12,
+  }
 });

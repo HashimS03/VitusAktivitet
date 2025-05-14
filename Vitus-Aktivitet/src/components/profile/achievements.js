@@ -7,12 +7,14 @@ import {
   TouchableOpacity,
   SafeAreaView,
   StatusBar,
+  ActivityIndicator,
 } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import { useTheme } from "../context/ThemeContext";
 import { Trophy } from "lucide-react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { LinearGradient } from "expo-linear-gradient"; // Import LinearGradient for gradients
+import { syncAchievements, fetchServerAchievements } from "../../utils/achievementService";
 
 // 🎖️ Trophy Data
 export const trophyData = {
@@ -242,27 +244,60 @@ const TrophyItem = ({ item, onPress, theme }) => {
 const Achievements = () => {
   const { theme } = useTheme();
   const navigation = useNavigation();
+  const [loading, setLoading] = React.useState(false);
+
+  // Add this effect for server sync
+  React.useEffect(() => {
+    const loadServerData = async () => {
+      setLoading(true);
+
+      try {
+        // First try to fetch from server
+        const serverData = await fetchServerAchievements();
+
+        // If server fetch fails, sync local data to server
+        if (!serverData) {
+          await syncAchievements();
+        }
+      } catch (error) {
+        console.error("Error syncing achievements:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadServerData();
+  }, []);
 
   return (
     <SafeAreaView
       style={[styles.container, { backgroundColor: theme.background }]}
     >
       <StatusBar barStyle={theme.dark ? "light-content" : "dark-content"} />
-      <FlatList
-        data={trophies}
-        renderItem={({ item }) => (
-          <TrophyItem
-            item={item}
-            onPress={() =>
-              navigation.navigate("TrophyDetails", { trophy: item })
-            }
-            theme={theme}
-          />
-        )}
-        keyExtractor={(item) => item.id}
-        contentContainerStyle={styles.listContent}
-        showsVerticalScrollIndicator={false}
-      />
+      {loading ? (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={theme.primary} />
+          <Text style={[styles.loadingText, { color: theme.text }]}>
+            Synkroniserer prestasjoner...
+          </Text>
+        </View>
+      ) : (
+        <FlatList
+          data={trophies}
+          renderItem={({ item }) => (
+            <TrophyItem
+              item={item}
+              onPress={() =>
+                navigation.navigate("TrophyDetails", { trophy: item })
+              }
+              theme={theme}
+            />
+          )}
+          keyExtractor={(item) => item.id}
+          contentContainerStyle={styles.listContent}
+          showsVerticalScrollIndicator={false}
+        />
+      )}
     </SafeAreaView>
   );
 };
@@ -304,6 +339,15 @@ const styles = StyleSheet.create({
   },
   trophyDescription: {
     fontSize: 14,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  loadingText: {
+    marginTop: 10,
+    fontSize: 16,
   },
 });
 

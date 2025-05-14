@@ -23,6 +23,9 @@ import * as Progress from "react-native-progress";
 import { EventContext } from "../events/EventContext";
 import apiClient from "../../utils/apiClient";
 import { useUserContext } from "../context/UserContext";
+import { updateAchievement } from "../../utils/achievementService";
+import { formatDisplayDate, formatDisplayTime, parseServerDate } from "../../utils/dateUtils";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 const ActiveEvent = ({ route }) => {
   const { eventId } = route.params || {};
@@ -46,7 +49,7 @@ const ActiveEvent = ({ route }) => {
   const { theme, isDarkMode } = useTheme();
 
   const isEventFinished = eventDetails
-    ? new Date(eventDetails.end_date) < new Date()
+    ? parseServerDate(eventDetails.end_date) < new Date()
     : true;
 
   useEffect(() => {
@@ -79,7 +82,7 @@ const ActiveEvent = ({ route }) => {
 
         let token = null;
         try {
-          token = await storage.getItem("authToken");
+          token = await AsyncStorage.getItem("authToken");
         } catch (storageError) {
           console.warn("Failed to get token from storage:", storageError);
         }
@@ -148,6 +151,23 @@ const ActiveEvent = ({ route }) => {
       (eventDetails.currentValue || 0) / (eventDetails.goalValue || 1)
     );
   }, [eventDetails, navigation]);
+
+  useEffect(() => {
+    if (eventDetails) {
+      // Parse and normalize dates
+      try {
+        if (eventDetails.start_date) {
+          eventDetails.start_date = parseServerDate(eventDetails.start_date).toISOString();
+        }
+        if (eventDetails.end_date) {
+          eventDetails.end_date = parseServerDate(eventDetails.end_date).toISOString();
+        }
+        console.log("Normalized dates:", eventDetails.start_date, eventDetails.end_date);
+      } catch (err) {
+        console.error("Date normalization error:", err);
+      }
+    }
+  }, [eventDetails?.Id]);
 
   const toggleModal = () => setModalVisible(!isModalVisible);
 
@@ -235,6 +255,20 @@ const ActiveEvent = ({ route }) => {
     }
   };
 
+  const handleJoinEvent = async () => {
+    // Existing join event code
+
+    // Update achievement
+    await updateAchievement("participateEvent", eventId);
+  };
+
+  const completeEvent = async () => {
+    // Existing complete event code
+
+    // Update achievement
+    await updateAchievement("completeEvent", eventId);
+  };
+
   const renderTeamMembers = () => {
     if (!eventDetails.team_count || eventDetails.team_count === 0) {
       return (
@@ -271,9 +305,7 @@ const ActiveEvent = ({ route }) => {
                       : require("../../../assets/figure/avatar1.jpg")
                   }
                   style={styles.avatarImage}
-                  onError={(e) => {
-                    e.target.src = require("../../../assets/figure/avatar1.jpg");
-                  }}
+                  onError={() => console.log("Image loading failed")}
                 />
                 <Text
                   style={[styles.memberName, { color: theme.textSecondary }]}
@@ -298,9 +330,7 @@ const ActiveEvent = ({ route }) => {
                         : require("../../../assets/figure/avatar1.jpg")
                     }
                     style={styles.avatarImage}
-                    onError={(e) => {
-                      e.target.src = require("../../../assets/figure/avatar1.jpg");
-                    }}
+                    onError={() => console.log("Image loading failed")}
                   />
                   <Text
                     style={[styles.memberName, { color: theme.textSecondary }]}
@@ -383,9 +413,7 @@ const ActiveEvent = ({ route }) => {
                       : require("../../../assets/figure/avatar1.jpg")
                   }
                   style={styles.avatarImage}
-                  onError={(e) => {
-                    e.target.src = require("../../../assets/figure/avatar1.jpg");
-                  }}
+                  onError={() => console.log("Image loading failed")}
                 />
                 <Text
                   style={[styles.memberName, { color: theme.textSecondary }]}
@@ -410,9 +438,7 @@ const ActiveEvent = ({ route }) => {
                         : require("../../../assets/figure/avatar1.jpg")
                     }
                     style={styles.avatarImage}
-                    onError={(e) => {
-                      e.target.src = require("../../../assets/figure/avatar1.jpg");
-                    }}
+                    onError={() => console.log("Image loading failed")}
                   />
                   <Text
                     style={[styles.memberName, { color: theme.textSecondary }]}
@@ -454,6 +480,12 @@ const ActiveEvent = ({ route }) => {
     );
   };
 
+  const getDaysRemaining = (endDate) => {
+    const today = new Date(); // Add this line
+    today.setHours(0, 0, 0, 0);
+    return getDaysDifference(today, endDate);
+  };
+
   if (!eventDetails || !eventDetails.start_date || !eventDetails.end_date) {
     return (
       <SafeAreaView
@@ -465,30 +497,6 @@ const ActiveEvent = ({ route }) => {
       </SafeAreaView>
     );
   }
-
-  const formatDate = (dateString) => {
-    const date = new Date(dateString);
-    if (isNaN(date.getTime())) {
-      return "Ugyldig dato";
-    }
-    return date.toLocaleDateString("no-NO", {
-      day: "numeric",
-      month: "numeric",
-      year: "numeric",
-    });
-  };
-
-  const formatTime = (dateString) => {
-    const date = new Date(dateString);
-    if (isNaN(date.getTime())) {
-      return "Ugyldig tid";
-    }
-    return date.toLocaleTimeString("no-NO", {
-      hour: "2-digit",
-      minute: "2-digit",
-      hour12: false,
-    });
-  };
 
   return (
     <SafeAreaView
@@ -538,8 +546,8 @@ const ActiveEvent = ({ route }) => {
             <Text
               style={[styles.eventDetailText, { color: theme.textSecondary }]}
             >
-              {formatDate(eventDetails.start_date)} -{" "}
-              {formatDate(eventDetails.end_date)}
+              {formatDisplayDate(eventDetails.start_date)} -{" "}
+              {formatDisplayDate(eventDetails.end_date)}
             </Text>
           </View>
           <View style={styles.eventDetails}>
@@ -551,8 +559,8 @@ const ActiveEvent = ({ route }) => {
             <Text
               style={[styles.eventDetailText, { color: theme.textSecondary }]}
             >
-              {formatTime(eventDetails.start_date)} -{" "}
-              {formatTime(eventDetails.end_date)}
+              {formatDisplayTime(eventDetails.start_date)} -{" "}
+              {formatDisplayTime(eventDetails.end_date)}
             </Text>
           </View>
           <View style={styles.eventDetails}>
@@ -882,12 +890,13 @@ const styles = StyleSheet.create({
   },
   descriptionSection: { padding: 16 },
   descriptionText: { fontSize: 16, lineHeight: 24 },
-  buttonContainer: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    paddingHorizontal: 16,
-    marginTop: 16,
-  },
+  buttonContainer:
+    {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      paddingHorizontal: 16,
+      marginTop: 16,
+    },
   actionButton: {
     flexDirection: "row",
     alignItems: "center",

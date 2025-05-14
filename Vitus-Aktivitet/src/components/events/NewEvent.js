@@ -23,6 +23,7 @@ import * as Haptics from "expo-haptics";
 import { BlurView } from "expo-blur";
 import { EventContext } from "../events/EventContext";
 import { useNavigation } from "@react-navigation/native";
+import { parseServerDate, formatServerDate } from "../../utils/dateUtils";
 
 const { width } = Dimensions.get("window");
 
@@ -358,44 +359,50 @@ const NewEvent = ({ route }) => {
   const createEvent = async () => {
     setShowConfirmModal(false);
 
-    const startDateTime = new Date(eventDetails.startDate);
-    startDateTime.setHours(eventDetails.startTime.getHours());
-    startDateTime.setMinutes(eventDetails.startTime.getMinutes());
-    const startDateTimeUTC = startDateTime.toISOString();
-
-    const endDateTime = new Date(eventDetails.endDate);
-    endDateTime.setHours(eventDetails.endTime.getHours());
-    endDateTime.setMinutes(eventDetails.endTime.getMinutes());
-    let endDateTimeUTC = endDateTime.toISOString();
-
-    if (endDateTime <= startDateTime) {
-      endDateTime.setHours(endDateTime.getHours() + 1);
-      endDateTimeUTC = endDateTime.toISOString();
-    }
-
-    // Format event data to match server expectations
-    const eventData = {
-      title: eventDetails.title,
-      description: eventDetails.description || "",
-      activity: eventDetails.selectedActivity?.name || "",
-      goalValue: eventDetails.goalValue || 0,
-      currentValue: eventDetails.currentValue || 0,
-      start_date: startDateTimeUTC,
-      end_date: endDateTimeUTC,
-      location: eventDetails.location || "",
-      eventType: eventDetails.eventType || "individual",
-      total_participants: Number(eventDetails.participantCount) || 0,
-      team_count: Number(eventDetails.teamCount) || 0,
-      members_per_team: Number(eventDetails.membersPerTeam) || 0,
-      selectedActivity: eventDetails.selectedActivity,
-      activityUnit: eventDetails.selectedActivity?.unit || "",
-      progress: 0, // Start with 0 progress
-      participants: [], // Filled in later
-      teams: [], // Filled in later
-      goal: eventDetails.goalValue, // Add goal property for server
-    };
-
     try {
+      const startDateTime = eventDetails.startDate;
+      startDateTime.setHours(eventDetails.startTime.getHours());
+      startDateTime.setMinutes(eventDetails.startTime.getMinutes());
+      
+      // Format date as ISO string instead of using formatServerDate
+      let startDateTimeFormat = startDateTime.toISOString();
+
+      const endDateTime = eventDetails.endDate;
+      endDateTime.setHours(eventDetails.endTime.getHours());
+      endDateTime.setMinutes(eventDetails.endTime.getMinutes());
+      
+      // Format date as ISO string instead of using formatServerDate
+      let endDateTimeFormat = endDateTime.toISOString();
+
+      if (endDateTime <= startDateTime) {
+        endDateTime.setHours(endDateTime.getHours() + 1);
+        // Format updated date as ISO string
+        endDateTimeFormat = endDateTime.toISOString();
+      }
+
+      // Format event data to match server expectations
+      const eventData = {
+        title: eventDetails.title,
+        description: eventDetails.description || "",
+        activity: eventDetails.selectedActivity?.name || "",
+        goalValue: eventDetails.goalValue || 0,
+        currentValue: eventDetails.currentValue || 0,
+        start_date: startDateTimeFormat,
+        end_date: endDateTimeFormat,
+        location: eventDetails.location || "",
+        eventType: eventDetails.eventType || "individual",
+        total_participants: Number(eventDetails.participantCount) || 0,
+        team_count: Number(eventDetails.teamCount) || 0,
+        members_per_team: Number(eventDetails.membersPerTeam) || 0,
+        selectedActivity: eventDetails.selectedActivity,
+        activityUnit: eventDetails.selectedActivity?.unit || "",
+        progress: 0, // Start with 0 progress
+        participants: [], // Filled in later
+        teams: [], // Filled in later
+        goal: eventDetails.goalValue, // Add goal property for server
+        auto_join: true, // Add this flag to indicate user should be automatically added
+      };
+
       const updatedEvent = {
         ...eventDetails,
         ...eventData,
@@ -428,7 +435,7 @@ const NewEvent = ({ route }) => {
       }
 
       let savedEvent;
-      
+
       if (isEditing) {
         // Update existing event
         await updateEvent(updatedEvent);
@@ -437,10 +444,9 @@ const NewEvent = ({ route }) => {
         // Create new event - the addEvent function will save to server and return the event with ID
         savedEvent = await addEvent(updatedEvent);
       }
-      
+
       // Navigate to the event detail screen with the saved event's ID
-      navigation.replace("ActiveEvent", { eventId: savedEvent.id });
-      
+      navigation.replace("ActiveEvent", { eventId: savedEvent.Id });
     } catch (error) {
       Alert.alert("Feil", "Kunne ikke lagre hendelsen på serveren.");
       console.error("Error in createEvent:", error);

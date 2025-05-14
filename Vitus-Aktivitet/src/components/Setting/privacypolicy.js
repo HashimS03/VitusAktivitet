@@ -1,4 +1,4 @@
-import React, { useRef } from "react";
+import React, { useEffect, useRef } from "react";
 import {
   View,
   Text,
@@ -11,11 +11,20 @@ import { Ionicons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
 import { useTheme } from "../context/ThemeContext";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { updateAchievement } from "../../utils/achievementService";
 
 const PrivacyPolicy = () => {
   const navigation = useNavigation();
   const { theme } = useTheme();
   const scrollViewRef = useRef(null);
+
+  useEffect(() => {
+    const markPrivacyViewed = async () => {
+      await updateAchievement('privacyExplored', true);
+    };
+    
+    markPrivacyViewed();
+  }, []);
 
   const handleScroll = async (event) => {
     const { layoutMeasurement, contentOffset, contentSize } = event.nativeEvent;
