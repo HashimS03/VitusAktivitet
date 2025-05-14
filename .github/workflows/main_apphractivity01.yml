@@ -7,7 +7,7 @@ on:
   push:
     branches:
 
-      [ "main", "Daniel's-new-branch", "Hashim's-Workspace-4" , "Sarim's-Workspace-7" ]
+      [ "main", "Daniel's-new-branch-4", "Hashim's-Workspace-4" , "Sarim's-Workspace-7" ]
 
     paths:
       - 'server/**'
