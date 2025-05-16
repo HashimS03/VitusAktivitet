@@ -34,7 +34,7 @@ import EditAvatar from "../components/Setting/editavatar";
 
 // Events and Event Management
 import JoinEvent from "../components/events/JoinEvent";
-import NewEvent from "../components/events/NewEvent";
+import NewEvent from "../components/events/NewEvent/index";
 import ActiveEvent from "../components/events/activeevent";
 import InviteMembersScreen from "../components/events/InviteMembersScreen";
 import LogRecordingScreen from "../components/events/LogRecordingScreen";

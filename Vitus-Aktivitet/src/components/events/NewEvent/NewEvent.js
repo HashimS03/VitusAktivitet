@@ -1,4 +1,4 @@
-"use client";
+/*"use client";
 
 import { useState, useEffect, useRef, useContext } from "react";
 import {
@@ -17,13 +17,13 @@ import {
   Platform,
 } from "react-native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
-import { useTheme } from "../context/ThemeContext";
+import { useTheme } from "../../context/ThemeContext";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import * as Haptics from "expo-haptics";
 import { BlurView } from "expo-blur";
-import { EventContext } from "../events/EventContext";
+import { EventContext } from "../EventContext";
 import { useNavigation } from "@react-navigation/native";
-import { parseServerDate, formatServerDate } from "../../utils/dateUtils";
+import { parseServerDate, formatServerDate } from "../../../utils/dateUtils";
 
 const { width } = Dimensions.get("window");
 
@@ -1330,3 +1330,4 @@ const styles = StyleSheet.create({
 });
 
 export default NewEvent;
+*/
