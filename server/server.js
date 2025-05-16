@@ -266,6 +266,65 @@ app.get("/db-diagnostics", async (req, res) => {
   }
 });
 
+// Add this new route near your other diagnostic endpoints
+
+app.get("/server-info", (req, res) => {
+  try {
+    // Basic server info
+    const serverInfo = {
+      time: new Date().toISOString(),
+      uptime: process.uptime() + " seconds",
+      nodeVersion: process.version,
+      hostname: require('os').hostname(),
+      platform: process.platform,
+      
+      // Environment info (sanitized)
+      environment: {
+        NODE_ENV: process.env.NODE_ENV || "not set",
+        PORT: process.env.PORT || "not set",
+        
+        // Check if important variables exist (don't expose values)
+        database: {
+          MSSQL_HOST: process.env.MSSQL_HOST ? "set" : "not set",
+          MSSQL_DATABASE: process.env.MSSQL_DATABASE ? "set" : "not set",
+          MSSQL_USER: process.env.MSSQL_USER ? "set" : "not set",
+          MSSQL_PASSWORD: process.env.MSSQL_PASSWORD ? "set" : "not set",
+          MSSQL_PORT: process.env.MSSQL_PORT ? "set" : "not set"
+        },
+        
+        secrets: {
+          JWT_SECRET: process.env.JWT_SECRET ? "set" : "not set",
+          SESSION_SECRET: process.env.SESSION_SECRET ? "set" : "not set"
+        }
+      },
+      
+      // Memory usage
+      memory: {
+        rss: Math.round(process.memoryUsage().rss / (1024 * 1024)) + " MB",
+        heapTotal: Math.round(process.memoryUsage().heapTotal / (1024 * 1024)) + " MB",
+        heapUsed: Math.round(process.memoryUsage().heapUsed / (1024 * 1024)) + " MB",
+        external: Math.round(process.memoryUsage().external / (1024 * 1024)) + " MB"
+      },
+      
+      // Important packages
+      packages: {
+        express: require('express/package.json').version,
+        bcryptjs: require('bcryptjs/package.json').version,
+        mssql: require('mssql/package.json').version,
+        jsonwebtoken: require('jsonwebtoken/package.json').version
+      }
+    };
+    
+    res.json(serverInfo);
+  } catch (error) {
+    console.error("Server info error:", error);
+    res.status(500).json({
+      error: error.message,
+      stack: error.stack
+    });
+  }
+});
+
 // Start Server
 app.listen(PORT, () => {
   console.log(`🚀 Server running on port ${PORT}`);
