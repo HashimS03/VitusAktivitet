@@ -121,6 +121,26 @@ app.get("/health", async (req, res) => {
   }
 });
 
+app.get("/api/health", async (req, res) => {
+  try {
+    const pool = await poolPromise;
+    const result = await pool.request().query("SELECT 1 as test");
+    res.json({ 
+      status: "OK", 
+      dbConnected: true,
+      dbResponse: result.recordset[0]
+    });
+  } catch (error) {
+    console.error("Health check error:", error);
+    res.status(500).json({ 
+      status: "Error", 
+      dbConnected: false,
+      error: error.message,
+      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    });
+  }
+});
+
 app.get("/", (req, res) => {
   res.send("Vitus Aktivitet API is running ✅");
 });
