@@ -142,7 +142,128 @@ app.get("/api/health", async (req, res) => {
 });
 
 app.get("/", (req, res) => {
-  res.send("Vitus Aktivitet API is running ✅");
+  try {
+    res.send(`
+      <html>
+        <head><title>Vitus Aktivitet API Status</title></head>
+        <body>
+          <h1>Vitus Aktivitet API is running ✅</h1>
+          <p>Server time: ${new Date().toISOString()}</p>
+          <p>Environment: ${process.env.NODE_ENV || "development"}</p>
+          <p><a href="/api/health">Check API Health</a></p>
+        </body>
+      </html>
+    `);
+  } catch (error) {
+    console.error("Error in root route:", error);
+    res.status(500).send(`
+      <html>
+        <head><title>Vitus Aktivitet API Error</title></head>
+        <body>
+          <h1>Server Error</h1>
+          <p>Error: ${error.message}</p>
+          <p>Time: ${new Date().toISOString()}</p>
+        </body>
+      </html>
+    `);
+  }
+});
+
+// Startup diagnostics route
+app.get("/startup-diagnostics", (req, res) => {
+  try {
+    // Check environment variables (hide sensitive info)
+    const envVars = {
+      NODE_ENV: process.env.NODE_ENV || "not set",
+      PORT: process.env.PORT || "not set",
+      DB_CONNECTION: process.env.MSSQL_HOST ? "set" : "not set",
+      JWT_SECRET: process.env.JWT_SECRET ? "set" : "not set",
+      SESSION_SECRET: process.env.SESSION_SECRET ? "set" : "not set"
+    };
+    
+    // Check middleware
+    const middlewareStatus = {
+      express: !!express,
+      cors: !!cors,
+      session: !!session,
+      sql: !!sql,
+      jwt: !!jwt
+    };
+    
+    // Check routes mounted
+    const routesStatus = {
+      auth: !!authRoutes,
+      user: !!userRoutes,
+      event: !!eventRoutes,
+      activity: !!activityRoutes,
+      achievement: !!achievementRoutes
+    };
+    
+    res.json({
+      serverTime: new Date().toISOString(),
+      environment: envVars,
+      middleware: middlewareStatus,
+      routes: routesStatus,
+      nodeVersion: process.version,
+      memoryUsage: process.memoryUsage()
+    });
+  } catch (error) {
+    console.error("Diagnostics error:", error);
+    res.status(500).json({
+      error: error.message,
+      stack: process.env.NODE_ENV === "development" ? error.stack : undefined
+    });
+  }
+});
+
+// DB diagnostics route
+app.get("/db-diagnostics", async (req, res) => {
+  try {
+    console.log("Starting DB diagnostics");
+    
+    // Check DB config (hide credentials)
+    const dbConfig = {
+      host: process.env.MSSQL_HOST || "not set",
+      database: process.env.MSSQL_DATABASE || "not set",
+      port: process.env.MSSQL_PORT || "not set",
+      user: process.env.MSSQL_USER ? "set" : "not set",
+      password: process.env.MSSQL_PASSWORD ? "set" : "not set",
+    };
+    
+    console.log("DB config checked");
+    
+    // Try to connect
+    const poolResult = { success: false, message: "" };
+    
+    try {
+      console.log("Attempting DB connection");
+      const pool = await poolPromise;
+      console.log("Pool created, running test query");
+      const result = await pool.request().query("SELECT @@version as version");
+      console.log("Query executed");
+      
+      poolResult.success = true;
+      poolResult.version = result.recordset[0].version;
+      poolResult.message = "Connected successfully";
+    } catch (dbErr) {
+      console.error("DB connection error:", dbErr);
+      poolResult.message = dbErr.message;
+      poolResult.code = dbErr.code;
+      poolResult.state = dbErr.state;
+    }
+    
+    res.json({
+      time: new Date().toISOString(),
+      dbConfig,
+      connectionResult: poolResult
+    });
+  } catch (error) {
+    console.error("DB diagnostics error:", error);
+    res.status(500).json({
+      error: error.message,
+      stack: process.env.NODE_ENV === "development" ? error.stack : undefined
+    });
+  }
 });
 
 // Start Server
