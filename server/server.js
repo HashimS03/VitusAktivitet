@@ -1,3 +1,7 @@
+process.on('uncaughtException', (error) => {
+  console.error('UNCAUGHT EXCEPTION - keeping process alive:', error);
+});
+
 const express = require("express");
 const cors = require("cors");
 const session = require("express-session");
@@ -43,46 +47,57 @@ const serverLog = (type, message, details = null) => {
 
 // Authentication middleware
 const authenticateJWT = (req, res, next) => {
-  const authHeader = req.headers.authorization;
+  try {
+    const authHeader = req.headers.authorization;
 
-  if (authHeader) {
-    const token = authHeader.split(" ")[1];
+    if (authHeader) {
+      const token = authHeader.split(" ")[1];
+      const secret = process.env.JWT_SECRET || "vitus-aktivitet-secret-key-2023";
 
-    if (!JWT_SECRET) {
-      return res.status(500).json({ 
-        success: false, 
-        message: "Server configuration error" 
-      });
-    }
-
-    jwt.verify(token, JWT_SECRET, (err, user) => {
-      if (err) {
-        if (err.name === "TokenExpiredError") {
-          return res.status(401).json({
-            success: false,
-            message: "Token expired, please log in again",
+      jwt.verify(token, secret, (err, user) => {
+        if (err) {
+          console.error("JWT verification error:", err.message);
+          if (err.name === "TokenExpiredError") {
+            return res.status(401).json({
+              success: false,
+              message: "Token expired, please log in again",
+            });
+          }
+          return res.status(403).json({ 
+            success: false, 
+            message: "Invalid token" 
           });
         }
-        return res.status(403).json({ 
+
+        req.user = user;
+        if (user && user.id) {
+          req.session.userId = user.id;
+        }
+        next();
+      });
+    } else {
+      if (req.session && req.session.userId) {
+        next();
+      } else {
+        return res.status(401).json({ 
           success: false, 
-          message: "Invalid token" 
+          message: "Unauthorized" 
         });
       }
-
-      req.user = user;
-      req.session.userId = user.id;
-      next();
-    });
-  } else {
-    if (!req.session.userId) {
-      return res.status(401).json({ 
-        success: false, 
-        message: "Unauthorized" 
-      });
     }
-    next();
+  } catch (error) {
+    console.error("Authentication middleware error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Authentication error"
+    });
   }
 };
+
+// Simple alive check that doesn't depend on any other modules
+app.get("/alive", (req, res) => {
+  res.status(200).send("Server is alive! " + new Date().toISOString());
+});
 
 // Mount routes
 app.use("/", authRoutes);
@@ -325,10 +340,31 @@ app.get("/server-info", (req, res) => {
   }
 });
 
-// Start Server
-app.listen(PORT, () => {
-  console.log(`🚀 Server running on port ${PORT}`);
+// Add this near the bottom of your file, just before app.listen
+app.get("/basic-status", (req, res) => {
+  res.send(`
+    <html>
+      <head><title>Basic Server Status</title></head>
+      <body>
+        <h1>Basic Server Status</h1>
+        <p>Server is responding to basic HTTP requests</p>
+        <p>Time: ${new Date().toISOString()}</p>
+        <p>Node version: ${process.version}</p>
+        <p>Server uptime: ${Math.floor(process.uptime())} seconds</p>
+        <p>Memory usage: ${Math.round(process.memoryUsage().rss / (1024 * 1024))} MB</p>
+      </body>
+    </html>
+  `);
 });
+
+// Start Server
+try {
+  app.listen(PORT, () => {
+    console.log(`🚀 Server running on port ${PORT}`);
+  });
+} catch (error) {
+  console.error('Failed to start server:', error);
+}
 
 // Export for testing
 module.exports = { app, authenticateJWT };

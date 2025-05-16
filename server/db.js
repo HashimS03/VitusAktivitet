@@ -1,20 +1,14 @@
 const sql = require("mssql");
-require("dotenv").config();
 
 // Log the connection attempt
 console.log("Setting up database connection...");
-console.log("DB Host:", process.env.MSSQL_HOST);
-console.log("DB Name:", process.env.MSSQL_DATABASE);
-console.log("DB Port:", process.env.MSSQL_PORT);
-console.log("DB User is set:", !!process.env.MSSQL_USER);
-console.log("DB Password is set:", !!process.env.MSSQL_PASSWORD);
 
-// Connection configuration
+// Connection configuration with fallbacks
 const config = {
-  user: process.env.MSSQL_USER,
-  password: process.env.MSSQL_PASSWORD,
-  server: process.env.MSSQL_HOST,
-  database: process.env.MSSQL_DATABASE,
+  user: process.env.MSSQL_USER || "your_default_user",
+  password: process.env.MSSQL_PASSWORD || "your_default_password",
+  server: process.env.MSSQL_HOST || "localhost",
+  database: process.env.MSSQL_DATABASE || "your_default_database",
   port: parseInt(process.env.MSSQL_PORT, 10) || 1433,
   options: {
     encrypt: true, // Required for Azure
@@ -29,21 +23,52 @@ const config = {
   },
 };
 
-// Create connection pool
-const poolPromise = new sql.ConnectionPool(config)
-  .connect()
-  .then((pool) => {
-    console.log("Connected to database successfully!");
-    return pool;
-  })
-  .catch((err) => {
-    console.error("Database connection error:", err);
-    throw err;
-  });
+// Create a mock pool for when real connection fails
+const createMockPool = () => {
+  console.warn("Using mock database connection - QUERIES WILL FAIL");
+  return {
+    request: () => ({
+      input: () => ({
+        input: () => ({
+          query: async () => {
+            throw new Error("Database connection failed - cannot execute query");
+          },
+        }),
+        query: async () => {
+          throw new Error("Database connection failed - cannot execute query");
+        },
+      }),
+      query: async () => {
+        throw new Error("Database connection failed - cannot execute query");
+      },
+    }),
+  };
+};
+
+// Create connection pool with error handling
+let isConnected = false;
+let connectionError = null;
+
+const poolPromise = new Promise((resolve) => {
+  sql
+    .connect(config)
+    .then((pool) => {
+      console.log("Connected to database successfully!");
+      isConnected = true;
+      resolve(pool);
+    })
+    .catch((err) => {
+      console.error("Database connection failed:", err);
+      connectionError = err;
+      resolve(createMockPool()); // Resolve with mock so the server can still start
+    });
+});
 
 module.exports = {
   sql,
   poolPromise,
+  isConnected: () => isConnected,
+  getConnectionError: () => connectionError,
 };
 
 
