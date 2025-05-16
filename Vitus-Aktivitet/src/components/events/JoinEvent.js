@@ -12,13 +12,12 @@ import {
 import { CameraView, useCameraPermissions } from "expo-camera";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useTheme } from "../context/ThemeContext";
-import { formatDate } from "../../utils/dateUtils"; // Adjust path if needed
-import { joinEvent } from "../../utils/eventServices"; // Adjust path if needed
-import { UserContext } from "../context/UserContext";
+import { EventContext } from "./EventContext"; // Updated path - same directory
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 export default function JoinEvent({ navigation }) {
   const { theme, isDarkMode } = useTheme();
+  const { joinEvent, refreshEvents } = useContext(EventContext); // Use context for event functions
   const [permission, requestPermission] = useCameraPermissions();
   const [scanned, setScanned] = useState(false);
   const [userId, setUserId] = useState(null);
@@ -101,14 +100,6 @@ export default function JoinEvent({ navigation }) {
   const handleEventPress = (event) => {
     const eventId = event.id || event.Id;
     navigation.navigate("ActiveEvent", { eventId });
-  };
-
-  const refreshEvents = () => {
-    // You'd need to implement this based on your app's state management
-    // For example, if using a context:
-    // const { refreshEvents } = useContext(EventContext);
-    // refreshEvents();
-    navigation.goBack(); // Simple fallback
   };
 
   if (!permission) {
