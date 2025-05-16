@@ -9,8 +9,6 @@ on:
 
       [ "main", "Daniel's-new-branch", "Hashim's-Workspace-4" , "Sarim's-Workspace-7" ]
 
-    paths:
-      - 'server/**'
   workflow_dispatch:
 
 jobs:
